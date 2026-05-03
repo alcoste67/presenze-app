@@ -143,8 +143,6 @@ export default function HomePage() {
           ? error.message
           : "Errore timbratura"
       );
-    } finally {
-      setLoading(false);
     }
   };
 

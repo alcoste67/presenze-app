@@ -1,4 +1,7 @@
-import { TIMBRATURE } from "@/constants/stati";
+import {
+  STATI,
+  TIMBRATURE,
+} from "@/constants/stati";
 import {
   StatoLavoratore,
   TipoTimbratura,
@@ -17,7 +20,7 @@ export function PulsantiTimbratura({
 }: Props) {
   return (
     <div className="flex flex-col gap-3">
-      {statoAttuale === "FUORI" && (
+      {statoAttuale === STATI.FUORI && (
         <button
           onClick={() =>
             onTimbratura(TIMBRATURE.ENTRATA)
@@ -31,7 +34,7 @@ export function PulsantiTimbratura({
         </button>
       )}
 
-      {statoAttuale === "DENTRO" && (
+      {statoAttuale === STATI.DENTRO && (
         <>
           <button
             onClick={() =>
@@ -59,7 +62,7 @@ export function PulsantiTimbratura({
         </>
       )}
 
-      {statoAttuale === "IN_PAUSA" && (
+      {statoAttuale === STATI.IN_PAUSA && (
         <button
           onClick={() =>
             onTimbratura(TIMBRATURE.RIENTRO)
