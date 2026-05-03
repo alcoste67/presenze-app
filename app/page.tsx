@@ -126,6 +126,12 @@ export default function HomePage() {
   const handleTimbraturaPage = async (
     tipo: TipoTimbratura
   ) => {
+    if (!cantiereId) {
+      alert("Seleziona un cantiere");
+
+      return;
+    }
+
     try {
       await handleTimbratura({
         cantiereId,

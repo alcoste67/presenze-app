@@ -69,12 +69,6 @@ export function useTimbrature({
         );
       }
 
-      if (!cantiereId) {
-        throw new Error(
-          "Seleziona un cantiere"
-        );
-      }
-
       try {
         setLoadingTimbratura(true);
 
