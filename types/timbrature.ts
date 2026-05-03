@@ -1,3 +1,5 @@
+import { TipoAttivita } from "@/types/attivita";
+
 export type TipoTimbratura =
   | "ENTRATA"
   | "PAUSA"
@@ -12,7 +14,8 @@ export type StatoLavoratore =
 export interface Timbratura {
   id: string;
   user_id: string;
-  cantiere_id: string;
+  cantiere_id: string | null;
+  attivita_tipo?: TipoAttivita | null;
   tipo: TipoTimbratura;
   timestamp: string;
   lat?: number | null;
