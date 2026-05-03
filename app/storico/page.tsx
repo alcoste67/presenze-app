@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
+
+const TIPI = {
   ENTRATA: "entrata",
   PAUSA_INIZIO: "pausa_inizio",
   PAUSA_FINE: "pausa_fine",
@@ -23,10 +25,6 @@ export default function StoricoPage() {
   const [loading, setLoading] =
     useState(true);
     
-
-  useEffect(() => {
-    caricaStorico();
-  }, []);
 
   async function caricaStorico() {
 
@@ -60,6 +58,12 @@ export default function StoricoPage() {
     setTimbrature(data || []);
     setLoading(false);
   }
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      caricaStorico();
+    });
+  }, []);
 
   function formattaOra(data: string) {
 

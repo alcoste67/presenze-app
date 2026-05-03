@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
 
@@ -32,7 +33,7 @@ export default function HomePage() {
   // STATE
   // =========================
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   const [cantieri, setCantieri] = useState<
     Cantiere[]
@@ -177,10 +178,14 @@ export default function HomePage() {
       alert(
         `Timbratura ${tipo} registrata`
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
 
-      alert(error.message);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Errore timbratura"
+      );
     } finally {
       setLoading(false);
     }
