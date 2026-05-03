@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 
-import { TipoTimbratura } from "@/types/timbrature";
+import {
+  Timbratura,
+  TipoTimbratura,
+} from "@/types/timbrature";
 import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 import { loadUltimaTimbratura } from "@/services/timbrature/loadUltimaTimbratura";
 import { validaSequenzaTimbratura } from "@/services/timbrature/validaSequenzaTimbratura";
@@ -15,7 +18,7 @@ export async function creaTimbratura({
   userId,
   cantiereId,
   tipo,
-}: Params) {
+}: Params): Promise<Timbratura> {
   const ultimaTimbratura =
     await loadUltimaTimbratura(userId);
 
@@ -51,5 +54,5 @@ export async function creaTimbratura({
     throw error;
   }
 
-  return data;
+  return data as Timbratura;
 }

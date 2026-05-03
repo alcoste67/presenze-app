@@ -5,19 +5,11 @@ import type { User } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
 
-import {
-  StatoLavoratore,
-  Timbratura,
-  TipoTimbratura,
-} from "@/types/timbrature";
-
-import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
-
-import { creaTimbratura } from "@/services/timbrature/creaTimbratura";
+import { TipoTimbratura } from "@/types/timbrature";
 
 import { loadCantieri } from "@/services/cantieri/loadCantieri";
 
-import { loadUltimaTimbratura } from "@/services/timbrature/loadUltimaTimbratura";
+import { useTimbrature } from "@/hooks/useTimbrature";
 
 import { StatoBadge } from "@/components/timbrature/StatoBadge";
 import { PulsantiTimbratura } from "@/components/timbrature/PulsantiTimbratura";
@@ -42,25 +34,22 @@ export default function HomePage() {
   const [cantiereId, setCantiereId] =
     useState("");
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [
-    ultimaTimbratura,
-    setUltimaTimbratura,
-  ] = useState<Timbratura | null>(null);
-
   const [inizializzato, setInizializzato] =
     useState(false);
 
   // =========================
-  // STATO DERIVATO
+  // TIMBRATURE
   // =========================
 
-  const statoAttuale: StatoLavoratore =
-    calcolaStatoDaUltimaTimbratura(
-      ultimaTimbratura?.tipo
-    );
+  const {
+    ultimaTimbratura,
+    statoAttuale,
+    loadingTimbratura,
+    refreshUltimaTimbratura,
+    handleTimbratura,
+  } = useTimbrature({
+    userId: user?.id || null,
+  });
 
   // =========================
   // INIT
@@ -93,12 +82,9 @@ export default function HomePage() {
         // =========================
 
         if (user) {
-          const ultima =
-            await loadUltimaTimbratura(
-              user.id
-            );
-
-          setUltimaTimbratura(ultima);
+          await refreshUltimaTimbratura(
+            user.id
+          );
         }
       } catch (error) {
         console.error(error);
@@ -122,58 +108,29 @@ export default function HomePage() {
 
         setUser(currentUser);
 
-        if (currentUser) {
-          const ultima =
-            await loadUltimaTimbratura(
-              currentUser.id
-            );
-
-          setUltimaTimbratura(ultima);
-        } else {
-          setUltimaTimbratura(null);
-        }
+        await refreshUltimaTimbratura(
+          currentUser?.id || null
+        );
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [refreshUltimaTimbratura]);
 
   // =========================
   // HANDLE TIMBRATURA
   // =========================
 
-  const handleTimbratura = async (
+  const handleTimbraturaPage = async (
     tipo: TipoTimbratura
   ) => {
-    if (!user) {
-      alert("Utente non autenticato");
-
-      return;
-    }
-
-    if (!cantiereId) {
-      alert("Seleziona un cantiere");
-
-      return;
-    }
-
     try {
-      setLoading(true);
-
-      await creaTimbratura({
-        userId: user.id,
+      await handleTimbratura({
         cantiereId,
         tipo,
       });
-
-      const ultima =
-        await loadUltimaTimbratura(
-          user.id
-        );
-
-      setUltimaTimbratura(ultima);
 
       alert(
         `Timbratura ${tipo} registrata`
@@ -290,8 +247,10 @@ export default function HomePage() {
 
         <PulsantiTimbratura
           statoAttuale={statoAttuale}
-          loading={loading}
-          onTimbratura={handleTimbratura}
+          loading={loadingTimbratura}
+          onTimbratura={
+            handleTimbraturaPage
+          }
         />
       </div>
     </main>
