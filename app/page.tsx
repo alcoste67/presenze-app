@@ -11,8 +11,6 @@ import {
   TipoTimbratura,
 } from "@/types/timbrature";
 
-import { TIMBRATURE } from "@/constants/stati";
-
 import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 
 import { creaTimbratura } from "@/services/timbrature/creaTimbratura";
@@ -22,6 +20,8 @@ import { loadCantieri } from "@/services/cantieri/loadCantieri";
 import { loadUltimaTimbratura } from "@/services/timbrature/loadUltimaTimbratura";
 
 import { StatoBadge } from "@/components/timbrature/StatoBadge";
+import { PulsantiTimbratura } from "@/components/timbrature/PulsantiTimbratura";
+import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 
 type Cantiere = {
   id: string;
@@ -271,36 +271,11 @@ export default function HomePage() {
 
         {/* CANTIERE */}
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">
-            Cantiere
-          </label>
-
-          <select
-            value={cantiereId}
-            onChange={(e) =>
-              setCantiereId(
-                e.target.value
-              )
-            }
-            className="w-full border rounded-lg p-3"
-          >
-            <option value="">
-              Seleziona cantiere
-            </option>
-
-            {cantieri.map(
-              (cantiere) => (
-                <option
-                  key={cantiere.id}
-                  value={cantiere.id}
-                >
-                  {cantiere.nome}
-                </option>
-              )
-            )}
-          </select>
-        </div>
+        <SelectCantiere
+          cantieri={cantieri}
+          cantiereId={cantiereId}
+          onChange={setCantiereId}
+        />
 
         {/* STATO */}
 
@@ -313,74 +288,11 @@ export default function HomePage() {
 
         {/* BOTTONI */}
 
-        <div className="flex flex-col gap-3">
-          {statoAttuale ===
-            "FUORI" && (
-            <button
-              onClick={() =>
-                handleTimbratura(
-                  TIMBRATURE.ENTRATA
-                )
-              }
-              disabled={loading}
-              className="bg-green-600 text-white rounded-lg p-4 font-semibold"
-            >
-              {loading
-                ? "Salvataggio..."
-                : "TIMBRA ENTRATA"}
-            </button>
-          )}
-
-          {statoAttuale ===
-            "DENTRO" && (
-            <>
-              <button
-                onClick={() =>
-                  handleTimbratura(
-                    TIMBRATURE.PAUSA
-                  )
-                }
-                disabled={loading}
-                className="bg-yellow-500 text-white rounded-lg p-4 font-semibold"
-              >
-                {loading
-                  ? "Salvataggio..."
-                  : "INIZIA PAUSA"}
-              </button>
-
-              <button
-                onClick={() =>
-                  handleTimbratura(
-                    TIMBRATURE.USCITA
-                  )
-                }
-                disabled={loading}
-                className="bg-red-600 text-white rounded-lg p-4 font-semibold"
-              >
-                {loading
-                  ? "Salvataggio..."
-                  : "TIMBRA USCITA"}
-              </button>
-            </>
-          )}
-
-          {statoAttuale ===
-            "IN_PAUSA" && (
-            <button
-              onClick={() =>
-                handleTimbratura(
-                  TIMBRATURE.RIENTRO
-                )
-              }
-              disabled={loading}
-              className="bg-blue-600 text-white rounded-lg p-4 font-semibold"
-            >
-              {loading
-                ? "Salvataggio..."
-                : "FINE PAUSA"}
-            </button>
-          )}
-        </div>
+        <PulsantiTimbratura
+          statoAttuale={statoAttuale}
+          loading={loading}
+          onTimbratura={handleTimbratura}
+        />
       </div>
     </main>
   );
