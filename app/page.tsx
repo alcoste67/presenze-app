@@ -218,9 +218,25 @@ export default function HomePage() {
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6">
         {/* HEADER */}
 
-        <h1 className="text-3xl font-bold mb-2">
-          PRESENZE APP
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-3xl font-bold mb-2">
+            PRESENZE APP
+          </h1>
+
+          <button
+            onClick={async () => {
+              const { error } =
+                await supabase.auth.signOut();
+
+              if (error) {
+                alert(error.message);
+              }
+            }}
+            className="text-sm font-semibold text-gray-500"
+          >
+            Logout
+          </button>
+        </div>
 
         <p className="text-sm text-gray-500 mb-6">
           Utente: {user.email}
