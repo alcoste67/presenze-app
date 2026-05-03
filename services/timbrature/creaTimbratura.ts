@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 
 import { TipoTimbratura } from "@/types/timbrature";
+import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
+import { loadUltimaTimbratura } from "@/services/timbrature/loadUltimaTimbratura";
+import { validaSequenzaTimbratura } from "@/services/timbrature/validaSequenzaTimbratura";
 
 type Params = {
   userId: string;
@@ -13,6 +16,27 @@ export async function creaTimbratura({
   cantiereId,
   tipo,
 }: Params) {
+  const ultimaTimbratura =
+    await loadUltimaTimbratura(userId);
+
+  const statoAttuale =
+    calcolaStatoDaUltimaTimbratura(
+      ultimaTimbratura?.tipo
+    );
+
+  const validazione =
+    validaSequenzaTimbratura(
+      statoAttuale,
+      tipo
+    );
+
+  if (!validazione.valida) {
+    throw new Error(
+      validazione.errore ||
+        "Sequenza timbratura non valida"
+    );
+  }
+
   const { data, error } = await supabase
     .from("timbrature")
     .insert({
