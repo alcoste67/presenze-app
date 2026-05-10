@@ -4,10 +4,14 @@ import { supabase } from "@/lib/supabase";
 export async function isAdmin(
   email: string
 ): Promise<boolean> {
+  const emailNormalizzata = email
+    .trim()
+    .toLowerCase();
+
   const { data, error } = await supabase
     .from("dipendenti")
     .select("id")
-    .eq("email", email)
+    .ilike("email", emailNormalizzata)
     .eq("ruolo", RUOLI_DIPENDENTE.ADMIN)
     .eq("attivo", true)
     .limit(1)
