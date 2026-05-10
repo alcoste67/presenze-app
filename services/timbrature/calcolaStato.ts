@@ -1,4 +1,8 @@
 import {
+  STATI,
+  TIMBRATURE,
+} from "@/constants/stati";
+import {
   StatoLavoratore,
   TipoTimbratura,
 } from "@/types/timbrature";
@@ -7,17 +11,17 @@ export function calcolaStatoDaUltimaTimbratura(
   ultimaTimbratura?: TipoTimbratura
 ): StatoLavoratore {
   switch (ultimaTimbratura) {
-    case "ENTRATA":
-      return "DENTRO";
+    case TIMBRATURE.ENTRATA:
+      return STATI.DENTRO;
 
-    case "RIENTRO":
-      return "DENTRO";
+    case TIMBRATURE.RIENTRO:
+      return STATI.DENTRO;
 
-    case "PAUSA":
-      return "IN_PAUSA";
+    case TIMBRATURE.PAUSA:
+      return STATI.IN_PAUSA;
 
-    case "USCITA":
+    case TIMBRATURE.USCITA:
     default:
-      return "FUORI";
+      return STATI.FUORI;
   }
 }

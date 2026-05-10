@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 
+import { TIMBRATURE } from "@/constants/stati";
+import { TipoAttivita } from "@/types/attivita";
 import {
   Timbratura,
   TipoTimbratura,
@@ -15,7 +17,8 @@ type Params = {
 };
 
 type HandleTimbraturaParams = {
-  cantiereId: string;
+  cantiereId: string | null;
+  attivitaTipo: TipoAttivita | null;
   tipo: TipoTimbratura;
 };
 
@@ -61,6 +64,7 @@ export function useTimbrature({
   const handleTimbratura = useCallback(
     async ({
       cantiereId,
+      attivitaTipo,
       tipo,
     }: HandleTimbraturaParams) => {
       if (!userId) {
@@ -72,10 +76,27 @@ export function useTimbrature({
       try {
         setLoadingTimbratura(true);
 
+        const destinazioneCantiereId =
+          tipo === TIMBRATURE.ENTRATA
+            ? cantiereId
+            : cantiereId ||
+              ultimaTimbratura?.cantiere_id ||
+              null;
+
+        const destinazioneAttivitaTipo =
+          tipo === TIMBRATURE.ENTRATA
+            ? attivitaTipo
+            : attivitaTipo ||
+              ultimaTimbratura?.attivita_tipo ||
+              null;
+
         const nuovaTimbratura =
           await creaTimbratura({
             userId,
-            cantiereId,
+            cantiereId:
+              destinazioneCantiereId,
+            attivitaTipo:
+              destinazioneAttivitaTipo,
             tipo,
           });
 
@@ -88,7 +109,7 @@ export function useTimbrature({
         setLoadingTimbratura(false);
       }
     },
-    [userId]
+    [ultimaTimbratura, userId]
   );
 
   return {

@@ -1,0 +1,6 @@
+export const RUOLI_DIPENDENTE = {
+  OPERAIO: "OPERAIO",
+  RESPONSABILE: "RESPONSABILE",
+  UFFICIO: "UFFICIO",
+  ADMIN: "ADMIN",
+} as const;

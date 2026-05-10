@@ -2,295 +2,281 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "../lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
-const TIPI = {
-  ENTRATA: "entrata",
-  PAUSA_INIZIO: "pausa_inizio",
-  PAUSA_FINE: "pausa_fine",
-  USCITA: "uscita",
+import { ATTIVITA } from "@/constants/attivita";
+import { TIMBRATURE } from "@/constants/stati";
+import { supabase } from "@/lib/supabase";
+import {
+  calcolaOreLavorate,
+  RisultatoOreLavorate,
+} from "@/services/timbrature/calcolaOreLavorate";
+import {
+  loadStoricoTimbrature,
+  TimbraturaStorico,
+} from "@/services/timbrature/loadStoricoTimbrature";
+import { TipoAttivita } from "@/types/attivita";
+import { TipoTimbratura } from "@/types/timbrature";
+
+const LABEL_TIMBRATURE: Record<
+  TipoTimbratura,
+  string
+> = {
+  [TIMBRATURE.ENTRATA]: "Entrata",
+  [TIMBRATURE.PAUSA]: "Pausa",
+  [TIMBRATURE.RIENTRO]: "Rientro",
+  [TIMBRATURE.USCITA]: "Uscita",
 };
 
-type Timbratura = {
-  id: string;
-  tipo: string;
-  created_at: string;
+const LABEL_ATTIVITA: Record<
+  TipoAttivita,
+  string
+> = {
+  [ATTIVITA.ACQUISTI]: "Acquisti",
+  [ATTIVITA.TRASFERTA]: "Trasferta",
+  [ATTIVITA.MAGAZZINO]: "Magazzino",
+  [ATTIVITA.UFFICIO]: "Ufficio",
+  [ATTIVITA.SOPRALLUOGO]: "Sopralluogo",
+  [ATTIVITA.ASSISTENZA]: "Assistenza",
+  [ATTIVITA.VISITA_MEDICA]:
+    "Visita medica",
+  [ATTIVITA.FORMAZIONE]: "Formazione",
+  [ATTIVITA.ALTRO]: "Altro",
 };
+
+function getIntervalloOggi() {
+  const inizio = new Date();
+  inizio.setHours(0, 0, 0, 0);
+
+  const fine = new Date(inizio);
+  fine.setDate(fine.getDate() + 1);
+
+  return {
+    dataInizio: inizio.toISOString(),
+    dataFine: fine.toISOString(),
+  };
+}
+
+function formattaDataOra(data: string) {
+  return new Date(data).toLocaleString(
+    "it-IT",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
+
+function formattaOreLavorate(
+  risultato: RisultatoOreLavorate
+) {
+  const ore = Math.floor(
+    risultato.totaleMinuti / 60
+  );
+  const minuti =
+    risultato.totaleMinuti % 60;
+
+  return `${ore}h ${minuti}m`;
+}
+
+function formattaDestinazione(
+  timbratura: TimbraturaStorico
+) {
+  if (timbratura.cantiere_nome) {
+    return timbratura.cantiere_nome;
+  }
+
+  if (timbratura.attivita_tipo) {
+    return LABEL_ATTIVITA[
+      timbratura.attivita_tipo
+    ];
+  }
+
+  return "Destinazione non disponibile";
+}
 
 export default function StoricoPage() {
+  const [user, setUser] =
+    useState<User | null>(null);
 
   const [timbrature, setTimbrature] =
-    useState<Timbratura[]>([]);
+    useState<TimbraturaStorico[]>([]);
 
   const [loading, setLoading] =
     useState(true);
-    
 
-  async function caricaStorico() {
+  const [errore, setErrore] =
+    useState<string | null>(null);
 
-    setLoading(true);
+  const oreLavorate =
+    calcolaOreLavorate(timbrature);
 
-    const oggi = new Date();
-    oggi.setHours(0, 0, 0, 0);
-
-    const domani = new Date(oggi);
-    domani.setDate(domani.getDate() + 1);
-
-    const { data, error } = await supabase
-      .from("timbrature")
-      .select("*")
-      .eq("operatore", "Alessandro")
-      .gte("created_at", oggi.toISOString())
-      .lt("created_at", domani.toISOString())
-      .order("created_at", {
-        ascending: true,
-      });
-
-    console.log("STORICO:", data);
-    console.log("ERRORE:", error);
-
-    if (error) {
-      alert("Errore caricamento storico");
-      setLoading(false);
-      return;
-    }
-
-    setTimbrature(data || []);
-    setLoading(false);
-  }
+  const timbratureVisualizzate = [
+    ...timbrature,
+  ].reverse();
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      caricaStorico();
-    });
+    let attivo = true;
+
+    const caricaStorico = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!attivo) {
+          return;
+        }
+
+        setUser(user);
+
+        if (!user) {
+          setTimbrature([]);
+          return;
+        }
+
+        const { dataInizio, dataFine } =
+          getIntervalloOggi();
+
+        const storico =
+          await loadStoricoTimbrature({
+            userId: user.id,
+            dataInizio,
+            dataFine,
+          });
+
+        if (!attivo) {
+          return;
+        }
+
+        setTimbrature(storico);
+      } catch (error: unknown) {
+        if (!attivo) {
+          return;
+        }
+
+        setErrore(
+          error instanceof Error
+            ? error.message
+            : "Errore caricamento storico"
+        );
+      } finally {
+        if (attivo) {
+          setLoading(false);
+        }
+      }
+    };
+
+    caricaStorico();
+
+    return () => {
+      attivo = false;
+    };
   }, []);
 
-  function formattaOra(data: string) {
-
-    return new Date(data)
-      .toLocaleTimeString("it-IT", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-  }
-
-  function formattaTipo(tipo: string) {
-
-    switch (tipo) {
-
-      case TIPI.ENTRATA:
-        return "Entrata";
-
-      case TIPI.PAUSA_INIZIO:
-        return "Inizio pausa";
-
-      case TIPI.PAUSA_FINE:
-        return "Fine pausa";
-
-      case TIPI.USCITA:
-        return "Uscita";
-
-      default:
-        return tipo;
-    }
-  }
-
-  function coloreEvento(tipo: string) {
-
-    switch (tipo) {
-
-      case TIPI.ENTRATA:
-        return "#16a34a";
-
-      case TIPI.PAUSA_INIZIO:
-        return "#f59e0b";
-
-      case TIPI.PAUSA_FINE:
-        return "#2563eb";
-
-      case TIPI.USCITA:
-        return "#dc2626";
-
-      default:
-        return "#6b7280";
-    }
-  }
-
-  function calcolaOreLavorate() {
-
-    let totaleMillisecondi = 0;
-
-    let inizioLavoro: Date | null = null;
-
-    for (const evento of timbrature) {
-
-      if (
-        evento.tipo === TIPI.ENTRATA ||
-        evento.tipo === TIPI.PAUSA_FINE
-      ) {
-        inizioLavoro =
-          new Date(evento.created_at);
-      }
-
-      if (
-        (
-          evento.tipo === TIPI.PAUSA_INIZIO ||
-          evento.tipo === TIPI.USCITA
-        ) &&
-        inizioLavoro
-      ) {
-
-        const fine =
-          new Date(evento.created_at);
-
-        totaleMillisecondi +=
-          fine.getTime() -
-          inizioLavoro.getTime();
-
-        inizioLavoro = null;
-      }
-    }
-
-    const ore =
-      Math.floor(
-        totaleMillisecondi / 1000 / 60 / 60
-      );
-
-    const minuti =
-      Math.floor(
-        (totaleMillisecondi / 1000 / 60) % 60
-      );
-
-    return `${ore}h ${minuti}m`;
-  }
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f3f4f6",
-        padding: "24px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "600px",
-          margin: "0 auto",
-          background: "white",
-          borderRadius: "24px",
-          padding: "24px",
-          boxShadow:
-            "0 2px 10px rgba(0,0,0,0.1)",
-        }}
-      >
-
-        <h1
-          style={{
-            fontSize: "36px",
-            fontWeight: "bold",
-            marginBottom: "12px",
-          }}
-        >
-          Storico Giornaliero
+    <main className="min-h-screen bg-gray-100 p-6">
+      <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6 shadow">
+        <h1 className="mb-3 text-3xl font-bold">
+          Storico giornaliero
         </h1>
 
         <Link
           href="/"
-          style={{
-            display: "inline-block",
-            marginBottom: "24px",
-            fontWeight: "bold",
-            textDecoration: "none",
-            color: "#2563eb"
-          }}
+          className="mb-6 inline-block font-semibold text-blue-600"
         >
-          ← Torna alla timbratura
+          Torna alla timbratura
         </Link>
 
-        <div
-          style={{
-            background: "#f9fafb",
-            padding: "16px",
-            borderRadius: "16px",
-            marginBottom: "24px",
-          }}
-        >
-          <p
-            style={{
-              fontSize: "20px",
-              fontWeight: "bold",
-            }}
-          >
-            Ore lavorate:{" "}
-            {calcolaOreLavorate()}
+        {!user && !loading && (
+          <p className="text-gray-500">
+            Effettua il login per vedere lo
+            storico.
           </p>
-        </div>
+        )}
 
         {loading && (
-          <p>Caricamento...</p>
+          <p className="text-gray-500">
+            Caricamento...
+          </p>
+        )}
+
+        {errore && (
+          <p className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            {errore}
+          </p>
         )}
 
         {!loading &&
+          !errore &&
+          user &&
           timbrature.length === 0 && (
-            <p>
+            <p className="text-gray-500">
               Nessuna timbratura oggi
             </p>
           )}
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-          }}
-        >
+        {!loading &&
+          !errore &&
+          user &&
+          timbrature.length > 0 && (
+            <div className="mb-4 rounded-lg bg-gray-50 p-4">
+              <p className="font-semibold">
+                Ore lavorate:{" "}
+                {formattaOreLavorate(
+                  oreLavorate
+                )}
+              </p>
 
-          {timbrature.map((evento) => (
+              {oreLavorate.giornataAperta && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Giornata aperta
+                </p>
+              )}
 
+              {oreLavorate.sequenzaIncompleta && (
+                <p className="mt-1 text-sm text-yellow-700">
+                  Sequenza timbrature incompleta
+                </p>
+              )}
+            </div>
+          )}
+
+        <div className="flex flex-col gap-3">
+          {timbratureVisualizzate.map((timbratura) => (
             <div
-              key={evento.id}
-              style={{
-                border:
-                  "1px solid #e5e7eb",
-                borderLeft:
-                  `8px solid ${coloreEvento(evento.tipo)}`,
-                borderRadius: "14px",
-                padding: "16px",
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "center",
-              }}
+              key={timbratura.id}
+              className="rounded-lg border border-gray-200 p-4"
             >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold">
+                    {
+                      LABEL_TIMBRATURE[
+                        timbratura.tipo
+                      ]
+                    }
+                  </p>
 
-              <div>
-                <p
-                  style={{
-                    fontWeight: "bold",
-                    fontSize: "18px",
-                  }}
-                >
-                  {formattaTipo(evento.tipo)}
+                  <p className="mt-1 text-sm text-gray-500">
+                    {formattaDestinazione(
+                      timbratura
+                    )}
+                  </p>
+                </div>
+
+                <p className="text-right text-sm font-semibold text-gray-700">
+                  {formattaDataOra(
+                    timbratura.created_at
+                  )}
                 </p>
               </div>
-
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                }}
-              >
-                {formattaOra(
-                  evento.created_at
-                )}
-              </div>
-
             </div>
-
           ))}
-
         </div>
-
       </div>
     </main>
   );

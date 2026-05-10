@@ -1,15 +1,14 @@
+import {
+  STATI,
+  TIMBRATURE,
+} from "@/constants/stati";
 import { TipoAttivita } from "@/types/attivita";
 
 export type TipoTimbratura =
-  | "ENTRATA"
-  | "PAUSA"
-  | "RIENTRO"
-  | "USCITA";
+  (typeof TIMBRATURE)[keyof typeof TIMBRATURE];
 
 export type StatoLavoratore =
-  | "FUORI"
-  | "DENTRO"
-  | "IN_PAUSA";
+  (typeof STATI)[keyof typeof STATI];
 
 export interface Timbratura {
   id: string;
