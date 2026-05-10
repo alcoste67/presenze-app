@@ -17,6 +17,12 @@ export async function isAdmin(
     .limit(1)
     .maybeSingle();
 
+  console.log("Diagnostica isAdmin", {
+    emailNormalizzata,
+    data,
+    error,
+  });
+
   if (error) {
     throw error;
   }

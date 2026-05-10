@@ -87,7 +87,13 @@ export default function HomePage() {
 
         setMostraBackoffice(utenteAdmin);
       } catch (error) {
-        console.error(error);
+        console.error(
+          "Errore controllo admin",
+          {
+            email: currentUser.email,
+            error,
+          }
+        );
         setMostraBackoffice(false);
       }
     };
