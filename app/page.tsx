@@ -11,7 +11,7 @@ import { TipoAttivita } from "@/types/attivita";
 import { TipoTimbratura } from "@/types/timbrature";
 
 import { loadCantieri } from "@/services/cantieri/loadCantieri";
-import { verificaDipendenteAdmin } from "@/services/dipendenti/verificaDipendenteAdmin";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
 
 import { useTimbrature } from "@/hooks/useTimbrature";
 
@@ -74,19 +74,18 @@ export default function HomePage() {
     const refreshMostraBackoffice = async (
       currentUser: User | null
     ) => {
-      if (!currentUser) {
+      if (!currentUser?.email) {
         setMostraBackoffice(false);
 
         return;
       }
 
       try {
-        const isAdmin =
-          await verificaDipendenteAdmin(
-            currentUser.id
-          );
+        const utenteAdmin = await isAdmin(
+          currentUser.email
+        );
 
-        setMostraBackoffice(isAdmin);
+        setMostraBackoffice(utenteAdmin);
       } catch (error) {
         console.error(error);
         setMostraBackoffice(false);

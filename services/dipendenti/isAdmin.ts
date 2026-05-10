@@ -1,13 +1,13 @@
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabase } from "@/lib/supabase";
 
-export async function verificaDipendenteAdmin(
-  userId: string
+export async function isAdmin(
+  email: string
 ): Promise<boolean> {
   const { data, error } = await supabase
     .from("dipendenti")
     .select("id")
-    .eq("auth_user_id", userId)
+    .eq("email", email)
     .eq("ruolo", RUOLI_DIPENDENTE.ADMIN)
     .eq("attivo", true)
     .limit(1)
