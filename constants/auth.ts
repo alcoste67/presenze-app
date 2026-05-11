@@ -1,5 +1,5 @@
 export const AUTH_OTP = {
-  CODICE_LENGTH: 6,
+  CODICE_LENGTH: 8,
   RESEND_COOLDOWN_SECONDS: 60,
   COOLDOWN_INTERVAL_MS: 1000,
   CODICE_PATTERN: "[0-9]*",
@@ -29,7 +29,7 @@ export const AUTH_TESTI = {
   EMAIL_LABEL: "Email",
   EMAIL_PLACEHOLDER: "Inserisci email",
   CODICE_LABEL: "Codice OTP",
-  CODICE_PLACEHOLDER: "000000",
+  CODICE_PLACEHOLDER: "00000000",
   INVIA_CODICE: "Invia codice",
   INVIO_CODICE: "Invio codice...",
   REINVIA_CODICE: "Reinvia codice",
@@ -43,7 +43,7 @@ export const AUTH_TESTI = {
     EMAIL_OBBLIGATORIA:
       "Inserisci l'email.",
     CODICE_OBBLIGATORIO:
-      "Inserisci il codice a 6 cifre.",
+      "Inserisci il codice a 8 cifre.",
     RATE_LIMIT:
       "Hai richiesto troppi codici. Attendi prima di riprovare.",
     CODICE_NON_VALIDO:
