@@ -1,0 +1,423 @@
+import {
+  isAuthApiError,
+  type User,
+} from "@supabase/supabase-js";
+
+import { API_HEADERS } from "@/constants/api";
+import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
+import type {
+  Dipendente,
+  DipendenteInput,
+  RuoloDipendente,
+} from "@/types/dipendenti";
+
+const SELECT_DIPENDENTE =
+  "id, nome, cognome, email, ruolo, attivo, auth_user_id, created_at";
+
+const HTTP_STATUS = {
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  CONFLICT: 409,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+const ERRORI_API = {
+  TOKEN_MANCANTE: "Token autenticazione mancante",
+  TOKEN_NON_VALIDO: "Token autenticazione non valido",
+  ACCESSO_NEGATO: "Accesso non autorizzato",
+  PAYLOAD_NON_VALIDO: "Dati dipendente non validi",
+  CAMPI_OBBLIGATORI:
+    "Nome, cognome ed email sono obbligatori",
+  DIPENDENTE_ESISTENTE:
+    "Esiste gia un dipendente con questa email",
+  AUTH_USER_NON_RECUPERATO:
+    "Utente Auth esistente non recuperabile",
+  CREAZIONE_AUTH_FALLITA:
+    "Creazione utente Auth non riuscita",
+  ERRORE_GENERICO:
+    "Errore creazione dipendente",
+} as const;
+
+const AUTH_USER_ESISTENTE_CODES = [
+  "email_exists",
+  "user_already_exists",
+  "conflict",
+] as const;
+
+const RUOLI_CONSENTITI: readonly RuoloDipendente[] =
+  Object.values(RUOLI_DIPENDENTE);
+
+type AuthUserCollegato = {
+  userId: string;
+  creatoOra: boolean;
+};
+
+function jsonErrore(
+  errore: string,
+  status: number
+) {
+  return Response.json(
+    {
+      errore,
+    },
+    {
+      status,
+    }
+  );
+}
+
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
+function isRuoloDipendente(
+  value: unknown
+): value is RuoloDipendente {
+  return (
+    typeof value === "string" &&
+    RUOLI_CONSENTITI.includes(
+      value as RuoloDipendente
+    )
+  );
+}
+
+function estraiAccessToken(
+  request: Request
+): string | null {
+  const authorization = request.headers.get(
+    API_HEADERS.AUTHORIZATION
+  );
+
+  if (
+    !authorization?.startsWith(
+      API_HEADERS.BEARER_PREFIX
+    )
+  ) {
+    return null;
+  }
+
+  const accessToken = authorization
+    .slice(API_HEADERS.BEARER_PREFIX.length)
+    .trim();
+
+  return accessToken || null;
+}
+
+async function leggiDipendenteInput(
+  request: Request
+): Promise<DipendenteInput | null> {
+  let payload: unknown;
+
+  try {
+    payload = await request.json();
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  if (
+    typeof payload.nome !== "string" ||
+    typeof payload.cognome !== "string" ||
+    typeof payload.email !== "string" ||
+    typeof payload.attivo !== "boolean" ||
+    !isRuoloDipendente(payload.ruolo)
+  ) {
+    return null;
+  }
+
+  return {
+    nome: payload.nome,
+    cognome: payload.cognome,
+    email: payload.email,
+    ruolo: payload.ruolo,
+    attivo: payload.attivo,
+  };
+}
+
+function normalizzaDipendente(
+  dipendente: DipendenteInput
+): DipendenteInput {
+  return {
+    nome: dipendente.nome.trim(),
+    cognome: dipendente.cognome.trim(),
+    email: dipendente.email.trim().toLowerCase(),
+    ruolo: dipendente.ruolo,
+    attivo: dipendente.attivo,
+  };
+}
+
+function isAuthUserEsistente(
+  error: unknown
+): boolean {
+  if (!isAuthApiError(error)) {
+    return false;
+  }
+
+  if (
+    error.code &&
+    AUTH_USER_ESISTENTE_CODES.includes(
+      error.code as (typeof AUTH_USER_ESISTENTE_CODES)[number]
+    )
+  ) {
+    return true;
+  }
+
+  return error.message
+    .toLowerCase()
+    .includes("already");
+}
+
+async function trovaAuthUserPerEmail(
+  email: string
+): Promise<User | null> {
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } =
+      await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    const user = data.users.find(
+      (utente) =>
+        utente.email?.trim().toLowerCase() === email
+    );
+
+    if (user) {
+      return user;
+    }
+
+    if (!data.nextPage) {
+      return null;
+    }
+
+    page = data.nextPage;
+  }
+}
+
+async function creaORecuperaAuthUser(
+  email: string
+): Promise<AuthUserCollegato> {
+  const { data, error } =
+    await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+
+  if (!error && data.user) {
+    return {
+      userId: data.user.id,
+      creatoOra: true,
+    };
+  }
+
+  if (!isAuthUserEsistente(error)) {
+    throw error ?? new Error(
+      ERRORI_API.CREAZIONE_AUTH_FALLITA
+    );
+  }
+
+  const authUserEsistente =
+    await trovaAuthUserPerEmail(email);
+
+  if (!authUserEsistente) {
+    throw new Error(
+      ERRORI_API.AUTH_USER_NON_RECUPERATO
+    );
+  }
+
+  return {
+    userId: authUserEsistente.id,
+    creatoOra: false,
+  };
+}
+
+async function eliminaAuthUserCreatoOra(
+  authUser: AuthUserCollegato
+) {
+  if (!authUser.creatoOra) {
+    return;
+  }
+
+  const { error } =
+    await supabaseAdmin.auth.admin.deleteUser(
+      authUser.userId
+    );
+
+  if (error) {
+    console.error(
+      "Cleanup utente Auth fallito",
+      error
+    );
+  }
+}
+
+function isErroreDuplicatoDb(
+  error: unknown
+): boolean {
+  return (
+    isRecord(error) &&
+    error.code === "23505"
+  );
+}
+
+export async function POST(
+  request: Request
+): Promise<Response> {
+  try {
+    const accessToken =
+      estraiAccessToken(request);
+
+    if (!accessToken) {
+      return jsonErrore(
+        ERRORI_API.TOKEN_MANCANTE,
+        HTTP_STATUS.UNAUTHORIZED
+      );
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(
+      accessToken
+    );
+
+    if (authError || !user?.email) {
+      return jsonErrore(
+        ERRORI_API.TOKEN_NON_VALIDO,
+        HTTP_STATUS.UNAUTHORIZED
+      );
+    }
+
+    const utenteAdmin = await isAdmin(
+      user.email,
+      supabaseAdmin
+    );
+
+    if (!utenteAdmin) {
+      return jsonErrore(
+        ERRORI_API.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    const input =
+      await leggiDipendenteInput(request);
+
+    if (!input) {
+      return jsonErrore(
+        ERRORI_API.PAYLOAD_NON_VALIDO,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const dipendente =
+      normalizzaDipendente(input);
+
+    if (
+      !dipendente.nome ||
+      !dipendente.cognome ||
+      !dipendente.email
+    ) {
+      return jsonErrore(
+        ERRORI_API.CAMPI_OBBLIGATORI,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const {
+      data: dipendenteEsistente,
+      error: dipendenteEsistenteError,
+    } = await supabaseAdmin
+      .from("dipendenti")
+      .select("id")
+      .ilike("email", dipendente.email)
+      .limit(1)
+      .maybeSingle();
+
+    if (dipendenteEsistenteError) {
+      throw dipendenteEsistenteError;
+    }
+
+    if (dipendenteEsistente) {
+      return jsonErrore(
+        ERRORI_API.DIPENDENTE_ESISTENTE,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    const authUser =
+      await creaORecuperaAuthUser(
+        dipendente.email
+      );
+
+    const {
+      data: nuovoDipendente,
+      error: creaDipendenteError,
+    } = await supabaseAdmin
+      .from("dipendenti")
+      .insert({
+        nome: dipendente.nome,
+        cognome: dipendente.cognome,
+        email: dipendente.email,
+        ruolo: dipendente.ruolo,
+        attivo: dipendente.attivo,
+        auth_user_id: authUser.userId,
+      })
+      .select(SELECT_DIPENDENTE)
+      .single();
+
+    if (creaDipendenteError) {
+      await eliminaAuthUserCreatoOra(authUser);
+
+      if (
+        isErroreDuplicatoDb(
+          creaDipendenteError
+        )
+      ) {
+        return jsonErrore(
+          ERRORI_API.DIPENDENTE_ESISTENTE,
+          HTTP_STATUS.CONFLICT
+        );
+      }
+
+      throw creaDipendenteError;
+    }
+
+    return Response.json(
+      nuovoDipendente as Dipendente,
+      {
+        status: HTTP_STATUS.CREATED,
+      }
+    );
+  } catch (error: unknown) {
+    console.error(
+      "Errore creazione dipendente con Auth",
+      error
+    );
+
+    return jsonErrore(
+      ERRORI_API.ERRORE_GENERICO,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+}

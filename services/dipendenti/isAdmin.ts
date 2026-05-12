@@ -2,13 +2,14 @@ import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabase } from "@/lib/supabase";
 
 export async function isAdmin(
-  email: string
+  email: string,
+  supabaseClient: typeof supabase = supabase
 ): Promise<boolean> {
   const emailNormalizzata = email
     .trim()
     .toLowerCase();
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("dipendenti")
     .select("id")
     .ilike("email", emailNormalizzata)
@@ -16,12 +17,6 @@ export async function isAdmin(
     .eq("attivo", true)
     .limit(1)
     .maybeSingle();
-
-  console.log("Diagnostica isAdmin", {
-    emailNormalizzata,
-    data,
-    error,
-  });
 
   if (error) {
     throw error;
