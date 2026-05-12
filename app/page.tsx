@@ -29,6 +29,7 @@ import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { verificaCodiceOtp } from "@/services/auth/verificaCodiceOtp";
 import { loadCantieri } from "@/services/cantieri/loadCantieri";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
 
 import { useTimbrature } from "@/hooks/useTimbrature";
 
@@ -211,6 +212,57 @@ export default function HomePage() {
       }
     };
 
+    const disconnettiUtenteNonAttivo =
+      async () => {
+        setUser(null);
+        setMostraBackoffice(false);
+        await refreshUltimaTimbratura(null);
+        setErroreAuth(
+          AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO
+        );
+        await esciAuth();
+      };
+
+    const sincronizzaUtenteAutenticato =
+      async (
+        currentUser: User | null
+      ): Promise<User | null> => {
+        if (!currentUser) {
+          setUser(null);
+          setMostraBackoffice(false);
+          await refreshUltimaTimbratura(null);
+
+          return null;
+        }
+
+        if (!currentUser.email) {
+          await disconnettiUtenteNonAttivo();
+
+          return null;
+        }
+
+        const dipendenteAttivo =
+          await isDipendenteAttivo(
+            currentUser.email
+          );
+
+        if (!dipendenteAttivo) {
+          await disconnettiUtenteNonAttivo();
+
+          return null;
+        }
+
+        setUser(currentUser);
+        await refreshMostraBackoffice(
+          currentUser
+        );
+        await refreshUltimaTimbratura(
+          currentUser.id
+        );
+
+        return currentUser;
+      };
+
     const init = async () => {
       try {
         // =========================
@@ -219,8 +271,9 @@ export default function HomePage() {
 
         const user = await loadUtenteAuth();
 
-        setUser(user);
-        await refreshMostraBackoffice(user);
+        await sincronizzaUtenteAutenticato(
+          user
+        );
 
         // =========================
         // CANTIERI
@@ -230,16 +283,6 @@ export default function HomePage() {
           await loadCantieri();
 
         setCantieri(cantieriData);
-
-        // =========================
-        // ULTIMA TIMBRATURA
-        // =========================
-
-        if (user) {
-          await refreshUltimaTimbratura(
-            user.id
-          );
-        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -259,13 +302,8 @@ export default function HomePage() {
           const currentUser =
             session?.user || null;
 
-          setUser(currentUser);
-          await refreshMostraBackoffice(
+          await sincronizzaUtenteAutenticato(
             currentUser
-          );
-
-          await refreshUltimaTimbratura(
-            currentUser?.id || null
           );
         }
       );
@@ -339,6 +377,19 @@ export default function HomePage() {
       setLoadingInvioCodice(true);
       setErroreAuth(null);
       setMessaggioAuth(null);
+
+      const dipendenteAttivo =
+        await isDipendenteAttivo(
+          emailNormalizzata
+        );
+
+      if (!dipendenteAttivo) {
+        setErroreAuth(
+          AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO
+        );
+
+        return;
+      }
 
       await inviaCodiceOtp(emailNormalizzata);
 

@@ -50,6 +50,8 @@ export const AUTH_TESTI = {
       "Codice non valido o scaduto.",
     EMAIL_NON_AUTORIZZATA:
       "Email non autorizzata al login.",
+    DIPENDENTE_NON_ATTIVO:
+      "Dipendente non attivo o non autorizzato al login.",
     GENERICO:
       "Errore durante il login. Riprova.",
   },
