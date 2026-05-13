@@ -5,6 +5,8 @@ export const API_ROUTES = {
     "/api/cantieri/elimina-se-vuoto",
   ELIMINA_DIPENDENTE_SE_VUOTO:
     "/api/dipendenti/elimina-se-vuoto",
+  VERIFICA_DIPENDENTE_ATTIVO:
+    "/api/dipendenti/verifica-attivo",
 } as const;
 
 export const API_HEADERS = {
