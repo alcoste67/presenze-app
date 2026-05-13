@@ -1,6 +1,10 @@
 export const API_ROUTES = {
   CREA_DIPENDENTE_CON_AUTH:
     "/api/dipendenti/crea-con-auth",
+  ELIMINA_CANTIERE_SE_VUOTO:
+    "/api/cantieri/elimina-se-vuoto",
+  ELIMINA_DIPENDENTE_SE_VUOTO:
+    "/api/dipendenti/elimina-se-vuoto",
 } as const;
 
 export const API_HEADERS = {

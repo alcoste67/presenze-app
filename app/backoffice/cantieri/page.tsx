@@ -10,6 +10,7 @@ import {
 
 import { aggiornaCantiere } from "@/services/cantieri/aggiornaCantiere";
 import { creaCantiere } from "@/services/cantieri/creaCantiere";
+import { eliminaCantiereSeVuoto } from "@/services/cantieri/eliminaCantiereSeVuoto";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import {
   CantiereBackoffice,
@@ -245,6 +246,50 @@ export default function BackofficeCantieriPage() {
           ? "Cantiere attivato"
           : "Cantiere disattivato"
       );
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
+  const eliminaCantiere = async (
+    cantiere: CantiereBackoffice
+  ) => {
+    if (cantiere.attivo) {
+      setErrore(
+        "Disattiva il cantiere prima di eliminarlo"
+      );
+
+      return;
+    }
+
+    const confermato = window.confirm(
+      `Eliminare definitivamente il cantiere "${cantiere.nome}"?`
+    );
+
+    if (!confermato) {
+      return;
+    }
+
+    try {
+      setSalvataggio(true);
+      setErrore(null);
+      setMessaggio(null);
+
+      await eliminaCantiereSeVuoto(
+        cantiere.id
+      );
+
+      if (
+        cantiereInModificaId === cantiere.id
+      ) {
+        resetForm();
+      }
+
+      await caricaCantieri();
+
+      setMessaggio("Cantiere eliminato");
     } catch (error: unknown) {
       setErrore(getMessaggioErrore(error));
     } finally {
@@ -520,6 +565,21 @@ export default function BackofficeCantieriPage() {
                                 ? "Disattiva"
                                 : "Attiva"}
                             </button>
+
+                            {!cantiere.attivo && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void eliminaCantiere(
+                                    cantiere
+                                  )
+                                }
+                                disabled={salvataggio}
+                                className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 disabled:text-gray-400"
+                              >
+                                Elimina
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

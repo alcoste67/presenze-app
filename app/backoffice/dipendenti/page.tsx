@@ -11,6 +11,7 @@ import {
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { aggiornaDipendente } from "@/services/dipendenti/aggiornaDipendente";
 import { creaDipendente } from "@/services/dipendenti/creaDipendente";
+import { eliminaDipendenteSeVuoto } from "@/services/dipendenti/eliminaDipendenteSeVuoto";
 import { loadDipendenti } from "@/services/dipendenti/loadDipendenti";
 import {
   Dipendente,
@@ -300,6 +301,53 @@ export default function BackofficeDipendentiPage() {
         dipendenteAggiornato.attivo
           ? "Dipendente attivato"
           : "Dipendente disattivato"
+      );
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
+  const eliminaDipendente = async (
+    dipendente: Dipendente
+  ) => {
+    if (dipendente.attivo) {
+      setErrore(
+        "Disattiva il dipendente prima di eliminarlo"
+      );
+
+      return;
+    }
+
+    const confermato = window.confirm(
+      `Eliminare definitivamente il dipendente ${dipendente.cognome} ${dipendente.nome}?`
+    );
+
+    if (!confermato) {
+      return;
+    }
+
+    try {
+      setSalvataggio(true);
+      setErrore(null);
+      setMessaggio(null);
+
+      await eliminaDipendenteSeVuoto(
+        dipendente.id
+      );
+
+      if (
+        dipendenteInModificaId ===
+        dipendente.id
+      ) {
+        resetForm();
+      }
+
+      await caricaDipendenti();
+
+      setMessaggio(
+        "Dipendente eliminato"
       );
     } catch (error: unknown) {
       setErrore(getMessaggioErrore(error));
@@ -616,6 +664,21 @@ export default function BackofficeDipendentiPage() {
                                     ? "Disattiva"
                                     : "Attiva"}
                                 </button>
+
+                                {!dipendente.attivo && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void eliminaDipendente(
+                                        dipendente
+                                      )
+                                    }
+                                    disabled={salvataggio}
+                                    className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 disabled:text-gray-400"
+                                  >
+                                    Elimina
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
