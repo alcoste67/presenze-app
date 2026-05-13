@@ -22,6 +22,8 @@ const ERRORI_API = {
     "Disattiva il cantiere prima di eliminarlo",
   CANTIERE_USATO:
     "Cantiere gia utilizzato da timbrature. Eliminazione bloccata.",
+  CANTIERE_NON_ELIMINATO:
+    "Cantiere non eliminato",
   ERRORE_GENERICO: "Errore eliminazione cantiere",
 } as const;
 
@@ -201,11 +203,29 @@ export async function POST(
       );
     }
 
-    const { error: deleteError } =
-      await supabaseAdmin
-        .from("cantieri")
-        .delete()
-        .eq("id", cantiereId);
+    const {
+      data: cantiereEliminato,
+      error: deleteError,
+    } = await supabaseAdmin
+      .from("cantieri")
+      .delete()
+      .eq("id", cantiereId)
+      .select("id")
+      .single();
+
+    if (deleteError?.code === "23503") {
+      return jsonErrore(
+        ERRORI_API.CANTIERE_USATO,
+        HTTP_STATUS.CONFLICT
+      );
+    }
+
+    if (!cantiereEliminato) {
+      return jsonErrore(
+        ERRORI_API.CANTIERE_NON_ELIMINATO,
+        HTTP_STATUS.CONFLICT
+      );
+    }
 
     if (deleteError) {
       throw deleteError;
