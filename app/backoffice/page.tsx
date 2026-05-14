@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
+
 export default function BackofficePage() {
   return (
     <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
@@ -19,7 +21,7 @@ export default function BackofficePage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Link
             href="/backoffice/dipendenti"
             className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
@@ -41,6 +43,20 @@ export default function BackofficePage() {
             </h2>
             <p className="mt-2 text-sm text-gray-500">
               Gestione anagrafica cantieri
+            </p>
+          </Link>
+
+          <Link
+            href="/backoffice/presenze"
+            className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
+          >
+            <h2 className="text-xl font-semibold">
+              {REPORT_PRESENZE_TESTI.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              {
+                REPORT_PRESENZE_TESTI.CARD_DESCRIZIONE
+              }
             </p>
           </Link>
         </div>
