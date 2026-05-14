@@ -21,10 +21,12 @@ export async function aggiornaDipendente({
       email: dipendente.email,
       ruolo: dipendente.ruolo,
       attivo: dipendente.attivo,
+      tipo_conteggio_ore:
+        dipendente.tipo_conteggio_ore,
     })
     .eq("id", dipendenteId)
     .select(
-      "id, nome, cognome, email, ruolo, attivo, auth_user_id, created_at"
+      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at"
     )
     .single();
 

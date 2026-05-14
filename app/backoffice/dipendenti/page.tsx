@@ -9,6 +9,11 @@ import {
 } from "react";
 
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
+import {
+  LABEL_TIPO_CONTEGGIO_ORE,
+  TIPO_CONTEGGIO_ORE,
+  TIPO_CONTEGGIO_ORE_TESTI,
+} from "@/constants/tipoConteggioOre";
 import { aggiornaDipendente } from "@/services/dipendenti/aggiornaDipendente";
 import { creaDipendente } from "@/services/dipendenti/creaDipendente";
 import { eliminaDipendenteSeVuoto } from "@/services/dipendenti/eliminaDipendenteSeVuoto";
@@ -17,6 +22,7 @@ import {
   Dipendente,
   DipendenteInput,
   RuoloDipendente,
+  TipoConteggioOre,
 } from "@/types/dipendenti";
 
 const LABEL_RUOLI_DIPENDENTE: Record<
@@ -36,6 +42,8 @@ const FORM_INIZIALE: DipendenteInput = {
   email: "",
   ruolo: RUOLI_DIPENDENTE.OPERAIO,
   attivo: true,
+  tipo_conteggio_ore:
+    TIPO_CONTEGGIO_ORE.REALE,
 };
 
 function getMessaggioErrore(error: unknown) {
@@ -53,6 +61,8 @@ function preparaDipendente(
     email: dipendente.email.trim(),
     ruolo: dipendente.ruolo,
     attivo: dipendente.attivo,
+    tipo_conteggio_ore:
+      dipendente.tipo_conteggio_ore,
   };
 }
 
@@ -245,6 +255,8 @@ export default function BackofficeDipendentiPage() {
       email: dipendente.email,
       ruolo: dipendente.ruolo,
       attivo: dipendente.attivo,
+      tipo_conteggio_ore:
+        dipendente.tipo_conteggio_ore,
     });
     setErrore(null);
     setMessaggio(null);
@@ -267,6 +279,8 @@ export default function BackofficeDipendentiPage() {
             email: dipendente.email,
             ruolo: dipendente.ruolo,
             attivo: !dipendente.attivo,
+            tipo_conteggio_ore:
+              dipendente.tipo_conteggio_ore,
           },
         });
 
@@ -294,6 +308,8 @@ export default function BackofficeDipendentiPage() {
           ruolo: dipendenteAggiornato.ruolo,
           attivo:
             dipendenteAggiornato.attivo,
+          tipo_conteggio_ore:
+            dipendenteAggiornato.tipo_conteggio_ore,
         });
       }
 
@@ -502,6 +518,44 @@ export default function BackofficeDipendentiPage() {
                 </select>
               </label>
 
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700">
+                  {
+                    TIPO_CONTEGGIO_ORE_TESTI.LABEL
+                  }
+                </span>
+                <select
+                  value={form.tipo_conteggio_ore}
+                  onChange={(event) =>
+                    setForm(
+                      (formCorrente) => ({
+                        ...formCorrente,
+                        tipo_conteggio_ore:
+                          event.target
+                            .value as TipoConteggioOre,
+                      })
+                    )
+                  }
+                  disabled={salvataggio}
+                  className="w-full rounded-lg border p-3 text-gray-900"
+                >
+                  {Object.values(
+                    TIPO_CONTEGGIO_ORE
+                  ).map((tipoConteggioOre) => (
+                    <option
+                      key={tipoConteggioOre}
+                      value={tipoConteggioOre}
+                    >
+                      {
+                        LABEL_TIPO_CONTEGGIO_ORE[
+                          tipoConteggioOre
+                        ]
+                      }
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
                 <input
                   type="checkbox"
@@ -593,6 +647,11 @@ export default function BackofficeDipendentiPage() {
                           Ruolo
                         </th>
                         <th className="py-3 pr-4 font-semibold">
+                          {
+                            TIPO_CONTEGGIO_ORE_TESTI.LABEL
+                          }
+                        </th>
+                        <th className="py-3 pr-4 font-semibold">
                           Stato
                         </th>
                         <th className="py-3 text-right font-semibold">
@@ -619,6 +678,14 @@ export default function BackofficeDipendentiPage() {
                               {
                                 LABEL_RUOLI_DIPENDENTE[
                                   dipendente.ruolo
+                                ]
+                              }
+                            </td>
+                            <td className="py-4 pr-4 text-gray-700">
+                              {
+                                LABEL_TIPO_CONTEGGIO_ORE[
+                                  dipendente
+                                    .tipo_conteggio_ore
                                 ]
                               }
                             </td>

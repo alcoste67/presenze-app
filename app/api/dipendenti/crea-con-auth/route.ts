@@ -5,16 +5,18 @@ import {
 
 import { API_HEADERS } from "@/constants/api";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
+import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import type {
   Dipendente,
   DipendenteInput,
   RuoloDipendente,
+  TipoConteggioOre,
 } from "@/types/dipendenti";
 
 const SELECT_DIPENDENTE =
-  "id, nome, cognome, email, ruolo, attivo, auth_user_id, created_at";
+  "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at";
 
 const HTTP_STATUS = {
   CREATED: 201,
@@ -50,6 +52,8 @@ const AUTH_USER_ESISTENTE_CODES = [
 
 const RUOLI_CONSENTITI: readonly RuoloDipendente[] =
   Object.values(RUOLI_DIPENDENTE);
+const TIPI_CONTEGGIO_ORE_CONSENTITI: readonly TipoConteggioOre[] =
+  Object.values(TIPO_CONTEGGIO_ORE);
 
 type AuthUserCollegato = {
   userId: string;
@@ -91,6 +95,17 @@ function isRuoloDipendente(
   );
 }
 
+function isTipoConteggioOre(
+  value: unknown
+): value is TipoConteggioOre {
+  return (
+    typeof value === "string" &&
+    TIPI_CONTEGGIO_ORE_CONSENTITI.includes(
+      value as TipoConteggioOre
+    )
+  );
+}
+
 function estraiAccessToken(
   request: Request
 ): string | null {
@@ -128,12 +143,19 @@ async function leggiDipendenteInput(
     return null;
   }
 
+  const tipoConteggioOre =
+    typeof payload.tipo_conteggio_ore ===
+    "undefined"
+      ? TIPO_CONTEGGIO_ORE.REALE
+      : payload.tipo_conteggio_ore;
+
   if (
     typeof payload.nome !== "string" ||
     typeof payload.cognome !== "string" ||
     typeof payload.email !== "string" ||
     typeof payload.attivo !== "boolean" ||
-    !isRuoloDipendente(payload.ruolo)
+    !isRuoloDipendente(payload.ruolo) ||
+    !isTipoConteggioOre(tipoConteggioOre)
   ) {
     return null;
   }
@@ -144,6 +166,7 @@ async function leggiDipendenteInput(
     email: payload.email,
     ruolo: payload.ruolo,
     attivo: payload.attivo,
+    tipo_conteggio_ore: tipoConteggioOre,
   };
 }
 
@@ -156,6 +179,8 @@ function normalizzaDipendente(
     email: dipendente.email.trim().toLowerCase(),
     ruolo: dipendente.ruolo,
     attivo: dipendente.attivo,
+    tipo_conteggio_ore:
+      dipendente.tipo_conteggio_ore,
   };
 }
 
@@ -381,6 +406,8 @@ export async function POST(
         email: dipendente.email,
         ruolo: dipendente.ruolo,
         attivo: dipendente.attivo,
+        tipo_conteggio_ore:
+          dipendente.tipo_conteggio_ore,
         auth_user_id: authUser.userId,
       })
       .select(SELECT_DIPENDENTE)

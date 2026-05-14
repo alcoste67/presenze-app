@@ -3,7 +3,9 @@ import { supabase } from "@/lib/supabase";
 import {
   Dipendente,
   DipendenteInput,
+  TipoConteggioOre,
 } from "@/types/dipendenti";
+import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
 
 const ERRORI_CREA_DIPENDENTE = {
   SESSIONE_MANCANTE:
@@ -13,6 +15,9 @@ const ERRORI_CREA_DIPENDENTE = {
   ERRORE_GENERICO:
     "Errore creazione dipendente",
 } as const;
+
+const TIPI_CONTEGGIO_ORE_CONSENTITI: readonly TipoConteggioOre[] =
+  Object.values(TIPO_CONTEGGIO_ORE);
 
 function isRecord(
   value: unknown
@@ -35,6 +40,11 @@ function isDipendente(
     typeof value.email === "string" &&
     typeof value.ruolo === "string" &&
     typeof value.attivo === "boolean" &&
+    typeof value.tipo_conteggio_ore ===
+      "string" &&
+    TIPI_CONTEGGIO_ORE_CONSENTITI.includes(
+      value.tipo_conteggio_ore as TipoConteggioOre
+    ) &&
     (typeof value.auth_user_id === "string" ||
       value.auth_user_id === null) &&
     typeof value.created_at === "string"
