@@ -315,15 +315,20 @@ function getAttivitaTipo(
 function getTipoConteggioOre(
   value: string
 ): TipoConteggioOre {
+  const valueNormalizzato = value.trim();
+
   if (
     TIPI_CONTEGGIO_ORE.includes(
-      value as TipoConteggioOre
+      valueNormalizzato as TipoConteggioOre
     )
   ) {
-    return value as TipoConteggioOre;
+    return valueNormalizzato as TipoConteggioOre;
   }
 
-  return TIPO_CONTEGGIO_ORE.REALE;
+  throw new Error(
+    REPORT_LIBRO_PRESENZE_TESTI.ERRORI
+      .GENERICO
+  );
 }
 
 function formattaDipendente(
@@ -354,6 +359,25 @@ function formattaOra(
   return formattaOraReport.format(
     new Date(timbratura.created_at)
   );
+}
+
+function calcolaMinutiPaghe({
+  tipoConteggioOre,
+  totaleMinutiReali,
+  presenzaValida,
+}: {
+  tipoConteggioOre: TipoConteggioOre | null;
+  totaleMinutiReali: number;
+  presenzaValida: boolean;
+}) {
+  if (
+    tipoConteggioOre ===
+    TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_8H
+  ) {
+    return presenzaValida ? 8 * 60 : 0;
+  }
+
+  return totaleMinutiReali;
 }
 
 function getKeyGruppo({
@@ -536,13 +560,14 @@ function creaRigaReport({
   );
   const presenzaValida =
     oreReali.totaleMinuti > 0;
-  const minutiPaghe =
-    dipendente?.tipo_conteggio_ore ===
-      TIPO_CONTEGGIO_ORE
-        .GIORNATA_FORFAIT_8H &&
-    presenzaValida
-      ? 8 * 60
-      : oreReali.totaleMinuti;
+  const minutiPaghe = calcolaMinutiPaghe({
+    tipoConteggioOre:
+      dipendente?.tipo_conteggio_ore ||
+      null,
+    totaleMinutiReali:
+      oreReali.totaleMinuti,
+    presenzaValida,
+  });
   const destinazioni =
     getDestinazioniUniche({
       timbrature: gruppo.timbrature,
