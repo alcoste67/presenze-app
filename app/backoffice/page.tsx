@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 
 export default function BackofficePage() {
@@ -21,7 +22,7 @@ export default function BackofficePage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/backoffice/dipendenti"
             className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
@@ -56,6 +57,22 @@ export default function BackofficePage() {
             <p className="mt-2 text-sm text-gray-500">
               {
                 REPORT_PRESENZE_TESTI.CARD_DESCRIZIONE
+              }
+            </p>
+          </Link>
+
+          <Link
+            href="/backoffice/libro-presenze"
+            className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
+          >
+            <h2 className="text-xl font-semibold">
+              {
+                REPORT_LIBRO_PRESENZE_TESTI.TITOLO
+              }
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              {
+                REPORT_LIBRO_PRESENZE_TESTI.CARD_DESCRIZIONE
               }
             </p>
           </Link>
