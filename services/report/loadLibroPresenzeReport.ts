@@ -331,6 +331,31 @@ function getTipoConteggioOre(
   );
 }
 
+function normalizzaDipendenteReport(
+  dipendente: DipendenteReportRow
+): DipendenteReport {
+  return {
+    ...dipendente,
+    tipo_conteggio_ore:
+      getTipoConteggioOre(
+        dipendente.tipo_conteggio_ore
+      ),
+  };
+}
+
+function logTipoConteggioOreDipendente(
+  dipendente: DipendenteReport
+) {
+  console.info(
+    "Libro presenze tipo_conteggio_ore",
+    {
+      email: dipendente.email,
+      tipo_conteggio_ore:
+        dipendente.tipo_conteggio_ore,
+    }
+  );
+}
+
 function formattaDipendente(
   dipendente: DipendenteReport | undefined
 ) {
@@ -624,13 +649,14 @@ async function loadDipendente(
     return null;
   }
 
-  return {
-    ...dipendente,
-    tipo_conteggio_ore:
-      getTipoConteggioOre(
-        dipendente.tipo_conteggio_ore
-      ),
-  };
+  const dipendenteNormalizzato =
+    normalizzaDipendenteReport(dipendente);
+
+  logTipoConteggioOreDipendente(
+    dipendenteNormalizzato
+  );
+
+  return dipendenteNormalizzato;
 }
 
 async function loadDipendentiByAuthUserIds(
@@ -658,16 +684,21 @@ async function loadDipendentiByAuthUserIds(
         (dipendente) =>
           dipendente.auth_user_id !== null
       )
-      .map((dipendente) => [
-        dipendente.auth_user_id as string,
-        {
-          ...dipendente,
-          tipo_conteggio_ore:
-            getTipoConteggioOre(
-              dipendente.tipo_conteggio_ore
-            ),
-        },
-      ])
+      .map((dipendente) => {
+        const dipendenteNormalizzato =
+          normalizzaDipendenteReport(
+            dipendente
+          );
+
+        logTipoConteggioOreDipendente(
+          dipendenteNormalizzato
+        );
+
+        return [
+          dipendente.auth_user_id as string,
+          dipendenteNormalizzato,
+        ];
+      })
   );
 }
 
@@ -799,6 +830,13 @@ export async function loadLibroPresenzeReport(
     ),
     loadCantieriByIds(cantiereIds),
   ]);
+
+  if (dipendenteSelezionato?.auth_user_id) {
+    dipendentiByAuthUserId.set(
+      dipendenteSelezionato.auth_user_id,
+      dipendenteSelezionato
+    );
+  }
 
   const righe = gruppi
     .map((gruppo) =>
