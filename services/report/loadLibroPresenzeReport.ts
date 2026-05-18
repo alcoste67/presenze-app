@@ -1,6 +1,7 @@
 import { ATTIVITA } from "@/constants/attivita";
 import {
   REPORT_LIBRO_PRESENZE_LIMITI,
+  REPORT_LIBRO_PRESENZE_ORE_PAGHE,
   REPORT_LIBRO_PRESENZE_TESTI,
   REPORT_LIBRO_PRESENZE_TIME_ZONE,
 } from "@/constants/reportLibroPresenze";
@@ -49,13 +50,6 @@ const formattaGiornoReport =
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
-
-const formattaOraReport =
-  new Intl.DateTimeFormat("it-IT", {
-    timeZone: REPORT_LIBRO_PRESENZE_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
   });
 
 const formattaGiornoIsoParts =
@@ -374,18 +368,6 @@ function formattaMinuti(minutiTotali: number) {
   return `${ore}h ${minuti}m`;
 }
 
-function formattaOra(
-  timbratura: TimbraturaAggregata | undefined
-) {
-  if (!timbratura) {
-    return "";
-  }
-
-  return formattaOraReport.format(
-    new Date(timbratura.created_at)
-  );
-}
-
 function calcolaMinutiPaghe({
   tipoConteggioOre,
   totaleMinutiReali,
@@ -399,7 +381,10 @@ function calcolaMinutiPaghe({
     tipoConteggioOre ===
     TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_8H
   ) {
-    return presenzaValida ? 8 * 60 : 0;
+    return presenzaValida
+      ? REPORT_LIBRO_PRESENZE_ORE_PAGHE
+          .GIORNATA_INTERA_MINUTI
+      : 0;
   }
 
   return totaleMinutiReali;
@@ -568,18 +553,6 @@ function creaRigaReport({
     dipendentiByAuthUserId.get(
       gruppo.userId
     );
-  const entrata = gruppo.timbrature.find(
-    (timbratura) =>
-      timbratura.tipo === TIMBRATURE.ENTRATA
-  );
-  const uscita = [
-    ...gruppo.timbrature,
-  ]
-    .reverse()
-    .find(
-      (timbratura) =>
-        timbratura.tipo === TIMBRATURE.USCITA
-    );
   const oreReali = calcolaOreLavorate(
     gruppo.timbrature
   );
@@ -601,22 +574,9 @@ function creaRigaReport({
 
   return {
     id: gruppo.id,
-    giorno: gruppo.giorno,
-    giornoIso: gruppo.giornoIso,
+    data: gruppo.giorno,
     dipendente:
       formattaDipendente(dipendente),
-    email:
-      dipendente?.email ||
-      REPORT_LIBRO_PRESENZE_TESTI
-        .EMAIL_NON_DISPONIBILE,
-    entrata: formattaOra(entrata),
-    uscita: formattaOra(uscita),
-    totaleMinutiReali:
-      oreReali.totaleMinuti,
-    totaleOreReali: formattaMinuti(
-      oreReali.totaleMinuti
-    ),
-    minutiPaghe,
     orePaghe: formattaMinuti(minutiPaghe),
     cantiereAttivita:
       destinazioni.join(", "),
@@ -839,13 +799,6 @@ export async function loadLibroPresenzeReport(
   }
 
   const righe = gruppi
-    .map((gruppo) =>
-      creaRigaReport({
-        gruppo,
-        dipendentiByAuthUserId,
-        cantieriById,
-      })
-    )
     .sort((a, b) => {
       if (a.giornoIso !== b.giornoIso) {
         return a.giornoIso.localeCompare(
@@ -853,10 +806,15 @@ export async function loadLibroPresenzeReport(
         );
       }
 
-      return a.dipendente.localeCompare(
-        b.dipendente
-      );
-    });
+      return a.userId.localeCompare(b.userId);
+    })
+    .map((gruppo) =>
+      creaRigaReport({
+        gruppo,
+        dipendentiByAuthUserId,
+        cantieriById,
+      })
+    );
 
   const limiteRigheRaggiunto =
     righe.length >

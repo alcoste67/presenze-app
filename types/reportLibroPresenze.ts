@@ -7,15 +7,8 @@ export type LibroPresenzeReportFiltri = {
 
 export type LibroPresenzeReportRiga = {
   id: string;
-  giorno: string;
-  giornoIso: string;
+  data: string;
   dipendente: string;
-  email: string;
-  entrata: string;
-  uscita: string;
-  totaleMinutiReali: number;
-  totaleOreReali: string;
-  minutiPaghe: number;
   orePaghe: string;
   cantiereAttivita: string;
   note: string;

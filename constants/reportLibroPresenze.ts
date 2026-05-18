@@ -15,13 +15,14 @@ export const REPORT_LIBRO_PRESENZE_CSV = {
   MIME_TYPE: "text/csv;charset=utf-8",
 } as const;
 
+export const REPORT_LIBRO_PRESENZE_ORE_PAGHE = {
+  GIORNATA_INTERA_MINUTI: 8 * 60,
+  MEZZA_GIORNATA_MINUTI: 4 * 60,
+} as const;
+
 export const REPORT_LIBRO_PRESENZE_COLONNE = [
-  "Giorno",
+  "Data",
   "Dipendente",
-  "Email",
-  "Entrata",
-  "Uscita",
-  "Totale ore reali",
   "Ore paghe",
   "Cantiere/Attività",
   "Note",

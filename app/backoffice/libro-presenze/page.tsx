@@ -93,12 +93,8 @@ function getValoriRigaCsv(
   riga: LibroPresenzeReportRiga
 ) {
   return [
-    riga.giorno,
+    riga.data,
     riga.dipendente,
-    riga.email,
-    riga.entrata,
-    riga.uscita,
-    riga.totaleOreReali,
     riga.orePaghe,
     riga.cantiereAttivita,
     riga.note,
@@ -604,22 +600,10 @@ export default function BackofficeLibroPresenzePage() {
                         className="border-b border-gray-100"
                       >
                         <td className="whitespace-nowrap px-3 py-2">
-                          {riga.giorno}
+                          {riga.data}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
                           {riga.dipendente}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {riga.email}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {riga.entrata}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {riga.uscita}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {riga.totaleOreReali}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
                           {riga.orePaghe}

@@ -26,17 +26,8 @@ function isLibroPresenzeReportRiga(
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    typeof value.giorno === "string" &&
-    typeof value.giornoIso === "string" &&
+    typeof value.data === "string" &&
     typeof value.dipendente === "string" &&
-    typeof value.email === "string" &&
-    typeof value.entrata === "string" &&
-    typeof value.uscita === "string" &&
-    typeof value.totaleMinutiReali ===
-      "number" &&
-    typeof value.totaleOreReali ===
-      "string" &&
-    typeof value.minutiPaghe === "number" &&
     typeof value.orePaghe === "string" &&
     typeof value.cantiereAttivita ===
       "string" &&
