@@ -562,18 +562,101 @@ export default function HomePage() {
     setErroreLavorazioniUscita(null);
   };
 
+  const selezionaLavorazioneUscita = (
+    lavorazioneId: string
+  ) => {
+    setLavorazioniUscitaSelezionate(
+      (lavorazioneIds) =>
+        lavorazioneIds.includes(lavorazioneId)
+          ? lavorazioneIds
+          : [
+              ...lavorazioneIds,
+              lavorazioneId,
+            ]
+    );
+  };
+
+  const normalizzaPercentualeLavorazioneUscita =
+    (percentuale: string) => {
+      if (percentuale.trim() === "") {
+        return "";
+      }
+
+      const percentualeNumber =
+        Number(percentuale);
+
+      if (
+        !Number.isFinite(percentualeNumber)
+      ) {
+        return "";
+      }
+
+      const percentualeIntera =
+        Math.trunc(percentualeNumber);
+
+      return String(
+        Math.min(
+          LAVORAZIONI_LIMITI.PERCENTUALE_MAX,
+          Math.max(
+            LAVORAZIONI_LIMITI.PERCENTUALE_MIN,
+            percentualeIntera
+          )
+        )
+      );
+    };
+
   const handlePercentualeLavorazioneUscitaChange =
     (
       lavorazioneId: string,
       percentuale: string
     ) => {
+      selezionaLavorazioneUscita(
+        lavorazioneId
+      );
       setPercentualiLavorazioniUscita(
         (percentuali) => ({
           ...percentuali,
-          [lavorazioneId]: percentuale,
+          [lavorazioneId]:
+            normalizzaPercentualeLavorazioneUscita(
+              percentuale
+            ),
         })
       );
       setErroreLavorazioniUscita(null);
+    };
+
+  const getPercentualeLavorazioneUscitaValue =
+    (lavorazione: LavorazioneCantiere) =>
+      percentualiLavorazioniUscita[
+        lavorazione.id
+      ] ??
+      String(
+        lavorazione.percentuale_completamento
+      );
+
+  const getSliderLavorazioneUscitaValue =
+    (lavorazione: LavorazioneCantiere) => {
+      const percentualeRaw =
+        getPercentualeLavorazioneUscitaValue(
+          lavorazione
+        );
+      const percentuale =
+        Number(percentualeRaw);
+
+      if (
+        percentualeRaw.trim() !== "" &&
+        Number.isInteger(percentuale) &&
+        percentuale >=
+          LAVORAZIONI_LIMITI.PERCENTUALE_MIN &&
+        percentuale <=
+          LAVORAZIONI_LIMITI.PERCENTUALE_MAX
+      ) {
+        return percentualeRaw;
+      }
+
+      return String(
+        LAVORAZIONI_LIMITI.PERCENTUALE_MIN
+      );
     };
 
   const getLavorazioniUscitaPayload =
@@ -1072,37 +1155,37 @@ export default function HomePage() {
                 (lavorazione) => (
                   <div
                     key={lavorazione.id}
-                    className="flex items-center gap-3 rounded-lg border border-gray-200 p-3"
+                    className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3"
                   >
-                    <input
-                      type="checkbox"
-                      checked={lavorazioniUscitaSelezionate.includes(
-                        lavorazione.id
-                      )}
-                      onChange={() =>
-                        toggleLavorazioneUscita(
-                          lavorazione
-                        )
-                      }
-                      disabled={
-                        loadingTimbratura
-                      }
-                      id={`lavorazione-uscita-${lavorazione.id}`}
-                      className="h-5 w-5"
-                    />
-
-                    <label
-                      htmlFor={`lavorazione-uscita-${lavorazione.id}`}
-                      className="min-w-0 flex-1 text-sm font-medium"
-                    >
-                      {lavorazione.nome}
-                    </label>
-
-                    {lavorazioniUscitaSelezionate.includes(
-                      lavorazione.id
-                    ) && (
+                    <div className="flex items-center gap-3">
                       <input
-                        type="number"
+                        type="checkbox"
+                        checked={lavorazioniUscitaSelezionate.includes(
+                          lavorazione.id
+                        )}
+                        onChange={() =>
+                          toggleLavorazioneUscita(
+                            lavorazione
+                          )
+                        }
+                        disabled={
+                          loadingTimbratura
+                        }
+                        id={`lavorazione-uscita-${lavorazione.id}`}
+                        className="h-5 w-5"
+                      />
+
+                      <label
+                        htmlFor={`lavorazione-uscita-${lavorazione.id}`}
+                        className="min-w-0 flex-1 text-sm font-medium"
+                      >
+                        {lavorazione.nome}
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
                         min={
                           LAVORAZIONI_LIMITI.PERCENTUALE_MIN
                         }
@@ -1110,11 +1193,9 @@ export default function HomePage() {
                           LAVORAZIONI_LIMITI.PERCENTUALE_MAX
                         }
                         step="1"
-                        value={
-                          percentualiLavorazioniUscita[
-                            lavorazione.id
-                          ] ?? ""
-                        }
+                        value={getSliderLavorazioneUscitaValue(
+                          lavorazione
+                        )}
                         onChange={(event) =>
                           handlePercentualeLavorazioneUscitaChange(
                             lavorazione.id,
@@ -1125,9 +1206,34 @@ export default function HomePage() {
                         disabled={
                           loadingTimbratura
                         }
-                        className="ml-auto w-24 rounded-lg border border-gray-300 p-2 text-right text-sm"
+                        className="min-w-0 flex-1"
                       />
-                    )}
+
+                      <input
+                        type="number"
+                        min={
+                          LAVORAZIONI_LIMITI.PERCENTUALE_MIN
+                        }
+                        max={
+                          LAVORAZIONI_LIMITI.PERCENTUALE_MAX
+                        }
+                        step="1"
+                        value={getPercentualeLavorazioneUscitaValue(
+                          lavorazione
+                        )}
+                        onChange={(event) =>
+                          handlePercentualeLavorazioneUscitaChange(
+                            lavorazione.id,
+                            event.target.value
+                          )
+                        }
+                        aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
+                        disabled={
+                          loadingTimbratura
+                        }
+                        className="w-20 rounded-lg border border-gray-300 p-2 text-right text-sm"
+                      />
+                    </div>
                   </div>
                 )
               )}
