@@ -8,6 +8,7 @@ import {
   Timbratura,
   TipoTimbratura,
 } from "@/types/timbrature";
+import type { TimbraturaLavorazioneInput } from "@/types/timbratureLavorazioni";
 import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 import { creaTimbratura } from "@/services/timbrature/creaTimbratura";
 import { loadUltimaTimbratura } from "@/services/timbrature/loadUltimaTimbratura";
@@ -21,7 +22,7 @@ type HandleTimbraturaParams = {
   cantiereId: string | null;
   attivitaTipo: TipoAttivita | null;
   tipo: TipoTimbratura;
-  lavorazioneIds?: string[];
+  lavorazioni?: TimbraturaLavorazioneInput[];
 };
 
 export function useTimbrature({
@@ -68,7 +69,7 @@ export function useTimbrature({
       cantiereId,
       attivitaTipo,
       tipo,
-      lavorazioneIds = [],
+      lavorazioni = [],
     }: HandleTimbraturaParams) => {
       if (!userId) {
         throw new Error(
@@ -105,12 +106,12 @@ export function useTimbrature({
 
         if (
           tipo === TIMBRATURE.USCITA &&
-          lavorazioneIds.length > 0
+          lavorazioni.length > 0
         ) {
           await salvaTimbraturaLavorazioni({
             timbraturaId:
               nuovaTimbratura.id,
-            lavorazioneIds,
+            lavorazioni,
           });
         }
 

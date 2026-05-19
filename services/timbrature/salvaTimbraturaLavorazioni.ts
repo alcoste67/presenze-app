@@ -1,33 +1,48 @@
 import { supabase } from "@/lib/supabase";
-import type { TimbraturaLavorazione } from "@/types/timbratureLavorazioni";
+import type {
+  TimbraturaLavorazione,
+  TimbraturaLavorazioneInput,
+} from "@/types/timbratureLavorazioni";
 
 const SELECT_TIMBRATURA_LAVORAZIONE =
-  "id, timbratura_id, lavorazione_id, created_at";
+  "id, timbratura_id, lavorazione_id, percentuale_avanzamento, created_at";
 
 type Params = {
   timbraturaId: string;
-  lavorazioneIds: string[];
+  lavorazioni: TimbraturaLavorazioneInput[];
 };
 
 export async function salvaTimbraturaLavorazioni({
   timbraturaId,
-  lavorazioneIds,
+  lavorazioni,
 }: Params): Promise<TimbraturaLavorazione[]> {
-  const lavorazioneIdsUnici = Array.from(
-    new Set(lavorazioneIds)
+  const lavorazioniUniche = Array.from(
+    new Map(
+      lavorazioni
+        .filter((lavorazione) =>
+          Boolean(lavorazione.lavorazioneId)
+        )
+        .map((lavorazione) => [
+          lavorazione.lavorazioneId,
+          lavorazione,
+        ])
+    ).values()
   );
 
   if (
     !timbraturaId ||
-    lavorazioneIdsUnici.length === 0
+    lavorazioniUniche.length === 0
   ) {
     return [];
   }
 
-  const righe = lavorazioneIdsUnici.map(
-    (lavorazioneId) => ({
+  const righe = lavorazioniUniche.map(
+    (lavorazione) => ({
       timbratura_id: timbraturaId,
-      lavorazione_id: lavorazioneId,
+      lavorazione_id:
+        lavorazione.lavorazioneId,
+      percentuale_avanzamento:
+        lavorazione.percentualeAvanzamento,
     })
   );
 
@@ -36,7 +51,6 @@ export async function salvaTimbraturaLavorazioni({
     .upsert(righe, {
       onConflict:
         "timbratura_id,lavorazione_id",
-      ignoreDuplicates: true,
     })
     .select(SELECT_TIMBRATURA_LAVORAZIONE);
 

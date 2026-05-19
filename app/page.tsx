@@ -18,6 +18,7 @@ import {
   AUTH_OTP,
   AUTH_TESTI,
 } from "@/constants/auth";
+import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import {
   TIMBRATURE,
   TIMBRATURE_TESTI,
@@ -26,6 +27,7 @@ import { TIMBRATURE_LAVORAZIONI_TESTI } from "@/constants/timbratureLavorazioni"
 import { TipoAttivita } from "@/types/attivita";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 import { TipoTimbratura } from "@/types/timbrature";
+import type { TimbraturaLavorazioneInput } from "@/types/timbratureLavorazioni";
 
 import { ascoltaSessioneAuth } from "@/services/auth/ascoltaSessioneAuth";
 import { esciAuth } from "@/services/auth/esciAuth";
@@ -48,6 +50,11 @@ type Cantiere = {
   id: string;
   nome: string;
 };
+
+type PercentualiLavorazioniUscita = Record<
+  string,
+  string
+>;
 
 function isErroreRateLimitAuth(
   error: unknown
@@ -133,6 +140,14 @@ export default function HomePage() {
     lavorazioniUscitaSelezionate,
     setLavorazioniUscitaSelezionate,
   ] = useState<string[]>([]);
+
+  const [
+    percentualiLavorazioniUscita,
+    setPercentualiLavorazioniUscita,
+  ] =
+    useState<PercentualiLavorazioniUscita>(
+      {}
+    );
 
   const [
     cantiereIdUscita,
@@ -503,26 +518,107 @@ export default function HomePage() {
     setMostraLavorazioniUscita(false);
     setLavorazioniUscita([]);
     setLavorazioniUscitaSelezionate([]);
+    setPercentualiLavorazioniUscita({});
     setCantiereIdUscita(null);
     setErroreLavorazioniUscita(null);
   };
 
   const toggleLavorazioneUscita = (
-    lavorazioneId: string
+    lavorazione: LavorazioneCantiere
   ) => {
     setLavorazioniUscitaSelezionate(
       (lavorazioneIds) =>
-        lavorazioneIds.includes(lavorazioneId)
+        lavorazioneIds.includes(
+          lavorazione.id
+        )
           ? lavorazioneIds.filter(
               (currentLavorazioneId) =>
                 currentLavorazioneId !==
-                lavorazioneId
+                lavorazione.id
             )
           : [
               ...lavorazioneIds,
-              lavorazioneId,
+              lavorazione.id,
             ]
     );
+
+    setPercentualiLavorazioniUscita(
+      (percentuali) => {
+        if (
+          percentuali[lavorazione.id] !==
+          undefined
+        ) {
+          return percentuali;
+        }
+
+        return {
+          ...percentuali,
+          [lavorazione.id]: String(
+            lavorazione.percentuale_completamento
+          ),
+        };
+      }
+    );
+    setErroreLavorazioniUscita(null);
+  };
+
+  const handlePercentualeLavorazioneUscitaChange =
+    (
+      lavorazioneId: string,
+      percentuale: string
+    ) => {
+      setPercentualiLavorazioniUscita(
+        (percentuali) => ({
+          ...percentuali,
+          [lavorazioneId]: percentuale,
+        })
+      );
+      setErroreLavorazioniUscita(null);
+    };
+
+  const getLavorazioniUscitaPayload =
+    (): TimbraturaLavorazioneInput[] | null => {
+      const payload =
+        lavorazioniUscitaSelezionate.map(
+          (lavorazioneId) => {
+            const percentualeRaw =
+              percentualiLavorazioniUscita[
+                lavorazioneId
+              ] ?? "";
+            const percentuale =
+              Number(percentualeRaw);
+
+            if (
+              percentualeRaw.trim() === "" ||
+              !Number.isInteger(
+                percentuale
+              ) ||
+              percentuale <
+                LAVORAZIONI_LIMITI.PERCENTUALE_MIN ||
+              percentuale >
+                LAVORAZIONI_LIMITI.PERCENTUALE_MAX
+            ) {
+              return null;
+            }
+
+            return {
+              lavorazioneId,
+              percentualeAvanzamento:
+                percentuale,
+            };
+          }
+        );
+
+      if (
+        payload.some(
+          (lavorazione) =>
+            lavorazione === null
+        )
+      ) {
+        return null;
+      }
+
+      return payload as TimbraturaLavorazioneInput[];
   };
 
   const registraTimbraturaPage = async ({
@@ -530,12 +626,12 @@ export default function HomePage() {
     cantiereIdTimbratura = cantiereId || null,
     attivitaTipoTimbratura = attivitaTipo ||
       null,
-    lavorazioneIds = [],
+    lavorazioni = [],
   }: {
     tipo: TipoTimbratura;
     cantiereIdTimbratura?: string | null;
     attivitaTipoTimbratura?: TipoAttivita | null;
-    lavorazioneIds?: string[];
+    lavorazioni?: TimbraturaLavorazioneInput[];
   }) => {
     try {
       await handleTimbratura({
@@ -543,7 +639,7 @@ export default function HomePage() {
         attivitaTipo:
           attivitaTipoTimbratura,
         tipo,
-        lavorazioneIds,
+        lavorazioni,
       });
 
       resetLavorazioniUscita();
@@ -615,6 +711,18 @@ export default function HomePage() {
             setLavorazioniUscitaSelezionate(
               []
             );
+            setPercentualiLavorazioniUscita(
+              Object.fromEntries(
+                lavorazioni.map(
+                  (lavorazione) => [
+                    lavorazione.id,
+                    String(
+                      lavorazione.percentuale_completamento
+                    ),
+                  ]
+                )
+              )
+            );
             setErroreLavorazioniUscita(
               null
             );
@@ -662,13 +770,24 @@ export default function HomePage() {
         return;
       }
 
+      const lavorazioniPayload =
+        getLavorazioniUscitaPayload();
+
+      if (!lavorazioniPayload) {
+        setErroreLavorazioniUscita(
+          TIMBRATURE_LAVORAZIONI_TESTI.ERRORI
+            .PERCENTUALE_NON_VALIDA
+        );
+
+        return;
+      }
+
       await registraTimbraturaPage({
         tipo: TIMBRATURE.USCITA,
         cantiereIdTimbratura:
           cantiereIdUscita,
         attivitaTipoTimbratura: null,
-        lavorazioneIds:
-          lavorazioniUscitaSelezionate,
+        lavorazioni: lavorazioniPayload,
       });
     };
 
@@ -951,7 +1070,7 @@ export default function HomePage() {
             <div className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto">
               {lavorazioniUscita.map(
                 (lavorazione) => (
-                  <label
+                  <div
                     key={lavorazione.id}
                     className="flex items-center gap-3 rounded-lg border border-gray-200 p-3"
                   >
@@ -962,19 +1081,54 @@ export default function HomePage() {
                       )}
                       onChange={() =>
                         toggleLavorazioneUscita(
-                          lavorazione.id
+                          lavorazione
                         )
                       }
                       disabled={
                         loadingTimbratura
                       }
+                      id={`lavorazione-uscita-${lavorazione.id}`}
                       className="h-5 w-5"
                     />
 
-                    <span className="text-sm font-medium">
+                    <label
+                      htmlFor={`lavorazione-uscita-${lavorazione.id}`}
+                      className="min-w-0 flex-1 text-sm font-medium"
+                    >
                       {lavorazione.nome}
-                    </span>
-                  </label>
+                    </label>
+
+                    {lavorazioniUscitaSelezionate.includes(
+                      lavorazione.id
+                    ) && (
+                      <input
+                        type="number"
+                        min={
+                          LAVORAZIONI_LIMITI.PERCENTUALE_MIN
+                        }
+                        max={
+                          LAVORAZIONI_LIMITI.PERCENTUALE_MAX
+                        }
+                        step="1"
+                        value={
+                          percentualiLavorazioniUscita[
+                            lavorazione.id
+                          ] ?? ""
+                        }
+                        onChange={(event) =>
+                          handlePercentualeLavorazioneUscitaChange(
+                            lavorazione.id,
+                            event.target.value
+                          )
+                        }
+                        aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
+                        disabled={
+                          loadingTimbratura
+                        }
+                        className="ml-auto w-24 rounded-lg border border-gray-300 p-2 text-right text-sm"
+                      />
+                    )}
+                  </div>
                 )
               )}
             </div>
