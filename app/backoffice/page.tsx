@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
+import { SAL_TESTI } from "@/constants/sal";
 
 export default function BackofficePage() {
   return (
@@ -23,7 +24,7 @@ export default function BackofficePage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <Link
             href="/backoffice/dipendenti"
             className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
@@ -59,6 +60,18 @@ export default function BackofficePage() {
               {
                 LAVORAZIONI_TESTI.CARD_DESCRIZIONE
               }
+            </p>
+          </Link>
+
+          <Link
+            href="/backoffice/sal"
+            className="rounded-lg border border-gray-200 bg-white p-5 text-gray-900 shadow hover:border-gray-300"
+          >
+            <h2 className="text-xl font-semibold">
+              {SAL_TESTI.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              {SAL_TESTI.CARD_DESCRIZIONE}
             </p>
           </Link>
 
