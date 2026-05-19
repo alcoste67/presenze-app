@@ -25,6 +25,8 @@ export function SelectCantiere({
 }: Props) {
   const containerRef =
     useRef<HTMLDivElement | null>(null);
+  const inputRef =
+    useRef<HTMLInputElement | null>(null);
 
   const cantiereSelezionato =
     cantieri.find(
@@ -110,6 +112,7 @@ export function SelectCantiere({
       </label>
 
       <input
+        ref={inputRef}
         type="text"
         value={inputValue}
         onChange={(e) =>
@@ -148,6 +151,7 @@ export function SelectCantiere({
                   onChange(cantiere.id);
                   setQuery("");
                   setAperto(false);
+                  inputRef.current?.blur();
                 }}
                 className="block w-full px-3 py-2 text-left hover:bg-gray-100"
               >

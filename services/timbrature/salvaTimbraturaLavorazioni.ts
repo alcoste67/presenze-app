@@ -1,4 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import {
+  LAVORAZIONI_LIMITI,
+  LAVORAZIONI_TESTI,
+} from "@/constants/lavorazioni";
 import type {
   TimbraturaLavorazione,
   TimbraturaLavorazioneInput,
@@ -11,6 +15,19 @@ type Params = {
   timbraturaId: string;
   lavorazioni: TimbraturaLavorazioneInput[];
 };
+
+function isPercentualeValida(
+  percentuale: number | null
+) {
+  return (
+    percentuale === null ||
+    (Number.isInteger(percentuale) &&
+      percentuale >=
+        LAVORAZIONI_LIMITI.PERCENTUALE_MIN &&
+      percentuale <=
+        LAVORAZIONI_LIMITI.PERCENTUALE_MAX)
+  );
+}
 
 export async function salvaTimbraturaLavorazioni({
   timbraturaId,
@@ -36,6 +53,21 @@ export async function salvaTimbraturaLavorazioni({
     return [];
   }
 
+  const percentualiValide =
+    lavorazioniUniche.every(
+      (lavorazione) =>
+        isPercentualeValida(
+          lavorazione.percentualeAvanzamento
+        )
+    );
+
+  if (!percentualiValide) {
+    throw new Error(
+      LAVORAZIONI_TESTI.ERRORI
+        .PERCENTUALE_NON_VALIDA
+    );
+  }
+
   const righe = lavorazioniUniche.map(
     (lavorazione) => ({
       timbratura_id: timbraturaId,
@@ -57,6 +89,32 @@ export async function salvaTimbraturaLavorazioni({
   if (error) {
     throw error;
   }
+
+  await Promise.all(
+    lavorazioniUniche
+      .filter(
+        (lavorazione) =>
+          lavorazione.percentualeAvanzamento !==
+          null
+      )
+      .map(async (lavorazione) => {
+        const { error: updateError } =
+          await supabase
+            .from("lavorazioni_cantiere")
+            .update({
+              percentuale_completamento:
+                lavorazione.percentualeAvanzamento,
+            })
+            .eq(
+              "id",
+              lavorazione.lavorazioneId
+            );
+
+        if (updateError) {
+          throw updateError;
+        }
+      })
+  );
 
   return (data || []) as TimbraturaLavorazione[];
 }
