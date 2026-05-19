@@ -10,3 +10,17 @@ export const TIMBRATURE = {
   RIENTRO: "RIENTRO",
   USCITA: "USCITA",
 } as const;
+
+export const TIMBRATURE_TESTI = {
+  MESSAGGI: {
+    REGISTRATA_PREFIX: "Timbratura",
+    REGISTRATA_SUFFIX: "registrata",
+  },
+  ERRORI: {
+    GENERICO: "Errore timbratura",
+    DESTINAZIONE_OBBLIGATORIA:
+      "Seleziona un cantiere oppure un'attività",
+    DESTINAZIONE_ESCLUSIVA:
+      "Seleziona solo un cantiere oppure solo un'attività",
+  },
+} as const;

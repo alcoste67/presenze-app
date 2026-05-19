@@ -18,8 +18,13 @@ import {
   AUTH_OTP,
   AUTH_TESTI,
 } from "@/constants/auth";
-import { TIMBRATURE } from "@/constants/stati";
+import {
+  TIMBRATURE,
+  TIMBRATURE_TESTI,
+} from "@/constants/stati";
+import { TIMBRATURE_LAVORAZIONI_TESTI } from "@/constants/timbratureLavorazioni";
 import { TipoAttivita } from "@/types/attivita";
+import type { LavorazioneCantiere } from "@/types/lavorazioni";
 import { TipoTimbratura } from "@/types/timbrature";
 
 import { ascoltaSessioneAuth } from "@/services/auth/ascoltaSessioneAuth";
@@ -30,6 +35,7 @@ import { verificaCodiceOtp } from "@/services/auth/verificaCodiceOtp";
 import { loadCantieri } from "@/services/cantieri/loadCantieri";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
+import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
 
 import { useTimbrature } from "@/hooks/useTimbrature";
 
@@ -117,6 +123,31 @@ export default function HomePage() {
     attivitaTipo,
     setAttivitaTipo,
   ] = useState<TipoAttivita | "">("");
+
+  const [
+    lavorazioniUscita,
+    setLavorazioniUscita,
+  ] = useState<LavorazioneCantiere[]>([]);
+
+  const [
+    lavorazioniUscitaSelezionate,
+    setLavorazioniUscitaSelezionate,
+  ] = useState<string[]>([]);
+
+  const [
+    cantiereIdUscita,
+    setCantiereIdUscita,
+  ] = useState<string | null>(null);
+
+  const [
+    mostraLavorazioniUscita,
+    setMostraLavorazioniUscita,
+  ] = useState(false);
+
+  const [
+    erroreLavorazioniUscita,
+    setErroreLavorazioniUscita,
+  ] = useState<string | null>(null);
 
   const [inizializzato, setInizializzato] =
     useState(false);
@@ -468,13 +499,84 @@ export default function HomePage() {
   // HANDLE TIMBRATURA
   // =========================
 
+  const resetLavorazioniUscita = () => {
+    setMostraLavorazioniUscita(false);
+    setLavorazioniUscita([]);
+    setLavorazioniUscitaSelezionate([]);
+    setCantiereIdUscita(null);
+    setErroreLavorazioniUscita(null);
+  };
+
+  const toggleLavorazioneUscita = (
+    lavorazioneId: string
+  ) => {
+    setLavorazioniUscitaSelezionate(
+      (lavorazioneIds) =>
+        lavorazioneIds.includes(lavorazioneId)
+          ? lavorazioneIds.filter(
+              (currentLavorazioneId) =>
+                currentLavorazioneId !==
+                lavorazioneId
+            )
+          : [
+              ...lavorazioneIds,
+              lavorazioneId,
+            ]
+    );
+  };
+
+  const registraTimbraturaPage = async ({
+    tipo,
+    cantiereIdTimbratura = cantiereId || null,
+    attivitaTipoTimbratura = attivitaTipo ||
+      null,
+    lavorazioneIds = [],
+  }: {
+    tipo: TipoTimbratura;
+    cantiereIdTimbratura?: string | null;
+    attivitaTipoTimbratura?: TipoAttivita | null;
+    lavorazioneIds?: string[];
+  }) => {
+    try {
+      await handleTimbratura({
+        cantiereId: cantiereIdTimbratura,
+        attivitaTipo:
+          attivitaTipoTimbratura,
+        tipo,
+        lavorazioneIds,
+      });
+
+      resetLavorazioniUscita();
+
+      alert(
+        `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipo} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
+      );
+    } catch (error: unknown) {
+      console.error(error);
+
+      const messaggioErrore =
+        error instanceof Error
+          ? error.message
+          : TIMBRATURE_TESTI.ERRORI.GENERICO;
+
+      if (tipo === TIMBRATURE.USCITA) {
+        setErroreLavorazioniUscita(
+          messaggioErrore
+        );
+      }
+
+      alert(messaggioErrore);
+    }
+  };
+
   const handleTimbraturaPage = async (
     tipo: TipoTimbratura
   ) => {
     if (tipo === TIMBRATURE.ENTRATA) {
       if (!cantiereId && !attivitaTipo) {
         alert(
-          "Seleziona un cantiere oppure un'attività"
+          TIMBRATURE_TESTI.ERRORI
+            .DESTINAZIONE_OBBLIGATORIA
         );
 
         return;
@@ -482,33 +584,93 @@ export default function HomePage() {
 
       if (cantiereId && attivitaTipo) {
         alert(
-          "Seleziona solo un cantiere oppure solo un'attività"
+          TIMBRATURE_TESTI.ERRORI
+            .DESTINAZIONE_ESCLUSIVA
         );
 
         return;
       }
     }
 
-    try {
-      await handleTimbratura({
-        cantiereId: cantiereId || null,
-        attivitaTipo: attivitaTipo || null,
-        tipo,
-      });
+    if (tipo === TIMBRATURE.USCITA) {
+      const destinazioneCantiereId =
+        cantiereId ||
+        ultimaTimbratura?.cantiere_id ||
+        null;
 
-      alert(
-        `Timbratura ${tipo} registrata`
-      );
-    } catch (error: unknown) {
-      console.error(error);
+      if (destinazioneCantiereId) {
+        try {
+          const lavorazioni =
+            await loadLavorazioniAttiveCantiere(
+              destinazioneCantiereId
+            );
 
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Errore timbratura"
-      );
+          if (lavorazioni.length > 0) {
+            setCantiereIdUscita(
+              destinazioneCantiereId
+            );
+            setLavorazioniUscita(
+              lavorazioni
+            );
+            setLavorazioniUscitaSelezionate(
+              []
+            );
+            setErroreLavorazioniUscita(
+              null
+            );
+            setMostraLavorazioniUscita(
+              true
+            );
+
+            return;
+          }
+        } catch (error: unknown) {
+          console.error(error);
+
+          alert(
+            TIMBRATURE_LAVORAZIONI_TESTI
+              .ERRORI.CARICAMENTO
+          );
+
+          return;
+        }
+
+        await registraTimbraturaPage({
+          tipo,
+          cantiereIdTimbratura:
+            destinazioneCantiereId,
+          attivitaTipoTimbratura: null,
+        });
+
+        return;
+      }
     }
+
+    await registraTimbraturaPage({
+      tipo,
+    });
   };
+
+  const handleConfermaLavorazioniUscita =
+    async () => {
+      if (!cantiereIdUscita) {
+        setErroreLavorazioniUscita(
+          TIMBRATURE_LAVORAZIONI_TESTI
+            .ERRORI.GENERICO
+        );
+
+        return;
+      }
+
+      await registraTimbraturaPage({
+        tipo: TIMBRATURE.USCITA,
+        cantiereIdTimbratura:
+          cantiereIdUscita,
+        attivitaTipoTimbratura: null,
+        lavorazioneIds:
+          lavorazioniUscitaSelezionate,
+      });
+    };
 
   const handleCantiereChange = (
     nextCantiereId: string
@@ -762,6 +924,99 @@ export default function HomePage() {
           }
         />
       </div>
+
+      {mostraLavorazioniUscita && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lavorazioni-uscita-titolo"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="w-full max-w-md rounded-lg bg-white p-5 text-gray-900 shadow-xl">
+            <h2
+              id="lavorazioni-uscita-titolo"
+              className="text-xl font-semibold"
+            >
+              {
+                TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA
+              }
+            </h2>
+
+            <p className="mt-2 text-sm text-gray-600">
+              {
+                TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA
+              }
+            </p>
+
+            <div className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto">
+              {lavorazioniUscita.map(
+                (lavorazione) => (
+                  <label
+                    key={lavorazione.id}
+                    className="flex items-center gap-3 rounded-lg border border-gray-200 p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={lavorazioniUscitaSelezionate.includes(
+                        lavorazione.id
+                      )}
+                      onChange={() =>
+                        toggleLavorazioneUscita(
+                          lavorazione.id
+                        )
+                      }
+                      disabled={
+                        loadingTimbratura
+                      }
+                      className="h-5 w-5"
+                    />
+
+                    <span className="text-sm font-medium">
+                      {lavorazione.nome}
+                    </span>
+                  </label>
+                )
+              )}
+            </div>
+
+            {erroreLavorazioniUscita && (
+              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {
+                  erroreLavorazioniUscita
+                }
+              </p>
+            )}
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={
+                  resetLavorazioniUscita
+                }
+                disabled={loadingTimbratura}
+                className="flex-1 rounded-lg border border-gray-300 p-3 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:bg-gray-100"
+              >
+                {
+                  TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA
+                }
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleConfermaLavorazioniUscita
+                }
+                disabled={loadingTimbratura}
+                className="flex-1 rounded-lg bg-black p-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+              >
+                {loadingTimbratura
+                  ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
+                  : TIMBRATURE_LAVORAZIONI_TESTI.SALVA_USCITA}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
