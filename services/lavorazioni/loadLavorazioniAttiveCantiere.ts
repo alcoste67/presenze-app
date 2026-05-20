@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 
 const SELECT_LAVORAZIONE_CANTIERE =
@@ -16,6 +17,10 @@ export async function loadLavorazioniAttiveCantiere(
     .select(SELECT_LAVORAZIONE_CANTIERE)
     .eq("cantiere_id", cantiereId)
     .eq("attiva", true)
+    .lt(
+      "percentuale_completamento",
+      LAVORAZIONI_LIMITI.PERCENTUALE_MAX
+    )
     .order("ordine", {
       ascending: true,
     })
