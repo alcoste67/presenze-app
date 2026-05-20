@@ -26,6 +26,8 @@ const LABEL_TIMBRATURE: Record<
   [TIMBRATURE.PAUSA]: "Pausa",
   [TIMBRATURE.RIENTRO]: "Rientro",
   [TIMBRATURE.USCITA]: "Uscita",
+  [TIMBRATURE.CAMBIO_CANTIERE]:
+    "Cambio cantiere",
 };
 
 const LABEL_ATTIVITA: Record<

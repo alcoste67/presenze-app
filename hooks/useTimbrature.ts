@@ -80,18 +80,21 @@ export function useTimbrature({
       try {
         setLoadingTimbratura(true);
 
+        const usaNuovaDestinazione =
+          tipo === TIMBRATURE.ENTRATA ||
+          tipo ===
+            TIMBRATURE.CAMBIO_CANTIERE;
+
         const destinazioneCantiereId =
-          tipo === TIMBRATURE.ENTRATA
+          usaNuovaDestinazione
             ? cantiereId
-            : cantiereId ||
-              ultimaTimbratura?.cantiere_id ||
+            : ultimaTimbratura?.cantiere_id ||
               null;
 
         const destinazioneAttivitaTipo =
-          tipo === TIMBRATURE.ENTRATA
+          usaNuovaDestinazione
             ? attivitaTipo
-            : attivitaTipo ||
-              ultimaTimbratura?.attivita_tipo ||
+            : ultimaTimbratura?.attivita_tipo ||
               null;
 
         const nuovaTimbratura =
@@ -105,7 +108,9 @@ export function useTimbrature({
           });
 
         if (
-          tipo === TIMBRATURE.USCITA &&
+          (tipo === TIMBRATURE.USCITA ||
+            tipo ===
+              TIMBRATURE.CAMBIO_CANTIERE) &&
           lavorazioni.length > 0
         ) {
           await salvaTimbraturaLavorazioni({

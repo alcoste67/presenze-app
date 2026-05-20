@@ -53,6 +53,23 @@ export function calcolaOreLavorate(
 
       inizioIntervallo = null;
     }
+
+    if (
+      timbratura.tipo ===
+      TIMBRATURE.CAMBIO_CANTIERE
+    ) {
+      if (!inizioIntervallo) {
+        sequenzaIncompleta = true;
+        inizioIntervallo = dataTimbratura;
+        continue;
+      }
+
+      totaleMillisecondi +=
+        dataTimbratura.getTime() -
+        inizioIntervallo.getTime();
+
+      inizioIntervallo = dataTimbratura;
+    }
   }
 
   return {

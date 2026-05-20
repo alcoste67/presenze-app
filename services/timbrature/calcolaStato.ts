@@ -17,6 +17,9 @@ export function calcolaStatoDaUltimaTimbratura(
     case TIMBRATURE.RIENTRO:
       return STATI.DENTRO;
 
+    case TIMBRATURE.CAMBIO_CANTIERE:
+      return STATI.DENTRO;
+
     case TIMBRATURE.PAUSA:
       return STATI.IN_PAUSA;
 

@@ -1,6 +1,7 @@
 import {
   STATI,
   TIMBRATURE,
+  TIMBRATURE_TESTI,
 } from "@/constants/stati";
 import {
   StatoLavoratore,
@@ -29,8 +30,10 @@ export function PulsantiTimbratura({
           className="bg-green-600 text-white rounded-lg p-4 font-semibold"
         >
           {loading
-            ? "Salvataggio..."
-            : "TIMBRA ENTRATA"}
+            ? TIMBRATURE_TESTI.AZIONI
+                .SALVATAGGIO
+            : TIMBRATURE_TESTI.AZIONI
+                .ENTRATA}
         </button>
       )}
 
@@ -44,8 +47,26 @@ export function PulsantiTimbratura({
             className="bg-yellow-500 text-white rounded-lg p-4 font-semibold"
           >
             {loading
-              ? "Salvataggio..."
-              : "INIZIA PAUSA"}
+              ? TIMBRATURE_TESTI.AZIONI
+                  .SALVATAGGIO
+              : TIMBRATURE_TESTI.AZIONI
+                  .PAUSA}
+          </button>
+
+          <button
+            onClick={() =>
+              onTimbratura(
+                TIMBRATURE.CAMBIO_CANTIERE
+              )
+            }
+            disabled={loading}
+            className="bg-blue-600 text-white rounded-lg p-4 font-semibold"
+          >
+            {loading
+              ? TIMBRATURE_TESTI.AZIONI
+                  .SALVATAGGIO
+              : TIMBRATURE_TESTI.AZIONI
+                  .CAMBIO_CANTIERE}
           </button>
 
           <button
@@ -56,8 +77,10 @@ export function PulsantiTimbratura({
             className="bg-red-600 text-white rounded-lg p-4 font-semibold"
           >
             {loading
-              ? "Salvataggio..."
-              : "TIMBRA USCITA"}
+              ? TIMBRATURE_TESTI.AZIONI
+                  .SALVATAGGIO
+              : TIMBRATURE_TESTI.AZIONI
+                  .USCITA}
           </button>
         </>
       )}
@@ -71,8 +94,10 @@ export function PulsantiTimbratura({
           className="bg-blue-600 text-white rounded-lg p-4 font-semibold"
         >
           {loading
-            ? "Salvataggio..."
-            : "FINE PAUSA"}
+            ? TIMBRATURE_TESTI.AZIONI
+                .SALVATAGGIO
+            : TIMBRATURE_TESTI.AZIONI
+                .RIENTRO}
         </button>
       )}
     </div>

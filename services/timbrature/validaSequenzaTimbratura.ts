@@ -18,7 +18,9 @@ export function validaSequenzaTimbratura(
       tipo === TIMBRATURE.ENTRATA) ||
     (stato === STATI.DENTRO &&
       (tipo === TIMBRATURE.PAUSA ||
-        tipo === TIMBRATURE.USCITA)) ||
+        tipo === TIMBRATURE.USCITA ||
+        tipo ===
+          TIMBRATURE.CAMBIO_CANTIERE)) ||
     (stato === STATI.IN_PAUSA &&
       tipo === TIMBRATURE.RIENTRO);
 

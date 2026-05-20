@@ -9,9 +9,18 @@ export const TIMBRATURE = {
   PAUSA: "PAUSA",
   RIENTRO: "RIENTRO",
   USCITA: "USCITA",
+  CAMBIO_CANTIERE: "CAMBIO_CANTIERE",
 } as const;
 
 export const TIMBRATURE_TESTI = {
+  AZIONI: {
+    SALVATAGGIO: "Salvataggio...",
+    ENTRATA: "TIMBRA ENTRATA",
+    PAUSA: "INIZIA PAUSA",
+    RIENTRO: "FINE PAUSA",
+    USCITA: "TIMBRA USCITA",
+    CAMBIO_CANTIERE: "Cambia cantiere",
+  },
   MESSAGGI: {
     REGISTRATA_PREFIX: "Timbratura",
     REGISTRATA_SUFFIX: "registrata",
@@ -22,5 +31,11 @@ export const TIMBRATURE_TESTI = {
       "Seleziona un cantiere oppure un'attività",
     DESTINAZIONE_ESCLUSIVA:
       "Seleziona solo un cantiere oppure solo un'attività",
+    CAMBIO_CANTIERE_OBBLIGATORIO:
+      "Seleziona il nuovo cantiere",
+    CAMBIO_CANTIERE_STESSO:
+      "Seleziona un cantiere diverso da quello corrente",
+    CAMBIO_CANTIERE_ATTIVITA_NON_CONSENTITA:
+      "Cambio cantiere non consentito su attività generica",
   },
 } as const;

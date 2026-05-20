@@ -56,6 +56,10 @@ type PercentualiLavorazioniUscita = Record<
   string
 >;
 
+type TipoDialogLavorazioni =
+  | typeof TIMBRATURE.USCITA
+  | typeof TIMBRATURE.CAMBIO_CANTIERE;
+
 function isErroreRateLimitAuth(
   error: unknown
 ): boolean {
@@ -153,6 +157,19 @@ export default function HomePage() {
     cantiereIdUscita,
     setCantiereIdUscita,
   ] = useState<string | null>(null);
+
+  const [
+    cantiereIdNuovoCambio,
+    setCantiereIdNuovoCambio,
+  ] = useState<string | null>(null);
+
+  const [
+    tipoDialogLavorazioni,
+    setTipoDialogLavorazioni,
+  ] =
+    useState<TipoDialogLavorazioni | null>(
+      null
+    );
 
   const [
     mostraLavorazioniUscita,
@@ -520,6 +537,8 @@ export default function HomePage() {
     setLavorazioniUscitaSelezionate([]);
     setPercentualiLavorazioniUscita({});
     setCantiereIdUscita(null);
+    setCantiereIdNuovoCambio(null);
+    setTipoDialogLavorazioni(null);
     setErroreLavorazioniUscita(null);
   };
 
@@ -704,6 +723,40 @@ export default function HomePage() {
       return payload as TimbraturaLavorazioneInput[];
   };
 
+  const mostraDialogLavorazioni = ({
+    tipo,
+    cantiereIdLavorazioni,
+    cantiereIdNuovo = null,
+    lavorazioni,
+  }: {
+    tipo: TipoDialogLavorazioni;
+    cantiereIdLavorazioni: string;
+    cantiereIdNuovo?: string | null;
+    lavorazioni: LavorazioneCantiere[];
+  }) => {
+    setTipoDialogLavorazioni(tipo);
+    setCantiereIdUscita(
+      cantiereIdLavorazioni
+    );
+    setCantiereIdNuovoCambio(
+      cantiereIdNuovo
+    );
+    setLavorazioniUscita(lavorazioni);
+    setLavorazioniUscitaSelezionate([]);
+    setPercentualiLavorazioniUscita(
+      Object.fromEntries(
+        lavorazioni.map((lavorazione) => [
+          lavorazione.id,
+          String(
+            lavorazione.percentuale_completamento
+          ),
+        ])
+      )
+    );
+    setErroreLavorazioniUscita(null);
+    setMostraLavorazioniUscita(true);
+  };
+
   const registraTimbraturaPage = async ({
     tipo,
     cantiereIdTimbratura = cantiereId || null,
@@ -725,6 +778,16 @@ export default function HomePage() {
         lavorazioni,
       });
 
+      if (
+        tipo ===
+        TIMBRATURE.CAMBIO_CANTIERE
+      ) {
+        setCantiereId(
+          cantiereIdTimbratura || ""
+        );
+        setAttivitaTipo("");
+      }
+
       resetLavorazioniUscita();
 
       alert(
@@ -738,7 +801,11 @@ export default function HomePage() {
           ? error.message
           : TIMBRATURE_TESTI.ERRORI.GENERICO;
 
-      if (tipo === TIMBRATURE.USCITA) {
+      if (
+        tipo === TIMBRATURE.USCITA ||
+        tipo ===
+          TIMBRATURE.CAMBIO_CANTIERE
+      ) {
         setErroreLavorazioniUscita(
           messaggioErrore
         );
@@ -773,7 +840,6 @@ export default function HomePage() {
 
     if (tipo === TIMBRATURE.USCITA) {
       const destinazioneCantiereId =
-        cantiereId ||
         ultimaTimbratura?.cantiere_id ||
         null;
 
@@ -785,33 +851,12 @@ export default function HomePage() {
             );
 
           if (lavorazioni.length > 0) {
-            setCantiereIdUscita(
-              destinazioneCantiereId
-            );
-            setLavorazioniUscita(
-              lavorazioni
-            );
-            setLavorazioniUscitaSelezionate(
-              []
-            );
-            setPercentualiLavorazioniUscita(
-              Object.fromEntries(
-                lavorazioni.map(
-                  (lavorazione) => [
-                    lavorazione.id,
-                    String(
-                      lavorazione.percentuale_completamento
-                    ),
-                  ]
-                )
-              )
-            );
-            setErroreLavorazioniUscita(
-              null
-            );
-            setMostraLavorazioniUscita(
-              true
-            );
+            mostraDialogLavorazioni({
+              tipo,
+              cantiereIdLavorazioni:
+                destinazioneCantiereId,
+              lavorazioni,
+            });
 
             return;
           }
@@ -835,6 +880,97 @@ export default function HomePage() {
 
         return;
       }
+
+      await registraTimbraturaPage({
+        tipo,
+        cantiereIdTimbratura: null,
+        attivitaTipoTimbratura:
+          ultimaTimbratura?.attivita_tipo ||
+          null,
+      });
+
+      return;
+    }
+
+    if (
+      tipo === TIMBRATURE.CAMBIO_CANTIERE
+    ) {
+      const cantiereIdPrecedente =
+        ultimaTimbratura?.cantiere_id ||
+        null;
+      const nuovoCantiereId =
+        cantiereId || null;
+
+      if (
+        !cantiereIdPrecedente ||
+        ultimaTimbratura?.attivita_tipo
+      ) {
+        alert(
+          TIMBRATURE_TESTI.ERRORI
+            .CAMBIO_CANTIERE_ATTIVITA_NON_CONSENTITA
+        );
+
+        return;
+      }
+
+      if (!nuovoCantiereId) {
+        alert(
+          TIMBRATURE_TESTI.ERRORI
+            .CAMBIO_CANTIERE_OBBLIGATORIO
+        );
+
+        return;
+      }
+
+      if (
+        nuovoCantiereId ===
+        cantiereIdPrecedente
+      ) {
+        alert(
+          TIMBRATURE_TESTI.ERRORI
+            .CAMBIO_CANTIERE_STESSO
+        );
+
+        return;
+      }
+
+      try {
+        const lavorazioni =
+          await loadLavorazioniAttiveCantiere(
+            cantiereIdPrecedente
+          );
+
+        if (lavorazioni.length > 0) {
+          mostraDialogLavorazioni({
+            tipo,
+            cantiereIdLavorazioni:
+              cantiereIdPrecedente,
+            cantiereIdNuovo:
+              nuovoCantiereId,
+            lavorazioni,
+          });
+
+          return;
+        }
+      } catch (error: unknown) {
+        console.error(error);
+
+        alert(
+          TIMBRATURE_LAVORAZIONI_TESTI.ERRORI
+            .CARICAMENTO
+        );
+
+        return;
+      }
+
+      await registraTimbraturaPage({
+        tipo,
+        cantiereIdTimbratura:
+          nuovoCantiereId,
+        attivitaTipoTimbratura: null,
+      });
+
+      return;
     }
 
     await registraTimbraturaPage({
@@ -844,7 +980,10 @@ export default function HomePage() {
 
   const handleConfermaLavorazioniUscita =
     async () => {
-      if (!cantiereIdUscita) {
+      if (
+        !cantiereIdUscita ||
+        !tipoDialogLavorazioni
+      ) {
         setErroreLavorazioniUscita(
           TIMBRATURE_LAVORAZIONI_TESTI
             .ERRORI.GENERICO
@@ -865,10 +1004,26 @@ export default function HomePage() {
         return;
       }
 
+      const isCambioCantiere =
+        tipoDialogLavorazioni ===
+        TIMBRATURE.CAMBIO_CANTIERE;
+      const cantiereIdTimbratura =
+        isCambioCantiere
+          ? cantiereIdNuovoCambio
+          : cantiereIdUscita;
+
+      if (!cantiereIdTimbratura) {
+        setErroreLavorazioniUscita(
+          TIMBRATURE_LAVORAZIONI_TESTI
+            .ERRORI.GENERICO
+        );
+
+        return;
+      }
+
       await registraTimbraturaPage({
-        tipo: TIMBRATURE.USCITA,
-        cantiereIdTimbratura:
-          cantiereIdUscita,
+        tipo: tipoDialogLavorazioni,
+        cantiereIdTimbratura,
         attivitaTipoTimbratura: null,
         lavorazioni: lavorazioniPayload,
       });
@@ -904,6 +1059,10 @@ export default function HomePage() {
         : codiceInviato
           ? AUTH_TESTI.REINVIA_CODICE
           : AUTH_TESTI.INVIA_CODICE;
+
+  const dialogCambioCantiere =
+    tipoDialogLavorazioni ===
+    TIMBRATURE.CAMBIO_CANTIERE;
 
   // =========================
   // LOADING INIT
@@ -1139,15 +1298,19 @@ export default function HomePage() {
               id="lavorazioni-uscita-titolo"
               className="text-xl font-semibold"
             >
-              {
-                TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA
-              }
+              {dialogCambioCantiere
+                ? TIMBRATURE_LAVORAZIONI_TESTI
+                    .TITOLO_CAMBIO_CANTIERE
+                : TIMBRATURE_LAVORAZIONI_TESTI
+                    .TITOLO_USCITA}
             </h2>
 
             <p className="mt-2 text-sm text-gray-600">
-              {
-                TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA
-              }
+              {dialogCambioCantiere
+                ? TIMBRATURE_LAVORAZIONI_TESTI
+                    .DESCRIZIONE_CAMBIO_CANTIERE
+                : TIMBRATURE_LAVORAZIONI_TESTI
+                    .DESCRIZIONE_USCITA}
             </p>
 
             <div className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto">
@@ -1271,7 +1434,10 @@ export default function HomePage() {
               >
                 {loadingTimbratura
                   ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
-                  : TIMBRATURE_LAVORAZIONI_TESTI.SALVA_USCITA}
+                  : dialogCambioCantiere
+                    ? TIMBRATURE_LAVORAZIONI_TESTI
+                        .SALVA_CAMBIO_CANTIERE
+                    : TIMBRATURE_LAVORAZIONI_TESTI.SALVA_USCITA}
               </button>
             </div>
           </div>

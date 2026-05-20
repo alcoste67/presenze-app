@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 
-import { TIMBRATURE } from "@/constants/stati";
+import {
+  TIMBRATURE,
+  TIMBRATURE_TESTI,
+} from "@/constants/stati";
 import { TipoAttivita } from "@/types/attivita";
 import {
   Timbratura,
@@ -45,18 +48,49 @@ export async function creaTimbratura({
     );
   }
 
+  if (tipo === TIMBRATURE.CAMBIO_CANTIERE) {
+    if (
+      !ultimaTimbratura?.cantiere_id ||
+      ultimaTimbratura.attivita_tipo
+    ) {
+      throw new Error(
+        TIMBRATURE_TESTI.ERRORI
+          .CAMBIO_CANTIERE_ATTIVITA_NON_CONSENTITA
+      );
+    }
+
+    if (!cantiereId) {
+      throw new Error(
+        TIMBRATURE_TESTI.ERRORI
+          .CAMBIO_CANTIERE_OBBLIGATORIO
+      );
+    }
+
+    if (
+      cantiereId ===
+      ultimaTimbratura.cantiere_id
+    ) {
+      throw new Error(
+        TIMBRATURE_TESTI.ERRORI
+          .CAMBIO_CANTIERE_STESSO
+      );
+    }
+  }
+
+  const usaNuovaDestinazione =
+    tipo === TIMBRATURE.ENTRATA ||
+    tipo === TIMBRATURE.CAMBIO_CANTIERE;
+
   const destinazioneCantiereId =
-    tipo === TIMBRATURE.ENTRATA
+    usaNuovaDestinazione
       ? cantiereId
-      : cantiereId ||
-        ultimaTimbratura?.cantiere_id ||
+      : ultimaTimbratura?.cantiere_id ||
         null;
 
   const destinazioneAttivitaTipo =
-    tipo === TIMBRATURE.ENTRATA
+    usaNuovaDestinazione
       ? attivitaTipo
-      : attivitaTipo ||
-        ultimaTimbratura?.attivita_tipo ||
+      : ultimaTimbratura?.attivita_tipo ||
         null;
 
   const validazioneDestinazione =

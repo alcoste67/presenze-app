@@ -38,6 +38,8 @@ export const LABEL_TIMBRATURE_REPORT: Record<
   [TIMBRATURE.PAUSA]: "Pausa",
   [TIMBRATURE.RIENTRO]: "Rientro",
   [TIMBRATURE.USCITA]: "Uscita",
+  [TIMBRATURE.CAMBIO_CANTIERE]:
+    "Cambio cantiere",
 };
 
 export const LABEL_ATTIVITA_REPORT: Record<
