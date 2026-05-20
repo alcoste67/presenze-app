@@ -5,6 +5,8 @@ export const API_ROUTES = {
     "/api/cantieri/elimina-se-vuoto",
   ELIMINA_DIPENDENTE_SE_VUOTO:
     "/api/dipendenti/elimina-se-vuoto",
+  LAVORAZIONI_ESTRAI_DA_COMPUTO:
+    "/api/lavorazioni/estrai-da-computo",
   REPORT_LIBRO_PRESENZE:
     "/api/report/libro-presenze",
   REPORT_PRESENZE:

@@ -20,3 +20,8 @@ export type LavorazioneCantiereUpdate = Omit<
   LavorazioneCantiereInput,
   "cantiere_id"
 >;
+
+export type LavorazioneImportPreview = {
+  nome: string;
+  ordine: number;
+};

@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { FormEvent } from "react";
+import type {
+  ChangeEvent,
+  FormEvent,
+} from "react";
 import {
   useCallback,
   useEffect,
@@ -9,18 +12,22 @@ import {
 } from "react";
 
 import {
+  LAVORAZIONI_IMPORT,
   LAVORAZIONI_LIMITI,
   LAVORAZIONI_TESTI,
 } from "@/constants/lavorazioni";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { aggiornaLavorazioneCantiere } from "@/services/lavorazioni/aggiornaLavorazioneCantiere";
 import { creaLavorazioneCantiere } from "@/services/lavorazioni/creaLavorazioneCantiere";
+import { creaLavorazioniCantiere } from "@/services/lavorazioni/creaLavorazioniCantiere";
+import { estraiLavorazioniDaComputo } from "@/services/lavorazioni/estraiLavorazioniDaComputo";
 import { loadLavorazioniCantiere } from "@/services/lavorazioni/loadLavorazioniCantiere";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   LavorazioneCantiere,
   LavorazioneCantiereInput,
   LavorazioneCantiereUpdate,
+  LavorazioneImportPreview,
 } from "@/types/lavorazioni";
 
 type LavorazioneForm = {
@@ -175,6 +182,72 @@ function getPercentualiDraft(
   );
 }
 
+function normalizzaNomeLavorazione(
+  nome: string
+) {
+  return nome.trim().replace(/\s+/g, " ");
+}
+
+function getChiaveNome(nome: string) {
+  return normalizzaNomeLavorazione(
+    nome
+  ).toLowerCase();
+}
+
+function normalizzaPreviewImport(
+  lavorazioniImport: LavorazioneImportPreview[],
+  lavorazioniEsistenti: LavorazioneCantiere[]
+) {
+  const nomiUsati = new Set(
+    lavorazioniEsistenti.map((lavorazione) =>
+      getChiaveNome(lavorazione.nome)
+    )
+  );
+
+  return [...lavorazioniImport]
+    .sort((a, b) => a.ordine - b.ordine)
+    .map((lavorazione) =>
+      normalizzaNomeLavorazione(
+        lavorazione.nome
+      )
+    )
+    .filter((nome) => {
+      const chiave = getChiaveNome(nome);
+
+      if (!chiave || nomiUsati.has(chiave)) {
+        return false;
+      }
+
+      nomiUsati.add(chiave);
+      return true;
+    })
+    .slice(
+      0,
+      LAVORAZIONI_LIMITI.IMPORT_MAX_LAVORAZIONI
+    )
+    .map((nome, index) => ({
+      nome,
+      ordine: index + 1,
+    }));
+}
+
+function getProssimoOrdine(
+  lavorazioni: LavorazioneCantiere[]
+) {
+  if (lavorazioni.length === 0) {
+    return 1;
+  }
+
+  return (
+    Math.max(
+      ...lavorazioni.map(
+        (lavorazione) =>
+          lavorazione.ordine
+      )
+    ) + 1
+  );
+}
+
 export default function BackofficeLavorazioniPage() {
   const [cantieri, setCantieri] = useState<
     CantiereBackoffice[]
@@ -188,6 +261,14 @@ export default function BackofficeLavorazioniPage() {
   const [form, setForm] =
     useState<LavorazioneForm>(FORM_INIZIALE);
   const [
+    fileComputo,
+    setFileComputo,
+  ] = useState<File | null>(null);
+  const [
+    previewImport,
+    setPreviewImport,
+  ] = useState<LavorazioneImportPreview[]>([]);
+  const [
     lavorazioneInModificaId,
     setLavorazioneInModificaId,
   ] = useState<string | null>(null);
@@ -199,6 +280,14 @@ export default function BackofficeLavorazioniPage() {
   ] = useState(false);
   const [salvataggio, setSalvataggio] =
     useState(false);
+  const [
+    estrazioneImport,
+    setEstrazioneImport,
+  ] = useState(false);
+  const [
+    salvataggioImport,
+    setSalvataggioImport,
+  ] = useState(false);
   const [errore, setErrore] = useState<
     string | null
   >(null);
@@ -208,6 +297,11 @@ export default function BackofficeLavorazioniPage() {
   const resetForm = () => {
     setForm(FORM_INIZIALE);
     setLavorazioneInModificaId(null);
+  };
+
+  const resetImport = () => {
+    setFileComputo(null);
+    setPreviewImport([]);
   };
 
   const aggiornaLavorazioneInLista = (
@@ -365,6 +459,7 @@ export default function BackofficeLavorazioniPage() {
       setPercentualiDraft({});
     }
     resetForm();
+    resetImport();
     setErrore(null);
     setMessaggio(null);
   };
@@ -446,6 +541,168 @@ export default function BackofficeLavorazioniPage() {
       setSalvataggio(false);
     }
   };
+
+  const handleFileComputoChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file =
+      event.target.files?.[0] || null;
+
+    setFileComputo(file);
+    setPreviewImport([]);
+    setErrore(null);
+    setMessaggio(null);
+  };
+
+  const handleEstraiLavorazioniImport =
+    async () => {
+      if (!cantiereId) {
+        setErrore(
+          LAVORAZIONI_TESTI.ERRORI
+            .CANTIERE_OBBLIGATORIO
+        );
+        return;
+      }
+
+      if (!fileComputo) {
+        setErrore(
+          LAVORAZIONI_TESTI.ERRORI
+            .FILE_CSV_OBBLIGATORIO
+        );
+        return;
+      }
+
+      try {
+        setEstrazioneImport(true);
+        setErrore(null);
+        setMessaggio(null);
+
+        const lavorazioniEstratte =
+          await estraiLavorazioniDaComputo(
+            fileComputo
+          );
+        const preview =
+          normalizzaPreviewImport(
+            lavorazioniEstratte,
+            lavorazioni
+          );
+
+        if (preview.length === 0) {
+          setPreviewImport([]);
+          setErrore(
+            LAVORAZIONI_TESTI.ERRORI
+              .NESSUNA_LAVORAZIONE_IMPORT
+          );
+          return;
+        }
+
+        setPreviewImport(preview);
+        setMessaggio(
+          LAVORAZIONI_TESTI.MESSAGGI
+            .IMPORT_PRONTO
+        );
+      } catch (error: unknown) {
+        setErrore(getMessaggioErrore(error));
+      } finally {
+        setEstrazioneImport(false);
+      }
+    };
+
+  const aggiornaPreviewImport = (
+    index: number,
+    lavorazione: LavorazioneImportPreview
+  ) => {
+    setPreviewImport((previewCorrente) =>
+      previewCorrente.map(
+        (lavorazioneCorrente, currentIndex) =>
+          currentIndex === index
+            ? lavorazione
+            : lavorazioneCorrente
+      )
+    );
+    setErrore(null);
+  };
+
+  const rimuoviPreviewImport = (
+    index: number
+  ) => {
+    setPreviewImport((previewCorrente) =>
+      previewCorrente
+        .filter(
+          (_lavorazione, currentIndex) =>
+            currentIndex !== index
+        )
+        .map((lavorazione, nextIndex) => ({
+          ...lavorazione,
+          ordine: nextIndex + 1,
+        }))
+    );
+    setErrore(null);
+  };
+
+  const confermaImportLavorazioni =
+    async () => {
+      if (!cantiereId) {
+        setErrore(
+          LAVORAZIONI_TESTI.ERRORI
+            .CANTIERE_OBBLIGATORIO
+        );
+        return;
+      }
+
+      const preview =
+        normalizzaPreviewImport(
+          previewImport,
+          lavorazioni
+        );
+
+      if (preview.length === 0) {
+        setErrore(
+          LAVORAZIONI_TESTI.ERRORI
+            .IMPORT_NON_VALIDO
+        );
+        return;
+      }
+
+      try {
+        setSalvataggioImport(true);
+        setErrore(null);
+        setMessaggio(null);
+
+        const nuoveLavorazioni =
+          await creaLavorazioniCantiere({
+            cantiereId,
+            lavorazioni: preview,
+            ordineIniziale:
+              getProssimoOrdine(lavorazioni),
+          });
+
+        setLavorazioni(
+          (lavorazioniCorrenti) =>
+            ordinaLavorazioni([
+              ...lavorazioniCorrenti,
+              ...nuoveLavorazioni,
+            ])
+        );
+        setPercentualiDraft(
+          (percentualiCorrenti) => ({
+            ...percentualiCorrenti,
+            ...getPercentualiDraft(
+              nuoveLavorazioni
+            ),
+          })
+        );
+        resetImport();
+        setMessaggio(
+          LAVORAZIONI_TESTI.MESSAGGI
+            .IMPORT_COMPLETATO
+        );
+      } catch (error: unknown) {
+        setErrore(getMessaggioErrore(error));
+      } finally {
+        setSalvataggioImport(false);
+      }
+    };
 
   const avviaModifica = (
     lavorazione: LavorazioneCantiere
@@ -567,6 +824,8 @@ export default function BackofficeLavorazioniPage() {
     : LAVORAZIONI_TESTI.NUOVA_LAVORAZIONE;
   const loading =
     loadingCantieri || loadingLavorazioni;
+  const bloccoImport =
+    estrazioneImport || salvataggioImport;
 
   return (
     <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
@@ -637,6 +896,215 @@ export default function BackofficeLavorazioniPage() {
             </select>
           </label>
         </section>
+
+        {!loadingCantieri &&
+          cantieri.length > 0 && (
+            <section className="mb-6 rounded-lg bg-white p-5 text-gray-900 shadow">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-xl font-semibold">
+                  {
+                    LAVORAZIONI_TESTI.IMPORTA_COMPUTO
+                  }
+                </h2>
+
+                {previewImport.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetImport}
+                    disabled={bloccoImport}
+                    className="text-sm font-semibold text-gray-500 disabled:text-gray-400"
+                  >
+                    {LAVORAZIONI_TESTI.ANNULLA}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                <label className="block flex-1">
+                  <span className="mb-1 block text-sm font-medium text-gray-700">
+                    {
+                      LAVORAZIONI_TESTI.FILE_COMPUTO
+                    }
+                  </span>
+                  <input
+                    type="file"
+                    accept={
+                      LAVORAZIONI_IMPORT.FILE_ACCEPT
+                    }
+                    onChange={
+                      handleFileComputoChange
+                    }
+                    disabled={
+                      !cantiereId || bloccoImport
+                    }
+                    className="w-full rounded-lg border p-3 text-gray-900 disabled:bg-gray-100"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleEstraiLavorazioniImport()
+                  }
+                  disabled={
+                    !cantiereId ||
+                    !fileComputo ||
+                    bloccoImport
+                  }
+                  className="rounded-lg bg-black px-4 py-3 font-semibold text-white disabled:bg-gray-400"
+                >
+                  {estrazioneImport
+                    ? LAVORAZIONI_TESTI.ESTRAZIONE
+                    : LAVORAZIONI_TESTI.ESTRAI_LAVORAZIONI}
+                </button>
+              </div>
+
+              {previewImport.length > 0 && (
+                <div className="mt-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="font-semibold">
+                      {
+                        LAVORAZIONI_TESTI.ANTEPRIMA_IMPORT
+                      }
+                    </h3>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void confermaImportLavorazioni()
+                      }
+                      disabled={
+                        bloccoImport ||
+                        previewImport.length === 0
+                      }
+                      className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:bg-gray-400"
+                    >
+                      {salvataggioImport
+                        ? LAVORAZIONI_TESTI.SALVATAGGIO
+                        : LAVORAZIONI_TESTI.CONFERMA_IMPORT}
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="border-b text-gray-500">
+                          <th className="py-3 pr-4 font-semibold">
+                            {
+                              LAVORAZIONI_TESTI.ORDINE
+                            }
+                          </th>
+                          <th className="py-3 pr-4 font-semibold">
+                            {
+                              LAVORAZIONI_TESTI.NOME
+                            }
+                          </th>
+                          <th className="py-3 text-right font-semibold">
+                            {
+                              LAVORAZIONI_TESTI.AZIONI
+                            }
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {previewImport.map(
+                          (
+                            lavorazione,
+                            index
+                          ) => (
+                            <tr
+                              key={`${lavorazione.ordine}-${index}`}
+                              className="border-b last:border-b-0"
+                            >
+                              <td className="py-3 pr-4">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={
+                                    lavorazione.ordine
+                                  }
+                                  onChange={(
+                                    event
+                                  ) => {
+                                    const ordine =
+                                      Number(
+                                        event
+                                          .target
+                                          .value
+                                      );
+
+                                    aggiornaPreviewImport(
+                                      index,
+                                      {
+                                        ...lavorazione,
+                                        ordine:
+                                          Number.isInteger(
+                                            ordine
+                                          )
+                                            ? ordine
+                                            : LAVORAZIONI_LIMITI.ORDINE_DEFAULT,
+                                      }
+                                    );
+                                  }}
+                                  disabled={
+                                    bloccoImport
+                                  }
+                                  className="w-24 rounded-lg border p-2 text-gray-900"
+                                />
+                              </td>
+                              <td className="py-3 pr-4">
+                                <input
+                                  value={
+                                    lavorazione.nome
+                                  }
+                                  onChange={(
+                                    event
+                                  ) =>
+                                    aggiornaPreviewImport(
+                                      index,
+                                      {
+                                        ...lavorazione,
+                                        nome: event
+                                          .target
+                                          .value,
+                                      }
+                                    )
+                                  }
+                                  disabled={
+                                    bloccoImport
+                                  }
+                                  className="w-full min-w-64 rounded-lg border p-2 text-gray-900"
+                                />
+                              </td>
+                              <td className="py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    rimuoviPreviewImport(
+                                      index
+                                    )
+                                  }
+                                  disabled={
+                                    bloccoImport
+                                  }
+                                  className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                                >
+                                  {
+                                    LAVORAZIONI_TESTI.RIMUOVI
+                                  }
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
         {loadingCantieri && (
           <p className="text-gray-500">
