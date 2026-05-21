@@ -10,6 +10,9 @@ type Cantiere = {
   nome: string;
 };
 
+const INPUT_CLASS_NAME =
+  "h-12 w-full rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong";
+
 type Props = {
   cantieri: Cantiere[];
   cantiereId: string;
@@ -122,7 +125,7 @@ export function SelectCantiere({
           onFocus={() => setAperto(true)}
           disabled={disabled}
           placeholder="Cerca cantiere"
-          className="h-12 w-full rounded-none border border-[#2B2B2F] bg-[#0F0F10] px-4 pr-10 text-sm font-medium text-[#FAFAF7] outline-none transition-colors placeholder:text-[#6F6A61] focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+          className={INPUT_CLASS_NAME}
         />
 
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#8C8780]">
@@ -131,7 +134,7 @@ export function SelectCantiere({
       </div>
 
       {aperto && !disabled && (
-        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto border border-[#2B2B2F] bg-[#161617]">
+        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-industrial-border bg-industrial-surface-strong shadow-[0_16px_36px_rgb(0_0_0/0.18)]">
           {cantieriFiltrati.map((cantiere) => (
             <button
               key={cantiere.id}
@@ -145,7 +148,7 @@ export function SelectCantiere({
                 setAperto(false);
                 inputRef.current?.blur();
               }}
-              className="block w-full border-b border-[#222225] px-3 py-3 text-left text-sm font-medium text-[#FAFAF7] transition-colors last:border-b-0 hover:bg-[#1C1C1E]"
+              className="block w-full border-b border-industrial-border-soft px-3 py-3 text-left text-sm font-medium text-industrial-text transition-colors duration-200 ease-out last:border-b-0 hover:bg-industrial-control hover:text-industrial-orange"
             >
               {cantiere.nome}
             </button>

@@ -24,13 +24,13 @@ type PulsanteAzioneProps = {
 
 const STILI_PULSANTE = {
   primario:
-    "border-[#FF6B1A] bg-[#FF6B1A] text-white hover:bg-[#f65e0e]",
+    "rounded-lg border-industrial-orange bg-industrial-orange text-white hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active",
   avviso:
-    "border-[#FFB566] bg-[#161617] text-[#FAFAF7] hover:border-[#FF6B1A] hover:bg-[#1C1C1E]",
+    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
   neutro:
-    "border-[#2B2B2F] bg-[#161617] text-[#FAFAF7] hover:border-[#3A3A3E] hover:bg-[#1C1C1E]",
+    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
   pericolo:
-    "border-[#4A2423] bg-[#181315] text-[#FAFAF7] hover:border-[#FF6B1A] hover:bg-[#211719]",
+    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
 } as const;
 
 function PulsanteAzione({
@@ -45,7 +45,7 @@ function PulsanteAzione({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`group flex min-h-20 w-full items-center justify-between gap-4 rounded-none border px-4 py-4 text-left transition-colors active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
+      className={`group flex min-h-20 w-full items-center justify-between gap-4 border px-4 py-4 text-left transition-colors duration-200 ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
     >
       <span className="min-w-0">
         <span className="block text-[11px] font-medium uppercase tracking-[0.22em]">
@@ -58,7 +58,7 @@ function PulsanteAzione({
         </span>
       </span>
 
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-current/15 bg-white/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
         {loading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (

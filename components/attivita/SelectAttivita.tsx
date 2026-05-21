@@ -1,6 +1,9 @@
 import { ATTIVITA } from "@/constants/attivita";
 import { TipoAttivita } from "@/types/attivita";
 
+const SELECT_CLASS_NAME =
+  "h-12 w-full appearance-none rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong";
+
 type Props = {
   attivitaTipo: TipoAttivita | "";
   onChange: (attivitaTipo: TipoAttivita | "") => void;
@@ -27,7 +30,7 @@ export function SelectAttivita({
             )
           }
           disabled={disabled}
-          className="h-12 w-full appearance-none rounded-none border border-[#2B2B2F] bg-[#0F0F10] px-4 pr-10 text-sm font-medium text-[#FAFAF7] outline-none transition-colors focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+          className={SELECT_CLASS_NAME}
         >
           <option value="">Seleziona attività</option>
 

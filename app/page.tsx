@@ -58,6 +58,23 @@ type TipoDialogLavorazioni =
   | typeof TIMBRATURE.USCITA
   | typeof TIMBRATURE.CAMBIO_CANTIERE;
 
+const STILI_UI = {
+  appBg:
+    "bg-gradient-to-br from-industrial-bg to-industrial-bg-soft text-industrial-text",
+  card:
+    "rounded-xl border border-industrial-border bg-industrial-surface shadow-[0_18px_42px_rgb(0_0_0/0.14)]",
+  cardFlat:
+    "rounded-lg border border-industrial-border-soft bg-industrial-surface-strong",
+  button:
+    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+  buttonPrimary:
+    "rounded-lg border border-industrial-orange bg-industrial-orange text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+  input:
+    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+  error:
+    "rounded-lg border border-industrial-danger-border bg-industrial-danger-bg text-industrial-danger-text",
+} as const;
+
 function isErroreRateLimitAuth(
   error: unknown
 ): boolean {
@@ -1068,10 +1085,10 @@ export default function HomePage() {
 
   if (!inizializzato) {
     return (
-      <main className="min-h-dvh bg-[#0B0B0C] px-4 text-[#FAFAF7]">
+      <main className={`${STILI_UI.appBg} min-h-dvh px-4`}>
         <div className="flex min-h-dvh items-center justify-center">
-          <div className="flex items-center gap-3 border border-[#2B2B2F] bg-[#0F0F10] px-4 py-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#FF6B1A] border-t-transparent" />
+          <div className={`${STILI_UI.cardFlat} flex items-center gap-3 px-4 py-3 text-[10px] font-medium uppercase tracking-[0.24em]`}>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-industrial-orange border-t-transparent" />
             {TIMBRATURE_TESTI.UI.CARICAMENTO}
           </div>
         </div>
@@ -1085,9 +1102,9 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <main className="min-h-dvh bg-[#0B0B0C] px-4 py-6 text-[#FAFAF7]">
+      <main className={`${STILI_UI.appBg} min-h-dvh px-4 py-6`}>
         <div className="mx-auto flex min-h-dvh w-full max-w-md items-center">
-          <section className="w-full border border-[#2B2B2F] bg-[#0F0F10] p-5">
+          <section className={`${STILI_UI.card} w-full p-5`}>
             <A2CLogo color="auto" className="h-12 w-auto" />
             <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
               {AUTH_TESTI.TITOLO}
@@ -1116,14 +1133,14 @@ export default function HomePage() {
                   placeholder={AUTH_TESTI.EMAIL_PLACEHOLDER}
                   autoComplete="email"
                   disabled={loadingAuth}
-                  className="h-12 w-full rounded-none border border-[#2B2B2F] bg-[#161617] px-4 text-sm text-[#FAFAF7] outline-none transition-colors placeholder:text-[#6F6A61] focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                  className={`${STILI_UI.input} h-12 w-full px-4 text-sm outline-none disabled:cursor-not-allowed`}
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={loadingAuth || cooldownOtp > 0}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 border border-[#FF6B1A] bg-[#FF6B1A] px-4 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#1A1A1C] disabled:text-[#8C8780]"
+                className={`${STILI_UI.buttonPrimary} inline-flex h-12 w-full items-center justify-center gap-2 px-4 text-[10px] font-medium uppercase tracking-[0.24em] disabled:cursor-not-allowed`}
               >
                 {loadingAuth ? (
                   <>
@@ -1157,7 +1174,7 @@ export default function HomePage() {
                     placeholder={AUTH_TESTI.CODICE_PLACEHOLDER}
                     autoComplete="one-time-code"
                     disabled={loadingAuth}
-                    className="h-12 w-full rounded-none border border-[#2B2B2F] bg-[#161617] px-4 text-center text-2xl font-medium tracking-[0.35em] text-[#FAFAF7] outline-none transition-colors placeholder:text-[#6F6A61] focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                    className={`${STILI_UI.input} h-12 w-full px-4 text-center text-2xl font-medium tracking-[0.35em] outline-none disabled:cursor-not-allowed`}
                   />
                 </label>
 
@@ -1168,7 +1185,7 @@ export default function HomePage() {
                     codiceOtp.length !==
                       AUTH_OTP.CODICE_LENGTH
                   }
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 border border-[#2B2B2F] bg-[#161617] px-4 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#141416] disabled:text-[#8C8780]"
+                  className={`${STILI_UI.buttonPrimary} inline-flex h-12 w-full items-center justify-center gap-2 px-4 text-[10px] font-medium uppercase tracking-[0.24em] disabled:cursor-not-allowed`}
                 >
                   {loadingVerificaCodice ? (
                     <>
@@ -1184,13 +1201,13 @@ export default function HomePage() {
 
             <div aria-live="polite" className="mt-4 min-h-6">
               {messaggioAuth && (
-                <p className="border border-[#2B2B2F] bg-[#161617] p-3 text-sm text-[#FAFAF7]">
+                <p className={`${STILI_UI.cardFlat} p-3 text-sm`}>
                   {messaggioAuth}
                 </p>
               )}
 
               {erroreAuth && (
-                <p className="border border-[#5B2A29] bg-[#1A1112] p-3 text-sm text-[#FFB3A6]">
+                <p className={`${STILI_UI.error} p-3 text-sm`}>
                   {erroreAuth}
                 </p>
               )}
@@ -1206,9 +1223,9 @@ export default function HomePage() {
   // =========================
 
   return (
-    <main className="min-h-dvh bg-[#0B0B0C] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[#FAFAF7]">
+    <main className={`${STILI_UI.appBg} min-h-dvh px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]`}>
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-        <header className="border border-[#2B2B2F] bg-[#0F0F10] p-4">
+        <header className={`${STILI_UI.card} p-4`}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <A2CLogo color="auto" className="h-10 w-auto" />
@@ -1233,7 +1250,7 @@ export default function HomePage() {
                   alert(getMessaggioErroreAuth(error));
                 }
               }}
-              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#C7C2B7] transition-colors hover:border-[#FF6B1A] hover:text-[#FAFAF7]"
+              className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
             >
               {TIMBRATURE_TESTI.UI.LOGOUT}
             </button>
@@ -1242,7 +1259,7 @@ export default function HomePage() {
           <nav className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/storico"
-              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] hover:text-[#FF6B1A]"
+              className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
             >
               {TIMBRATURE_TESTI.UI.STORICO}
             </Link>
@@ -1250,7 +1267,7 @@ export default function HomePage() {
             {mostraBackoffice && (
               <Link
                 href="/backoffice"
-                className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#C7C2B7] transition-colors hover:border-[#FF6B1A] hover:text-[#FAFAF7]"
+                className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
               >
                 {TIMBRATURE_TESTI.UI.BACKOFFICE}
               </Link>
@@ -1263,7 +1280,7 @@ export default function HomePage() {
           ultimaTimbratura={ultimaTimbratura}
         />
 
-        <section className="border border-[#2B2B2F] bg-[#161617] p-4">
+        <section className={`${STILI_UI.card} p-4`}>
           <div className="mb-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
               {TIMBRATURE_TESTI.UI.DESTINAZIONE_TITOLO}
@@ -1299,10 +1316,10 @@ export default function HomePage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="lavorazioni-uscita-titolo"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-industrial-bg/80 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         >
-          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden border border-[#2B2B2F] bg-[#0F0F10] text-[#FAFAF7]">
-            <div className="border-b border-[#2B2B2F] p-4">
+          <div className={`${STILI_UI.card} max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden text-[#FAFAF7]`}>
+            <div className="border-b border-industrial-border-soft p-4">
               <h2
                 id="lavorazioni-uscita-titolo"
                 className="text-xl font-medium tracking-tight"
@@ -1323,7 +1340,7 @@ export default function HomePage() {
               {lavorazioniUscita.map((lavorazione) => (
                 <div
                   key={lavorazione.id}
-                  className="flex flex-col gap-4 border border-[#2B2B2F] bg-[#161617] p-4"
+                  className={`${STILI_UI.cardFlat} flex flex-col gap-4 p-4`}
                 >
                   <div className="flex items-center gap-3">
                     <input
@@ -1336,7 +1353,7 @@ export default function HomePage() {
                       }
                       disabled={loadingTimbratura}
                       id={`lavorazione-uscita-${lavorazione.id}`}
-                      className="h-5 w-5 border-[#2B2B2F] bg-[#0F0F10] text-[#FF6B1A] accent-[#FF6B1A]"
+                      className="h-5 w-5 border-industrial-border bg-industrial-control text-industrial-orange accent-industrial-orange"
                     />
 
                     <label
@@ -1364,7 +1381,7 @@ export default function HomePage() {
                       }
                       aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
                       disabled={loadingTimbratura}
-                      className="min-w-0 flex-1 accent-[#FF6B1A]"
+                      className="min-w-0 flex-1 accent-industrial-orange"
                     />
 
                     <input
@@ -1383,7 +1400,7 @@ export default function HomePage() {
                       }
                       aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
                       disabled={loadingTimbratura}
-                      className="h-10 w-20 rounded-none border border-[#2B2B2F] bg-[#0F0F10] px-2 text-right text-sm font-medium text-[#FAFAF7] outline-none transition-colors focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                      className={`${STILI_UI.input} h-10 w-20 px-2 text-right text-sm font-medium outline-none disabled:cursor-not-allowed`}
                     />
                   </div>
                 </div>
@@ -1391,17 +1408,17 @@ export default function HomePage() {
             </div>
 
             {erroreLavorazioniUscita && (
-              <p className="mx-4 border border-[#5B2A29] bg-[#1A1112] p-3 text-sm font-medium text-[#FFB3A6]">
+              <p className={`${STILI_UI.error} mx-4 p-3 text-sm font-medium`}>
                 {erroreLavorazioniUscita}
               </p>
             )}
 
-            <div className="flex gap-3 border-t border-[#2B2B2F] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="flex gap-3 border-t border-industrial-border-soft p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={resetLavorazioniUscita}
                 disabled={loadingTimbratura}
-                className="min-h-12 flex-1 border border-[#2B2B2F] bg-[#161617] p-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                className={`${STILI_UI.button} min-h-12 flex-1 p-3 text-[10px] font-medium uppercase tracking-[0.24em] disabled:cursor-not-allowed`}
               >
                 {TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA}
               </button>
@@ -1410,7 +1427,7 @@ export default function HomePage() {
                 type="button"
                 onClick={handleConfermaLavorazioniUscita}
                 disabled={loadingTimbratura}
-                className="min-h-12 flex-1 border border-[#FF6B1A] bg-[#FF6B1A] p-3 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#1A1A1C] disabled:text-[#8C8780]"
+                className={`${STILI_UI.buttonPrimary} min-h-12 flex-1 p-3 text-[10px] font-medium uppercase tracking-[0.24em] disabled:cursor-not-allowed`}
               >
                 {loadingTimbratura
                   ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO

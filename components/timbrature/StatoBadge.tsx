@@ -29,14 +29,14 @@ const STATO_STILI: Record<
         .FUORI_DESCRIZIONE,
   },
   [STATI.DENTRO]: {
-    indicatore: "bg-[#FF6B1A]",
+    indicatore: "bg-industrial-orange",
     testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .DENTRO_DESCRIZIONE,
   },
   [STATI.IN_PAUSA]: {
-    indicatore: "bg-[#FFB566]",
+    indicatore: "bg-industrial-orange-soft",
     testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO
@@ -79,9 +79,9 @@ export function StatoBadge({
   const stile = STATO_STILI[stato];
 
   return (
-    <section className="relative overflow-hidden border border-[#2A2A2D] bg-[#161617] p-4 text-[#FAFAF7]">
+    <section className="relative overflow-hidden rounded-xl border border-industrial-border bg-industrial-surface p-4 text-[#FAFAF7] shadow-[0_18px_42px_rgb(0_0_0/0.14)]">
       {stato === STATI.DENTRO && (
-        <div className="absolute inset-y-0 left-0 w-1 bg-[#FF6B1A]" />
+        <div className="absolute inset-y-0 left-0 w-1 bg-industrial-orange" />
       )}
 
       <div className="flex items-start justify-between gap-4">
@@ -107,12 +107,12 @@ export function StatoBadge({
           </div>
         </div>
 
-        <div className="shrink-0 border border-[#323236] bg-[#0F0F10] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
+        <div className="shrink-0 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
           {TIMBRATURE_TESTI.STATO.LIVE}
         </div>
       </div>
 
-      <div className="mt-4 border border-[#2B2B2F] bg-[#0F0F10] px-3 py-3 text-sm text-[#D7D1C7]">
+      <div className="mt-4 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-3 text-sm text-[#D7D1C7]">
         <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
           {TIMBRATURE_TESTI.STATO.ULTIMA_TIMBRATURA}
         </span>
