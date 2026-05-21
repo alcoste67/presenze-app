@@ -13,6 +13,21 @@ export const TIMBRATURE = {
 } as const;
 
 export const TIMBRATURE_TESTI = {
+  UI: {
+    LOGO_ALT: "A2C Sistemi",
+    APP_TITOLO: "Presenze",
+    APP_SOTTOTITOLO:
+      "Timbrature operative",
+    DESTINAZIONE_TITOLO:
+      "Destinazione lavoro",
+    DESTINAZIONE_DESCRIZIONE:
+      "Seleziona un cantiere oppure un'attività.",
+    STORICO: "Storico",
+    BACKOFFICE: "Back-office",
+    LOGOUT: "Logout",
+    UTENTE_PREFIX: "Utente",
+    CARICAMENTO: "Caricamento...",
+  },
   AZIONI: {
     SALVATAGGIO: "Salvataggio...",
     ENTRATA: "TIMBRA ENTRATA",
@@ -21,9 +36,37 @@ export const TIMBRATURE_TESTI = {
     USCITA: "TIMBRA USCITA",
     CAMBIO_CANTIERE: "Cambia cantiere",
   },
+  AZIONI_DESCRIZIONI: {
+    ENTRATA:
+      "Avvia il turno sul cantiere selezionato",
+    PAUSA:
+      "Sospendi temporaneamente il lavoro",
+    RIENTRO:
+      "Riprendi il turno dopo la pausa",
+    USCITA:
+      "Chiudi il turno e registra le lavorazioni",
+    CAMBIO_CANTIERE:
+      "Chiudi il cantiere corrente e aprine uno nuovo",
+  },
   MESSAGGI: {
     REGISTRATA_PREFIX: "Timbratura",
     REGISTRATA_SUFFIX: "registrata",
+  },
+  STATO: {
+    TITOLO: "Stato attuale",
+    LIVE: "Live",
+    ULTIMA_TIMBRATURA:
+      "Ultima timbratura",
+    ULTIMA_TIMBRATURA_ORA: "alle",
+    NESSUNA_TIMBRATURA:
+      "Nessuna timbratura",
+    FUORI_DESCRIZIONE:
+      "Fuori dal lavoro",
+    DENTRO_DESCRIZIONE: "Turno attivo",
+    IN_PAUSA_DESCRIZIONE:
+      "Pausa in corso",
+    CAMBIO_CANTIERE_LABEL:
+      "Cambio cantiere",
   },
   ERRORI: {
     GENERICO: "Errore timbratura",

@@ -13,36 +13,42 @@ export function SelectAttivita({
   disabled,
 }: Props) {
   return (
-    <div className="mb-6">
-      <label className="block text-sm font-medium mb-2">
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-slate-700">
         Attività
       </label>
 
-      <select
-        value={attivitaTipo}
-        onChange={(e) =>
-          onChange(
-            e.target.value as TipoAttivita | ""
-          )
-        }
-        disabled={disabled}
-        className="w-full border rounded-lg p-3"
-      >
-        <option value="">
-          Seleziona attività
-        </option>
+      <div className="relative">
+        <select
+          value={attivitaTipo}
+          onChange={(e) =>
+            onChange(
+              e.target.value as TipoAttivita | ""
+            )
+          }
+          disabled={disabled}
+          className="h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-11 text-base font-medium text-slate-950 shadow-sm outline-none transition-all duration-200 focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70 disabled:bg-slate-100 disabled:text-slate-500"
+        >
+          <option value="">
+            Seleziona attività
+          </option>
 
-        {Object.values(ATTIVITA).map(
-          (attivita) => (
-            <option
-              key={attivita}
-              value={attivita}
-            >
-              {attivita}
-            </option>
-          )
-        )}
-      </select>
+          {Object.values(ATTIVITA).map(
+            (attivita) => (
+              <option
+                key={attivita}
+                value={attivita}
+              >
+                {attivita}
+              </option>
+            )
+          )}
+        </select>
+
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">
+          v
+        </span>
+      </div>
     </div>
   );
 }

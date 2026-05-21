@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 810 384" role="img" aria-labelledby="title">
+  <title id="title">A2C Sistemi</title>
+  <g fill="none" stroke="#1d1d1b" stroke-linecap="butt" stroke-linejoin="round">
+    <path d="M38 225 118 88 199 225" stroke-width="34"/>
+    <path d="M280 70v180" stroke-width="6"/>
+    <path d="M539 70v180" stroke-width="6"/>
+  </g>
+  <g fill="#1d1d1b" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900">
+    <text x="334" y="225" font-size="198" letter-spacing="-14">2</text>
+    <text x="601" y="225" font-size="198" letter-spacing="-10">C</text>
+    <text x="269" y="334" font-size="58" letter-spacing="5">SISTEMI</text>
+  </g>
+</svg>

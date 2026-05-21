@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   isAuthError,
@@ -1070,9 +1071,13 @@ export default function HomePage() {
 
   if (!inizializzato) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-900">
-        <div className="text-gray-500">
-          Caricamento...
+      <main className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-6 text-slate-950">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+          {
+            TIMBRATURE_TESTI.UI
+              .CARICAMENTO
+          }
         </div>
       </main>
     );
@@ -1204,14 +1209,33 @@ export default function HomePage() {
   // =========================
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 text-gray-900">
-        {/* HEADER */}
-
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-3xl font-bold mb-2">
-            PRESENZE APP
-          </h1>
+    <main className="min-h-[100dvh] bg-slate-50 px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-slate-950 sm:px-6">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+        <header className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Image
+              src="/a2c-logo.svg"
+              alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
+              width={192}
+              height={91}
+              priority
+              className="h-14 w-auto max-w-48"
+            />
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              {
+                TIMBRATURE_TESTI.UI
+                  .APP_SOTTOTITOLO
+              }
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+              {TIMBRATURE_TESTI.UI.APP_TITOLO}
+            </h1>
+            <p className="mt-2 truncate text-sm text-slate-500">
+              {TIMBRATURE_TESTI.UI.UTENTE_PREFIX}
+              {": "}
+              {user.email}
+            </p>
+          </div>
 
           <button
             onClick={async () => {
@@ -1225,48 +1249,62 @@ export default function HomePage() {
                 );
               }
             }}
-            className="text-sm font-semibold text-gray-500"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-100"
           >
-            Logout
+            {TIMBRATURE_TESTI.UI.LOGOUT}
           </button>
-        </div>
+        </header>
 
-        <div className="mb-4 flex gap-4 text-sm font-semibold">
+        <nav className="flex gap-2 text-sm font-semibold">
           <Link
             href="/storico"
-            className="text-blue-600"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
           >
-            Storico
+            {TIMBRATURE_TESTI.UI.STORICO}
           </Link>
 
           {mostraBackoffice && (
             <Link
               href="/backoffice"
-              className="text-blue-600"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
             >
-              Back-office
+              {
+                TIMBRATURE_TESTI.UI
+                  .BACKOFFICE
+              }
             </Link>
           )}
-        </div>
+        </nav>
 
-        <p className="text-sm text-gray-500 mb-6">
-          Utente: {user.email}
-        </p>
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+              {
+                TIMBRATURE_TESTI.UI
+                  .DESTINAZIONE_TITOLO
+              }
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {
+                TIMBRATURE_TESTI.UI
+                  .DESTINAZIONE_DESCRIZIONE
+              }
+            </p>
+          </div>
 
-        {/* CANTIERE */}
+          <div className="flex flex-col gap-4">
+            <SelectCantiere
+              cantieri={cantieri}
+              cantiereId={cantiereId}
+              onChange={handleCantiereChange}
+            />
 
-        <SelectCantiere
-          cantieri={cantieri}
-          cantiereId={cantiereId}
-          onChange={handleCantiereChange}
-        />
-
-        <SelectAttivita
-          attivitaTipo={attivitaTipo}
-          onChange={handleAttivitaChange}
-        />
-
-        {/* STATO */}
+            <SelectAttivita
+              attivitaTipo={attivitaTipo}
+              onChange={handleAttivitaChange}
+            />
+          </div>
+        </section>
 
         <StatoBadge
           stato={statoAttuale}
@@ -1274,8 +1312,6 @@ export default function HomePage() {
             ultimaTimbratura
           }
         />
-
-        {/* BOTTONI */}
 
         <PulsantiTimbratura
           statoAttuale={statoAttuale}
@@ -1291,12 +1327,13 @@ export default function HomePage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="lavorazioni-uscita-titolo"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         >
-          <div className="w-full max-w-md rounded-lg bg-white p-5 text-gray-900 shadow-xl">
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-950 shadow-2xl shadow-slate-950/20 transition-all duration-200">
+            <div className="border-b border-slate-100 p-5">
             <h2
               id="lavorazioni-uscita-titolo"
-              className="text-xl font-semibold"
+              className="text-xl font-semibold tracking-tight"
             >
               {dialogCambioCantiere
                 ? TIMBRATURE_LAVORAZIONI_TESTI
@@ -1305,20 +1342,21 @@ export default function HomePage() {
                     .TITOLO_USCITA}
             </h2>
 
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm leading-6 text-slate-500">
               {dialogCambioCantiere
                 ? TIMBRATURE_LAVORAZIONI_TESTI
                     .DESCRIZIONE_CAMBIO_CANTIERE
                 : TIMBRATURE_LAVORAZIONI_TESTI
                     .DESCRIZIONE_USCITA}
             </p>
+            </div>
 
-            <div className="mt-4 flex max-h-72 flex-col gap-3 overflow-y-auto">
+            <div className="flex max-h-[52dvh] flex-col gap-3 overflow-y-auto p-4">
               {lavorazioniUscita.map(
                 (lavorazione) => (
                   <div
                     key={lavorazione.id}
-                    className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3"
+                    className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <input
@@ -1335,12 +1373,12 @@ export default function HomePage() {
                           loadingTimbratura
                         }
                         id={`lavorazione-uscita-${lavorazione.id}`}
-                        className="h-5 w-5"
+                        className="h-5 w-5 rounded border-slate-300 accent-slate-950"
                       />
 
                       <label
                         htmlFor={`lavorazione-uscita-${lavorazione.id}`}
-                        className="min-w-0 flex-1 text-sm font-medium"
+                        className="min-w-0 flex-1 text-sm font-semibold leading-5 text-slate-900"
                       >
                         {lavorazione.nome}
                       </label>
@@ -1369,7 +1407,7 @@ export default function HomePage() {
                         disabled={
                           loadingTimbratura
                         }
-                        className="min-w-0 flex-1"
+                        className="min-w-0 flex-1 accent-slate-950"
                       />
 
                       <input
@@ -1394,7 +1432,7 @@ export default function HomePage() {
                         disabled={
                           loadingTimbratura
                         }
-                        className="w-20 rounded-lg border border-gray-300 p-2 text-right text-sm"
+                        className="h-10 w-20 rounded-xl border border-slate-200 bg-white px-2 text-right text-sm font-semibold text-slate-950 outline-none transition-all focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
                       />
                     </div>
                   </div>
@@ -1403,21 +1441,21 @@ export default function HomePage() {
             </div>
 
             {erroreLavorazioniUscita && (
-              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <p className="mx-4 rounded-2xl border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-700">
                 {
                   erroreLavorazioniUscita
                 }
               </p>
             )}
 
-            <div className="mt-5 flex gap-3">
+            <div className="flex gap-3 border-t border-slate-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={
                   resetLavorazioniUscita
                 }
                 disabled={loadingTimbratura}
-                className="flex-1 rounded-lg border border-gray-300 p-3 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:bg-gray-100"
+                className="min-h-12 flex-1 rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {
                   TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA
@@ -1430,7 +1468,7 @@ export default function HomePage() {
                   handleConfermaLavorazioniUscita
                 }
                 disabled={loadingTimbratura}
-                className="flex-1 rounded-lg bg-black p-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+                className="min-h-12 flex-1 rounded-2xl bg-slate-950 p-3 font-semibold text-white shadow-lg shadow-slate-950/10 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {loadingTimbratura
                   ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
