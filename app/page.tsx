@@ -1089,12 +1089,12 @@ export default function HomePage() {
         <div className="mx-auto flex min-h-dvh w-full max-w-md items-center">
           <section className="w-full border border-[#2B2B2F] bg-[#0F0F10] p-5">
             <Image
-              src="/a2c-logo.png"
+              src="/a2c-logo.svg"
               alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
               width={210}
               height={96}
               priority
-              className="h-12 w-auto"
+              className="h-12 w-auto invert"
             />
             <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
               {AUTH_TESTI.TITOLO}
@@ -1219,12 +1219,12 @@ export default function HomePage() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <Image
-                src="/a2c-logo.png"
+                src="/a2c-logo.svg"
                 alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
                 width={210}
                 height={96}
                 priority
-                className="h-10 w-auto"
+                className="h-10 w-auto invert"
               />
               <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
                 {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
@@ -1247,7 +1247,7 @@ export default function HomePage() {
                   alert(getMessaggioErroreAuth(error));
                 }
               }}
-              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] hover:text-white"
+              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#C7C2B7] transition-colors hover:border-[#FF6B1A] hover:text-[#FAFAF7]"
             >
               {TIMBRATURE_TESTI.UI.LOGOUT}
             </button>
@@ -1256,7 +1256,7 @@ export default function HomePage() {
           <nav className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/storico"
-              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A]"
+              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] hover:text-[#FF6B1A]"
             >
               {TIMBRATURE_TESTI.UI.STORICO}
             </Link>
@@ -1264,7 +1264,7 @@ export default function HomePage() {
             {mostraBackoffice && (
               <Link
                 href="/backoffice"
-                className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A]"
+                className="inline-flex h-10 items-center gap-2 border border-[#FF6B1A] bg-[#FF6B1A] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e]"
               >
                 {TIMBRATURE_TESTI.UI.BACKOFFICE}
               </Link>

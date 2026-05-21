@@ -24,9 +24,9 @@ type PulsanteAzioneProps = {
 
 const STILI_PULSANTE = {
   primario:
-    "border-[#2B2B2F] bg-[#0F0F10] text-[#FAFAF7] hover:border-[#3A3A3E]",
-  avviso:
     "border-[#FF6B1A] bg-[#FF6B1A] text-white hover:bg-[#f65e0e]",
+  avviso:
+    "border-[#FFB566] bg-[#161617] text-[#FAFAF7] hover:border-[#FF6B1A] hover:bg-[#1C1C1E]",
   neutro:
     "border-[#2B2B2F] bg-[#161617] text-[#FAFAF7] hover:border-[#3A3A3E] hover:bg-[#1C1C1E]",
   pericolo:
@@ -58,7 +58,7 @@ function PulsanteAzione({
         </span>
       </span>
 
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-current/15 bg-black/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-current/15 bg-white/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
         {loading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (
