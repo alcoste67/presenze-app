@@ -6,7 +6,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { isAuthError, type User } from "@supabase/supabase-js";
 
@@ -39,6 +38,7 @@ import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavora
 
 import { useTimbrature } from "@/hooks/useTimbrature";
 
+import { A2CLogo } from "@/components/a2c-logo";
 import { StatoBadge } from "@/components/timbrature/StatoBadge";
 import { PulsantiTimbratura } from "@/components/timbrature/PulsantiTimbratura";
 import { SelectAttivita } from "@/components/attivita/SelectAttivita";
@@ -1088,16 +1088,7 @@ export default function HomePage() {
       <main className="min-h-dvh bg-[#0B0B0C] px-4 py-6 text-[#FAFAF7]">
         <div className="mx-auto flex min-h-dvh w-full max-w-md items-center">
           <section className="w-full border border-[#2B2B2F] bg-[#0F0F10] p-5">
-            <div className="inline-flex bg-[#FAFAF7] px-3 py-2">
-              <Image
-                src="/a2c-logo.svg"
-                alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
-                width={210}
-                height={96}
-                priority
-                className="h-12 w-auto"
-              />
-            </div>
+            <A2CLogo color="auto" className="h-12 w-auto" />
             <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
               {AUTH_TESTI.TITOLO}
             </p>
@@ -1220,16 +1211,7 @@ export default function HomePage() {
         <header className="border border-[#2B2B2F] bg-[#0F0F10] p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex bg-[#FAFAF7] px-3 py-2">
-                <Image
-                  src="/a2c-logo.svg"
-                  alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
-                  width={210}
-                  height={96}
-                  priority
-                  className="h-10 w-auto"
-                />
-              </div>
+              <A2CLogo color="auto" className="h-10 w-auto" />
               <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
                 {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
               </p>
