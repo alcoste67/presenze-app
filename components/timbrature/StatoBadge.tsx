@@ -22,7 +22,7 @@ const STATO_STILI: Record<
   }
 > = {
   [STATI.FUORI]: {
-    indicatore: "bg-[#7A7A7A]",
+    indicatore: "bg-[#8C8780]/50",
     testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO

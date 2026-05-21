@@ -1250,13 +1250,18 @@ export default function HomePage() {
             {mostraBackoffice && (
               <Link
                 href="/backoffice"
-                className="inline-flex h-10 items-center gap-2 border border-[#FF6B1A] bg-[#FF6B1A] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e]"
+                className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#C7C2B7] transition-colors hover:border-[#FF6B1A] hover:text-[#FAFAF7]"
               >
                 {TIMBRATURE_TESTI.UI.BACKOFFICE}
               </Link>
             )}
           </nav>
         </header>
+
+        <StatoBadge
+          stato={statoAttuale}
+          ultimaTimbratura={ultimaTimbratura}
+        />
 
         <section className="border border-[#2B2B2F] bg-[#161617] p-4">
           <div className="mb-4">
@@ -1281,11 +1286,6 @@ export default function HomePage() {
             />
           </div>
         </section>
-
-        <StatoBadge
-          stato={statoAttuale}
-          ultimaTimbratura={ultimaTimbratura}
-        />
 
         <PulsantiTimbratura
           statoAttuale={statoAttuale}
