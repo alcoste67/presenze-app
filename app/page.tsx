@@ -8,10 +8,7 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  isAuthError,
-  type User,
-} from "@supabase/supabase-js";
+import { isAuthError, type User } from "@supabase/supabase-js";
 
 import {
   AUTH_ERROR_CODES,
@@ -1071,13 +1068,12 @@ export default function HomePage() {
 
   if (!inizializzato) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-6 text-slate-950">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-          {
-            TIMBRATURE_TESTI.UI
-              .CARICAMENTO
-          }
+      <main className="min-h-dvh bg-[#0B0B0C] px-4 text-[#FAFAF7]">
+        <div className="flex min-h-dvh items-center justify-center">
+          <div className="flex items-center gap-3 border border-[#2B2B2F] bg-[#0F0F10] px-4 py-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#FF6B1A] border-t-transparent" />
+            {TIMBRATURE_TESTI.UI.CARICAMENTO}
+          </div>
         </div>
       </main>
     );
@@ -1089,116 +1085,124 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-6 bg-gray-100 text-gray-900">
-        <div className="bg-white border rounded-2xl shadow p-6 w-full max-w-md text-gray-900">
-          <h1 className="text-3xl font-bold mb-6">
-            {AUTH_TESTI.TITOLO}
-          </h1>
+      <main className="min-h-dvh bg-[#0B0B0C] px-4 py-6 text-[#FAFAF7]">
+        <div className="mx-auto flex min-h-dvh w-full max-w-md items-center">
+          <section className="w-full border border-[#2B2B2F] bg-[#0F0F10] p-5">
+            <Image
+              src="/a2c-logo.png"
+              alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
+              width={210}
+              height={96}
+              priority
+              className="h-12 w-auto"
+            />
+            <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
+              {AUTH_TESTI.TITOLO}
+            </p>
+            <h1 className="mt-2 text-3xl font-medium tracking-tight text-[#FAFAF7]">
+              {AUTH_TESTI.TITOLO}
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+              {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
+            </p>
 
-          <form
-            onSubmit={handleInviaCodiceOtp}
-            noValidate
-            className="flex flex-col gap-4"
-          >
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-700">
-                {AUTH_TESTI.EMAIL_LABEL}
-              </span>
-
-              <input
-                type="email"
-                value={emailLogin}
-                onChange={
-                  handleEmailLoginChange
-                }
-                placeholder={
-                  AUTH_TESTI.EMAIL_PLACEHOLDER
-                }
-                autoComplete="email"
-                disabled={loadingAuth}
-                className="w-full rounded-lg border border-gray-300 p-3 text-gray-900 disabled:bg-gray-100"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={
-                loadingAuth ||
-                cooldownOtp > 0
-              }
-              className="w-full rounded-lg bg-black p-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
-            >
-              {testoInvioCodice}
-            </button>
-          </form>
-
-          {codiceInviato && (
             <form
-              onSubmit={
-                handleVerificaCodiceOtp
-              }
+              onSubmit={handleInviaCodiceOtp}
               noValidate
-              className="mt-4 flex flex-col gap-4"
+              className="mt-6 space-y-4"
             >
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-gray-700">
-                  {AUTH_TESTI.CODICE_LABEL}
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+                  {AUTH_TESTI.EMAIL_LABEL}
                 </span>
 
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern={
-                    AUTH_OTP.CODICE_PATTERN
-                  }
-                  maxLength={
-                    AUTH_OTP.CODICE_LENGTH
-                  }
-                  value={codiceOtp}
-                  onChange={
-                    handleCodiceOtpChange
-                  }
-                  placeholder={
-                    AUTH_TESTI.CODICE_PLACEHOLDER
-                  }
-                  autoComplete="one-time-code"
+                  type="email"
+                  value={emailLogin}
+                  onChange={handleEmailLoginChange}
+                  placeholder={AUTH_TESTI.EMAIL_PLACEHOLDER}
+                  autoComplete="email"
                   disabled={loadingAuth}
-                  className="w-full rounded-lg border border-gray-300 p-3 text-center text-2xl font-semibold tracking-widest text-gray-900 disabled:bg-gray-100"
+                  className="h-12 w-full rounded-none border border-[#2B2B2F] bg-[#161617] px-4 text-sm text-[#FAFAF7] outline-none transition-colors placeholder:text-[#6F6A61] focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
                 />
               </label>
 
               <button
                 type="submit"
-                disabled={
-                  loadingAuth ||
-                  codiceOtp.length !==
-                    AUTH_OTP.CODICE_LENGTH
-                }
-                className="w-full rounded-lg bg-blue-600 p-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+                disabled={loadingAuth || cooldownOtp > 0}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 border border-[#FF6B1A] bg-[#FF6B1A] px-4 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#1A1A1C] disabled:text-[#8C8780]"
               >
-                {loadingVerificaCodice
-                  ? AUTH_TESTI.VERIFICA_IN_CORSO
-                  : AUTH_TESTI.VERIFICA_CODICE}
+                {loadingAuth ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    {AUTH_TESTI.INVIO_CODICE}
+                  </>
+                ) : (
+                  testoInvioCodice
+                )}
               </button>
             </form>
-          )}
 
-          <div
-            aria-live="polite"
-            className="mt-4 min-h-6"
-          >
-            {messaggioAuth && (
-              <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                {messaggioAuth}
-              </p>
+            {codiceInviato && (
+              <form
+                onSubmit={handleVerificaCodiceOtp}
+                noValidate
+                className="mt-4 space-y-4"
+              >
+                <label className="block">
+                  <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+                    {AUTH_TESTI.CODICE_LABEL}
+                  </span>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern={AUTH_OTP.CODICE_PATTERN}
+                    maxLength={AUTH_OTP.CODICE_LENGTH}
+                    value={codiceOtp}
+                    onChange={handleCodiceOtpChange}
+                    placeholder={AUTH_TESTI.CODICE_PLACEHOLDER}
+                    autoComplete="one-time-code"
+                    disabled={loadingAuth}
+                    className="h-12 w-full rounded-none border border-[#2B2B2F] bg-[#161617] px-4 text-center text-2xl font-medium tracking-[0.35em] text-[#FAFAF7] outline-none transition-colors placeholder:text-[#6F6A61] focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loadingAuth ||
+                    codiceOtp.length !==
+                      AUTH_OTP.CODICE_LENGTH
+                  }
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 border border-[#2B2B2F] bg-[#161617] px-4 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#141416] disabled:text-[#8C8780]"
+                >
+                  {loadingVerificaCodice ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      {AUTH_TESTI.VERIFICA_IN_CORSO}
+                    </>
+                  ) : (
+                    AUTH_TESTI.VERIFICA_CODICE
+                  )}
+                </button>
+              </form>
             )}
 
-            {erroreAuth && (
-              <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                {erroreAuth}
-              </p>
-            )}
-          </div>
+            <div aria-live="polite" className="mt-4 min-h-6">
+              {messaggioAuth && (
+                <p className="border border-[#2B2B2F] bg-[#161617] p-3 text-sm text-[#FAFAF7]">
+                  {messaggioAuth}
+                </p>
+              )}
+
+              {erroreAuth && (
+                <p className="border border-[#5B2A29] bg-[#1A1112] p-3 text-sm text-[#FFB3A6]">
+                  {erroreAuth}
+                </p>
+              )}
+            </div>
+          </section>
         </div>
       </main>
     );
@@ -1209,90 +1213,76 @@ export default function HomePage() {
   // =========================
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-slate-950 sm:px-6">
+    <main className="min-h-dvh bg-[#0B0B0C] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))] text-[#FAFAF7]">
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-        <header className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Image
-              src="/a2c-logo.svg"
-              alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
-              width={192}
-              height={91}
-              priority
-              className="h-14 w-auto max-w-48"
-            />
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-              {
-                TIMBRATURE_TESTI.UI
-                  .APP_SOTTOTITOLO
-              }
-            </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
-              {TIMBRATURE_TESTI.UI.APP_TITOLO}
-            </h1>
-            <p className="mt-2 truncate text-sm text-slate-500">
-              {TIMBRATURE_TESTI.UI.UTENTE_PREFIX}
-              {": "}
-              {user.email}
-            </p>
+        <header className="border border-[#2B2B2F] bg-[#0F0F10] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <Image
+                src="/a2c-logo.png"
+                alt={TIMBRATURE_TESTI.UI.LOGO_ALT}
+                width={210}
+                height={96}
+                priority
+                className="h-10 w-auto"
+              />
+              <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
+                {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
+              </p>
+              <h1 className="mt-2 text-4xl font-medium tracking-tight text-[#FAFAF7]">
+                {TIMBRATURE_TESTI.UI.APP_TITOLO}
+              </h1>
+              <p className="mt-2 truncate text-sm text-[#C7C2B7]">
+                {TIMBRATURE_TESTI.UI.UTENTE_PREFIX}
+                {": "}
+                {user.email}
+              </p>
+            </div>
+
+            <button
+              onClick={async () => {
+                try {
+                  await esciAuth();
+                } catch (error: unknown) {
+                  alert(getMessaggioErroreAuth(error));
+                }
+              }}
+              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] hover:text-white"
+            >
+              {TIMBRATURE_TESTI.UI.LOGOUT}
+            </button>
           </div>
 
-          <button
-            onClick={async () => {
-              try {
-                await esciAuth();
-              } catch (error: unknown) {
-                alert(
-                  getMessaggioErroreAuth(
-                    error
-                  )
-                );
-              }
-            }}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-100"
-          >
-            {TIMBRATURE_TESTI.UI.LOGOUT}
-          </button>
+          <nav className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/storico"
+              className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A]"
+            >
+              {TIMBRATURE_TESTI.UI.STORICO}
+            </Link>
+
+            {mostraBackoffice && (
+              <Link
+                href="/backoffice"
+                className="inline-flex h-10 items-center gap-2 border border-[#2B2B2F] bg-[#161617] px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A]"
+              >
+                {TIMBRATURE_TESTI.UI.BACKOFFICE}
+              </Link>
+            )}
+          </nav>
         </header>
 
-        <nav className="flex gap-2 text-sm font-semibold">
-          <Link
-            href="/storico"
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
-          >
-            {TIMBRATURE_TESTI.UI.STORICO}
-          </Link>
-
-          {mostraBackoffice && (
-            <Link
-              href="/backoffice"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
-            >
-              {
-                TIMBRATURE_TESTI.UI
-                  .BACKOFFICE
-              }
-            </Link>
-          )}
-        </nav>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-              {
-                TIMBRATURE_TESTI.UI
-                  .DESTINAZIONE_TITOLO
-              }
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {
-                TIMBRATURE_TESTI.UI
-                  .DESTINAZIONE_DESCRIZIONE
-              }
+        <section className="border border-[#2B2B2F] bg-[#161617] p-4">
+          <div className="mb-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+              {TIMBRATURE_TESTI.UI.DESTINAZIONE_TITOLO}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+              {TIMBRATURE_TESTI.UI.DESTINAZIONE_DESCRIZIONE}
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="grid gap-4">
             <SelectCantiere
               cantieri={cantieri}
               cantiereId={cantiereId}
@@ -1308,17 +1298,13 @@ export default function HomePage() {
 
         <StatoBadge
           stato={statoAttuale}
-          ultimaTimbratura={
-            ultimaTimbratura
-          }
+          ultimaTimbratura={ultimaTimbratura}
         />
 
         <PulsantiTimbratura
           statoAttuale={statoAttuale}
           loading={loadingTimbratura}
-          onTimbratura={
-            handleTimbraturaPage
-          }
+          onTimbratura={handleTimbraturaPage}
         />
       </div>
 
@@ -1327,154 +1313,123 @@ export default function HomePage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="lavorazioni-uscita-titolo"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         >
-          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-950 shadow-2xl shadow-slate-950/20 transition-all duration-200">
-            <div className="border-b border-slate-100 p-5">
-            <h2
-              id="lavorazioni-uscita-titolo"
-              className="text-xl font-semibold tracking-tight"
-            >
-              {dialogCambioCantiere
-                ? TIMBRATURE_LAVORAZIONI_TESTI
-                    .TITOLO_CAMBIO_CANTIERE
-                : TIMBRATURE_LAVORAZIONI_TESTI
-                    .TITOLO_USCITA}
-            </h2>
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden border border-[#2B2B2F] bg-[#0F0F10] text-[#FAFAF7]">
+            <div className="border-b border-[#2B2B2F] p-4">
+              <h2
+                id="lavorazioni-uscita-titolo"
+                className="text-xl font-medium tracking-tight"
+              >
+                {dialogCambioCantiere
+                  ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CAMBIO_CANTIERE
+                  : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
+              </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              {dialogCambioCantiere
-                ? TIMBRATURE_LAVORAZIONI_TESTI
-                    .DESCRIZIONE_CAMBIO_CANTIERE
-                : TIMBRATURE_LAVORAZIONI_TESTI
-                    .DESCRIZIONE_USCITA}
-            </p>
+              <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+                {dialogCambioCantiere
+                  ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CAMBIO_CANTIERE
+                  : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
+              </p>
             </div>
 
             <div className="flex max-h-[52dvh] flex-col gap-3 overflow-y-auto p-4">
-              {lavorazioniUscita.map(
-                (lavorazione) => (
-                  <div
-                    key={lavorazione.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={lavorazioniUscitaSelezionate.includes(
-                          lavorazione.id
-                        )}
-                        onChange={() =>
-                          toggleLavorazioneUscita(
-                            lavorazione
-                          )
-                        }
-                        disabled={
-                          loadingTimbratura
-                        }
-                        id={`lavorazione-uscita-${lavorazione.id}`}
-                        className="h-5 w-5 rounded border-slate-300 accent-slate-950"
-                      />
+              {lavorazioniUscita.map((lavorazione) => (
+                <div
+                  key={lavorazione.id}
+                  className="flex flex-col gap-4 border border-[#2B2B2F] bg-[#161617] p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={lavorazioniUscitaSelezionate.includes(
+                        lavorazione.id
+                      )}
+                      onChange={() =>
+                        toggleLavorazioneUscita(lavorazione)
+                      }
+                      disabled={loadingTimbratura}
+                      id={`lavorazione-uscita-${lavorazione.id}`}
+                      className="h-5 w-5 border-[#2B2B2F] bg-[#0F0F10] text-[#FF6B1A] accent-[#FF6B1A]"
+                    />
 
-                      <label
-                        htmlFor={`lavorazione-uscita-${lavorazione.id}`}
-                        className="min-w-0 flex-1 text-sm font-semibold leading-5 text-slate-900"
-                      >
-                        {lavorazione.nome}
-                      </label>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min={
-                          LAVORAZIONI_LIMITI.PERCENTUALE_MIN
-                        }
-                        max={
-                          LAVORAZIONI_LIMITI.PERCENTUALE_MAX
-                        }
-                        step="1"
-                        value={getSliderLavorazioneUscitaValue(
-                          lavorazione
-                        )}
-                        onChange={(event) =>
-                          handlePercentualeLavorazioneUscitaChange(
-                            lavorazione.id,
-                            event.target.value
-                          )
-                        }
-                        aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
-                        disabled={
-                          loadingTimbratura
-                        }
-                        className="min-w-0 flex-1 accent-slate-950"
-                      />
-
-                      <input
-                        type="number"
-                        min={
-                          LAVORAZIONI_LIMITI.PERCENTUALE_MIN
-                        }
-                        max={
-                          LAVORAZIONI_LIMITI.PERCENTUALE_MAX
-                        }
-                        step="1"
-                        value={getPercentualeLavorazioneUscitaValue(
-                          lavorazione
-                        )}
-                        onChange={(event) =>
-                          handlePercentualeLavorazioneUscitaChange(
-                            lavorazione.id,
-                            event.target.value
-                          )
-                        }
-                        aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
-                        disabled={
-                          loadingTimbratura
-                        }
-                        className="h-10 w-20 rounded-xl border border-slate-200 bg-white px-2 text-right text-sm font-semibold text-slate-950 outline-none transition-all focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
-                      />
-                    </div>
+                    <label
+                      htmlFor={`lavorazione-uscita-${lavorazione.id}`}
+                      className="min-w-0 flex-1 text-sm font-medium leading-5 text-[#FAFAF7]"
+                    >
+                      {lavorazione.nome}
+                    </label>
                   </div>
-                )
-              )}
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={LAVORAZIONI_LIMITI.PERCENTUALE_MIN}
+                      max={LAVORAZIONI_LIMITI.PERCENTUALE_MAX}
+                      step="1"
+                      value={getSliderLavorazioneUscitaValue(
+                        lavorazione
+                      )}
+                      onChange={(event) =>
+                        handlePercentualeLavorazioneUscitaChange(
+                          lavorazione.id,
+                          event.target.value
+                        )
+                      }
+                      aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
+                      disabled={loadingTimbratura}
+                      className="min-w-0 flex-1 accent-[#FF6B1A]"
+                    />
+
+                    <input
+                      type="number"
+                      min={LAVORAZIONI_LIMITI.PERCENTUALE_MIN}
+                      max={LAVORAZIONI_LIMITI.PERCENTUALE_MAX}
+                      step="1"
+                      value={getPercentualeLavorazioneUscitaValue(
+                        lavorazione
+                      )}
+                      onChange={(event) =>
+                        handlePercentualeLavorazioneUscitaChange(
+                          lavorazione.id,
+                          event.target.value
+                        )
+                      }
+                      aria-label={`${TIMBRATURE_LAVORAZIONI_TESTI.PERCENTUALE_LABEL} ${lavorazione.nome}`}
+                      disabled={loadingTimbratura}
+                      className="h-10 w-20 rounded-none border border-[#2B2B2F] bg-[#0F0F10] px-2 text-right text-sm font-medium text-[#FAFAF7] outline-none transition-colors focus:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
 
             {erroreLavorazioniUscita && (
-              <p className="mx-4 rounded-2xl border border-rose-100 bg-rose-50 p-3 text-sm font-medium text-rose-700">
-                {
-                  erroreLavorazioniUscita
-                }
+              <p className="mx-4 border border-[#5B2A29] bg-[#1A1112] p-3 text-sm font-medium text-[#FFB3A6]">
+                {erroreLavorazioniUscita}
               </p>
             )}
 
-            <div className="flex gap-3 border-t border-slate-100 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="flex gap-3 border-t border-[#2B2B2F] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button
                 type="button"
-                onClick={
-                  resetLavorazioniUscita
-                }
+                onClick={resetLavorazioniUscita}
                 disabled={loadingTimbratura}
-                className="min-h-12 flex-1 rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-12 flex-1 border border-[#2B2B2F] bg-[#161617] p-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7] transition-colors hover:border-[#FF6B1A] disabled:cursor-not-allowed disabled:bg-[#141416] disabled:text-[#8C8780]"
               >
-                {
-                  TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA
-                }
+                {TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA}
               </button>
 
               <button
                 type="button"
-                onClick={
-                  handleConfermaLavorazioniUscita
-                }
+                onClick={handleConfermaLavorazioniUscita}
                 disabled={loadingTimbratura}
-                className="min-h-12 flex-1 rounded-2xl bg-slate-950 p-3 font-semibold text-white shadow-lg shadow-slate-950/10 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="min-h-12 flex-1 border border-[#FF6B1A] bg-[#FF6B1A] p-3 text-[10px] font-medium uppercase tracking-[0.24em] text-white transition-colors hover:bg-[#f65e0e] disabled:cursor-not-allowed disabled:border-[#2B2B2F] disabled:bg-[#1A1A1C] disabled:text-[#8C8780]"
               >
                 {loadingTimbratura
                   ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
                   : dialogCambioCantiere
-                    ? TIMBRATURE_LAVORAZIONI_TESTI
-                        .SALVA_CAMBIO_CANTIERE
+                    ? TIMBRATURE_LAVORAZIONI_TESTI.SALVA_CAMBIO_CANTIERE
                     : TIMBRATURE_LAVORAZIONI_TESTI.SALVA_USCITA}
               </button>
             </div>

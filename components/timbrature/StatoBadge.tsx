@@ -16,37 +16,28 @@ type Props = {
 const STATO_STILI: Record<
   StatoLavoratore,
   {
-    contenitore: string;
     indicatore: string;
     testo: string;
     descrizione: string;
   }
 > = {
   [STATI.FUORI]: {
-    contenitore:
-      "border-slate-200 bg-white",
-    indicatore: "bg-slate-400",
-    testo: "text-slate-950",
+    indicatore: "bg-[#7A7A7A]",
+    testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .FUORI_DESCRIZIONE,
   },
   [STATI.DENTRO]: {
-    contenitore:
-      "border-emerald-200 bg-emerald-50",
-    indicatore:
-      "bg-emerald-500 shadow-[0_0_0_6px_rgba(16,185,129,0.14)]",
-    testo: "text-emerald-950",
+    indicatore: "bg-[#FF6B1A]",
+    testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .DENTRO_DESCRIZIONE,
   },
   [STATI.IN_PAUSA]: {
-    contenitore:
-      "border-amber-200 bg-amber-50",
-    indicatore:
-      "bg-amber-500 shadow-[0_0_0_6px_rgba(245,158,11,0.14)]",
-    testo: "text-amber-950",
+    indicatore: "bg-[#FFB566]",
+    testo: "text-[#FAFAF7]",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .IN_PAUSA_DESCRIZIONE,
@@ -88,47 +79,45 @@ export function StatoBadge({
   const stile = STATO_STILI[stato];
 
   return (
-    <section
-      className={`rounded-2xl border p-4 shadow-sm transition-colors duration-200 ${stile.contenitore}`}
-    >
+    <section className="relative overflow-hidden border border-[#2A2A2D] bg-[#161617] p-4 text-[#FAFAF7]">
+      {stato === STATI.DENTRO && (
+        <div className="absolute inset-y-0 left-0 w-1 bg-[#FF6B1A]" />
+      )}
+
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
             {TIMBRATURE_TESTI.STATO.TITOLO}
           </p>
 
           <div className="mt-3 flex items-center gap-3">
             <span
-              className={`h-3 w-3 rounded-full ${stile.indicatore}`}
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${stile.indicatore}`}
             />
-            <h2
-              className={`text-3xl font-semibold tracking-tight ${stile.testo}`}
-            >
-              {stato}
-            </h2>
+            <div className="min-w-0">
+              <h2
+                className={`display text-3xl font-medium leading-none ${stile.testo}`}
+              >
+                {stato}
+              </h2>
+              <p className="mt-1 text-sm text-[#C7C2B7]">
+                {stile.descrizione}
+              </p>
+            </div>
           </div>
-
-          <p className="mt-2 text-sm font-medium text-slate-600">
-            {stile.descrizione}
-          </p>
         </div>
 
-        <div className="rounded-full border border-white/70 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+        <div className="shrink-0 border border-[#323236] bg-[#0F0F10] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
           {TIMBRATURE_TESTI.STATO.LIVE}
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border border-white/70 bg-white/70 p-3 text-sm text-slate-600 shadow-sm">
-        <span className="font-medium text-slate-900">
-          {
-            TIMBRATURE_TESTI.STATO
-              .ULTIMA_TIMBRATURA
-          }
+      <div className="mt-4 border border-[#2B2B2F] bg-[#0F0F10] px-3 py-3 text-sm text-[#D7D1C7]">
+        <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+          {TIMBRATURE_TESTI.STATO.ULTIMA_TIMBRATURA}
         </span>
-        <span className="mt-1 block">
-          {getUltimaTimbraturaLabel(
-            ultimaTimbratura
-          )}
+        <span className="mt-1 block leading-5">
+          {getUltimaTimbraturaLabel(ultimaTimbratura)}
         </span>
       </div>
     </section>

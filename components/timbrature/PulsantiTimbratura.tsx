@@ -24,13 +24,13 @@ type PulsanteAzioneProps = {
 
 const STILI_PULSANTE = {
   primario:
-    "border-emerald-600 bg-emerald-600 text-white shadow-emerald-900/10 hover:bg-emerald-700",
+    "border-[#2B2B2F] bg-[#0F0F10] text-[#FAFAF7] hover:border-[#3A3A3E]",
   avviso:
-    "border-amber-500 bg-amber-500 text-white shadow-amber-900/10 hover:bg-amber-600",
+    "border-[#FF6B1A] bg-[#FF6B1A] text-white hover:bg-[#f65e0e]",
   neutro:
-    "border-slate-200 bg-white text-slate-950 shadow-slate-900/5 hover:border-slate-300 hover:bg-slate-50",
+    "border-[#2B2B2F] bg-[#161617] text-[#FAFAF7] hover:border-[#3A3A3E] hover:bg-[#1C1C1E]",
   pericolo:
-    "border-rose-600 bg-rose-600 text-white shadow-rose-900/10 hover:bg-rose-700",
+    "border-[#4A2423] bg-[#181315] text-[#FAFAF7] hover:border-[#FF6B1A] hover:bg-[#211719]",
 } as const;
 
 function PulsanteAzione({
@@ -45,25 +45,24 @@ function PulsanteAzione({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`group flex min-h-20 w-full items-center justify-between gap-4 rounded-2xl border px-4 py-4 text-left shadow-lg transition-all duration-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
+      className={`group flex min-h-20 w-full items-center justify-between gap-4 rounded-none border px-4 py-4 text-left transition-colors active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
     >
       <span className="min-w-0">
-        <span className="block text-base font-semibold leading-tight">
+        <span className="block text-[11px] font-medium uppercase tracking-[0.22em]">
           {loading
-            ? TIMBRATURE_TESTI.AZIONI
-                .SALVATAGGIO
+            ? TIMBRATURE_TESTI.AZIONI.SALVATAGGIO
             : label}
         </span>
-        <span className="mt-1 block text-sm opacity-80">
+        <span className="mt-1 block text-sm leading-5 text-current/70">
           {descrizione}
         </span>
       </span>
 
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-current/15 bg-black/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
         {loading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (
-          <span aria-hidden="true">{">"}</span>
+          <span aria-hidden="true">→</span>
         )}
       </span>
     </button>
@@ -79,88 +78,49 @@ export function PulsantiTimbratura({
     <section className="flex flex-col gap-3">
       {statoAttuale === STATI.FUORI && (
         <PulsanteAzione
-          label={
-            TIMBRATURE_TESTI.AZIONI.ENTRATA
-          }
-          descrizione={
-            TIMBRATURE_TESTI
-              .AZIONI_DESCRIZIONI.ENTRATA
-          }
+          label={TIMBRATURE_TESTI.AZIONI.ENTRATA}
+          descrizione={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.ENTRATA}
           tono="primario"
           loading={loading}
-          onClick={() =>
-            onTimbratura(TIMBRATURE.ENTRATA)
-          }
+          onClick={() => onTimbratura(TIMBRATURE.ENTRATA)}
         />
       )}
 
       {statoAttuale === STATI.DENTRO && (
         <>
           <PulsanteAzione
-            label={
-              TIMBRATURE_TESTI.AZIONI.PAUSA
-            }
-            descrizione={
-              TIMBRATURE_TESTI
-                .AZIONI_DESCRIZIONI.PAUSA
-            }
+            label={TIMBRATURE_TESTI.AZIONI.PAUSA}
+            descrizione={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.PAUSA}
             tono="avviso"
             loading={loading}
-            onClick={() =>
-              onTimbratura(TIMBRATURE.PAUSA)
-            }
+            onClick={() => onTimbratura(TIMBRATURE.PAUSA)}
           />
 
           <PulsanteAzione
-            label={
-              TIMBRATURE_TESTI.AZIONI
-                .CAMBIO_CANTIERE
-            }
-            descrizione={
-              TIMBRATURE_TESTI
-                .AZIONI_DESCRIZIONI
-                .CAMBIO_CANTIERE
-            }
+            label={TIMBRATURE_TESTI.AZIONI.CAMBIO_CANTIERE}
+            descrizione={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.CAMBIO_CANTIERE}
             tono="neutro"
             loading={loading}
-            onClick={() =>
-              onTimbratura(
-                TIMBRATURE.CAMBIO_CANTIERE
-              )
-            }
+            onClick={() => onTimbratura(TIMBRATURE.CAMBIO_CANTIERE)}
           />
 
           <PulsanteAzione
-            label={
-              TIMBRATURE_TESTI.AZIONI.USCITA
-            }
-            descrizione={
-              TIMBRATURE_TESTI
-                .AZIONI_DESCRIZIONI.USCITA
-            }
+            label={TIMBRATURE_TESTI.AZIONI.USCITA}
+            descrizione={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.USCITA}
             tono="pericolo"
             loading={loading}
-            onClick={() =>
-              onTimbratura(TIMBRATURE.USCITA)
-            }
+            onClick={() => onTimbratura(TIMBRATURE.USCITA)}
           />
         </>
       )}
 
       {statoAttuale === STATI.IN_PAUSA && (
         <PulsanteAzione
-          label={
-            TIMBRATURE_TESTI.AZIONI.RIENTRO
-          }
-          descrizione={
-            TIMBRATURE_TESTI
-              .AZIONI_DESCRIZIONI.RIENTRO
-          }
+          label={TIMBRATURE_TESTI.AZIONI.RIENTRO}
+          descrizione={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.RIENTRO}
           tono="primario"
           loading={loading}
-          onClick={() =>
-            onTimbratura(TIMBRATURE.RIENTRO)
-          }
+          onClick={() => onTimbratura(TIMBRATURE.RIENTRO)}
         />
       )}
     </section>
