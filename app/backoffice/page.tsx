@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
+import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 import { SAL_TESTI } from "@/constants/sal";
@@ -72,6 +73,20 @@ export default function BackofficePage() {
             </h2>
             <p className="mt-2 text-sm text-industrial-muted">
               {SAL_TESTI.CARD_DESCRIZIONE}
+            </p>
+          </Link>
+
+          <Link
+            href="/backoffice/produttivita"
+            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+          >
+            <h2 className="text-xl font-semibold">
+              {PRODUTTIVITA_TESTI.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-industrial-muted">
+              {
+                PRODUTTIVITA_TESTI.CARD_DESCRIZIONE
+              }
             </p>
           </Link>
 
