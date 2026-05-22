@@ -58,7 +58,7 @@ function PulsanteAzione({
         </span>
       </span>
 
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/15 bg-industrial-surface-strong text-lg transition-transform duration-200 group-hover:translate-x-0.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/15 bg-industrial-text text-lg text-white transition-transform duration-200 group-hover:translate-x-0.5">
         {loading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (
