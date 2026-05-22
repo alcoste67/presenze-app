@@ -22,22 +22,22 @@ const STATO_STILI: Record<
   }
 > = {
   [STATI.FUORI]: {
-    indicatore: "bg-[#8C8780]/50",
-    testo: "text-[#FAFAF7]",
+    indicatore: "bg-industrial-muted-strong/50",
+    testo: "text-industrial-text",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .FUORI_DESCRIZIONE,
   },
   [STATI.DENTRO]: {
     indicatore: "bg-industrial-orange",
-    testo: "text-[#FAFAF7]",
+    testo: "text-industrial-text",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .DENTRO_DESCRIZIONE,
   },
   [STATI.IN_PAUSA]: {
     indicatore: "bg-industrial-orange-soft",
-    testo: "text-[#FAFAF7]",
+    testo: "text-industrial-text",
     descrizione:
       TIMBRATURE_TESTI.STATO
         .IN_PAUSA_DESCRIZIONE,
@@ -79,14 +79,14 @@ export function StatoBadge({
   const stile = STATO_STILI[stato];
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-industrial-border bg-industrial-surface p-4 text-[#FAFAF7] shadow-[0_18px_42px_rgb(0_0_0/0.14)]">
+    <section className="relative overflow-hidden rounded-xl border border-industrial-border bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
       {stato === STATI.DENTRO && (
         <div className="absolute inset-y-0 left-0 w-1 bg-industrial-orange" />
       )}
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
+          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-industrial-muted-strong">
             {TIMBRATURE_TESTI.STATO.TITOLO}
           </p>
 
@@ -100,20 +100,20 @@ export function StatoBadge({
               >
                 {stato}
               </h2>
-              <p className="mt-1 text-sm text-[#C7C2B7]">
+              <p className="mt-1 text-sm text-industrial-muted">
                 {stile.descrizione}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="shrink-0 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-[#FAFAF7]">
+        <div className="shrink-0 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-text">
           {TIMBRATURE_TESTI.STATO.LIVE}
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-3 text-sm text-[#D7D1C7]">
-        <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+      <div className="mt-4 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-3 text-sm text-industrial-muted">
+        <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
           {TIMBRATURE_TESTI.STATO.ULTIMA_TIMBRATURA}
         </span>
         <span className="mt-1 block leading-5">

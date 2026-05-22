@@ -276,7 +276,7 @@ export default function BackofficeLibroPresenzePage() {
     loadingOpzioni || loadingReport;
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 text-gray-900 print:bg-white print:p-0">
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text print:bg-industrial-surface print:p-0">
       <div className="mx-auto max-w-7xl print:max-w-none">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4 print:hidden">
           <div>
@@ -285,7 +285,7 @@ export default function BackofficeLibroPresenzePage() {
                 REPORT_LIBRO_PRESENZE_TESTI.TITOLO
               }
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-industrial-muted">
               {
                 REPORT_LIBRO_PRESENZE_TESTI.SOTTOTITOLO
               }
@@ -295,7 +295,7 @@ export default function BackofficeLibroPresenzePage() {
           <div className="flex gap-4 text-sm font-semibold">
             <Link
               href="/backoffice"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {
                 REPORT_LIBRO_PRESENZE_TESTI.BACKOFFICE
@@ -303,7 +303,7 @@ export default function BackofficeLibroPresenzePage() {
             </Link>
             <Link
               href="/"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {
                 REPORT_LIBRO_PRESENZE_TESTI.TIMBRATURE
@@ -312,7 +312,7 @@ export default function BackofficeLibroPresenzePage() {
           </div>
         </div>
 
-        <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow print:hidden">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)] print:hidden">
           <h2 className="mb-4 text-xl font-semibold">
             {
               REPORT_LIBRO_PRESENZE_TESTI.FILTRI
@@ -324,7 +324,7 @@ export default function BackofficeLibroPresenzePage() {
             className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
           >
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-industrial-muted">
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.DATA_INIZIO
                 }
@@ -341,12 +341,12 @@ export default function BackofficeLibroPresenzePage() {
                     })
                   )
                 }
-                className="rounded-lg border border-gray-300 p-3 text-gray-900"
+                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
               />
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-industrial-muted">
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.DATA_FINE
                 }
@@ -363,12 +363,12 @@ export default function BackofficeLibroPresenzePage() {
                     })
                   )
                 }
-                className="rounded-lg border border-gray-300 p-3 text-gray-900"
+                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
               />
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-industrial-muted">
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.DIPENDENTE
                 }
@@ -386,7 +386,7 @@ export default function BackofficeLibroPresenzePage() {
                   )
                 }
                 disabled={loadingOpzioni}
-                className="rounded-lg border border-gray-300 p-3 text-gray-900 disabled:bg-gray-100"
+                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
               >
                 <option value="">
                   {
@@ -410,7 +410,7 @@ export default function BackofficeLibroPresenzePage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-industrial-muted">
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.CANTIERE
                 }
@@ -428,7 +428,7 @@ export default function BackofficeLibroPresenzePage() {
                   )
                 }
                 disabled={loadingOpzioni}
-                className="rounded-lg border border-gray-300 p-3 text-gray-900 disabled:bg-gray-100"
+                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
               >
                 <option value="">
                   {
@@ -451,7 +451,7 @@ export default function BackofficeLibroPresenzePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-lg bg-black px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+                className="rounded-lg border border-industrial-orange bg-industrial-orange px-5 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:cursor-not-allowed disabled:bg-industrial-border disabled:text-industrial-muted"
               >
                 {loadingReport
                   ? REPORT_LIBRO_PRESENZE_TESTI.CARICAMENTO
@@ -466,7 +466,7 @@ export default function BackofficeLibroPresenzePage() {
                   !report ||
                   report.righe.length === 0
                 }
-                className="rounded-lg border border-gray-300 px-5 py-3 font-semibold text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                className="rounded-lg border border-industrial-border bg-industrial-control px-5 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
               >
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.ESPORTA_CSV
@@ -481,7 +481,7 @@ export default function BackofficeLibroPresenzePage() {
                   !report ||
                   report.righe.length === 0
                 }
-                className="rounded-lg border border-gray-300 px-5 py-3 font-semibold text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                className="rounded-lg border border-industrial-border bg-industrial-control px-5 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
               >
                 {
                   REPORT_LIBRO_PRESENZE_TESTI.STAMPA_PDF
@@ -490,7 +490,7 @@ export default function BackofficeLibroPresenzePage() {
             </div>
           </form>
 
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-industrial-muted">
             {
               REPORT_LIBRO_PRESENZE_TESTI
                 .LIMITE_EXPORT_PREFIX
@@ -513,12 +513,12 @@ export default function BackofficeLibroPresenzePage() {
         </section>
 
         {errore && (
-          <p className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700 print:hidden">
+          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text print:hidden">
             {errore}
           </p>
         )}
 
-        <section className="rounded-lg border border-gray-200 bg-white p-5 shadow print:border-0 print:p-0 print:shadow-none">
+        <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)] print:border-0 print:p-0 print:shadow-none">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">
@@ -527,7 +527,7 @@ export default function BackofficeLibroPresenzePage() {
                 }
               </h2>
               {report && (
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-industrial-muted">
                   {report.righe.length}{" "}
                   {
                     REPORT_LIBRO_PRESENZE_TESTI.RIGHE
@@ -538,7 +538,7 @@ export default function BackofficeLibroPresenzePage() {
           </div>
 
           {!report && !loadingReport && (
-            <p className="text-gray-500">
+            <p className="text-industrial-muted">
               {
                 REPORT_LIBRO_PRESENZE_TESTI
                   .NESSUNA_RICERCA
@@ -547,7 +547,7 @@ export default function BackofficeLibroPresenzePage() {
           )}
 
           {loadingReport && (
-            <p className="text-gray-500">
+            <p className="text-industrial-muted">
               {
                 REPORT_LIBRO_PRESENZE_TESTI.CARICAMENTO
               }
@@ -557,7 +557,7 @@ export default function BackofficeLibroPresenzePage() {
           {report &&
             report.righe.length === 0 &&
             !loadingReport && (
-              <p className="text-gray-500">
+              <p className="text-industrial-muted">
                 {
                   REPORT_LIBRO_PRESENZE_TESTI
                     .NESSUN_RISULTATO
@@ -566,7 +566,7 @@ export default function BackofficeLibroPresenzePage() {
             )}
 
           {report?.limiteRaggiunto && (
-            <p className="mb-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 print:hidden">
+            <p className="mb-4 rounded-lg bg-industrial-warning-bg p-3 text-sm text-industrial-warning-text print:hidden">
               {
                 REPORT_LIBRO_PRESENZE_TESTI
                   .LIMITE_RAGGIUNTO
@@ -580,12 +580,12 @@ export default function BackofficeLibroPresenzePage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
+                    <tr className="border-b border-industrial-border-soft">
                       {REPORT_LIBRO_PRESENZE_COLONNE.map(
                         (colonna) => (
                           <th
                             key={colonna}
-                            className="whitespace-nowrap px-3 py-2 font-semibold text-gray-700"
+                            className="whitespace-nowrap px-3 py-2 font-semibold text-industrial-muted"
                           >
                             {colonna}
                           </th>
@@ -597,7 +597,7 @@ export default function BackofficeLibroPresenzePage() {
                     {report.righe.map((riga) => (
                       <tr
                         key={riga.id}
-                        className="border-b border-gray-100"
+                        className="border-b border-industrial-border-soft"
                       >
                         <td className="whitespace-nowrap px-3 py-2">
                           {riga.data}

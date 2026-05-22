@@ -43,14 +43,14 @@ function getStatoClassName(
   stato: StatoSalLavorazione
 ) {
   if (stato === SAL_STATI.NON_INIZIATA) {
-    return "bg-gray-100 text-gray-700";
+    return "bg-industrial-bg-soft text-industrial-muted";
   }
 
   if (stato === SAL_STATI.COMPLETATA) {
-    return "bg-green-50 text-green-700";
+    return "bg-industrial-success-bg text-industrial-success-text";
   }
 
-  return "bg-blue-50 text-blue-700";
+  return "bg-industrial-orange-soft text-industrial-orange-hover";
 }
 
 function BarraProgresso({
@@ -59,9 +59,9 @@ function BarraProgresso({
   percentuale: number;
 }) {
   return (
-    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+    <div className="h-3 w-full overflow-hidden rounded-full bg-industrial-border-soft">
       <div
-        className="h-full rounded-full bg-blue-600"
+        className="h-full rounded-full bg-industrial-orange"
         style={{
           width: `${percentuale}%`,
         }}
@@ -76,13 +76,13 @@ function RigaLavorazione({
   lavorazione: SalLavorazione;
 }) {
   return (
-    <li className="rounded-lg border border-gray-200 bg-white p-4">
+    <li className="rounded-lg border border-industrial-border-soft bg-industrial-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-industrial-text">
             {lavorazione.nome}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-industrial-muted">
             {SAL_TESTI.PERCENTUALE}:{" "}
             {
               lavorazione.percentuale_completamento
@@ -206,7 +206,7 @@ export default function BackofficeSalPage() {
   const loading = loadingCantieri || loadingSal;
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -218,13 +218,13 @@ export default function BackofficeSalPage() {
           <div className="flex gap-4 text-sm font-semibold">
             <Link
               href="/backoffice"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {SAL_TESTI.BACKOFFICE}
             </Link>
             <Link
               href="/"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {SAL_TESTI.TIMBRATURE}
             </Link>
@@ -232,14 +232,14 @@ export default function BackofficeSalPage() {
         </div>
 
         {errore && (
-          <p className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
             {errore}
           </p>
         )}
 
-        <section className="mb-6 rounded-lg bg-white p-5 text-gray-900 shadow">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           <label className="block max-w-xl">
-            <span className="mb-1 block text-sm font-medium text-gray-700">
+            <span className="mb-1 block text-sm font-medium text-industrial-muted">
               {SAL_TESTI.CANTIERE}
             </span>
             <select
@@ -250,7 +250,7 @@ export default function BackofficeSalPage() {
                 )
               }
               disabled={loadingCantieri}
-              className="w-full rounded-lg border p-3 text-gray-900 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
             >
               <option value="">
                 {SAL_TESTI.SELEZIONA_CANTIERE}
@@ -268,22 +268,22 @@ export default function BackofficeSalPage() {
         </section>
 
         {loading && (
-          <p className="text-gray-500">
+          <p className="text-industrial-muted">
             {SAL_TESTI.CARICAMENTO}
           </p>
         )}
 
         {!loadingCantieri &&
           cantieri.length === 0 && (
-            <p className="rounded-lg bg-white p-5 text-gray-500 shadow">
+            <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
               {SAL_TESTI.NESSUN_CANTIERE}
             </p>
           )}
 
         {!loading && sal && (
           <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <section className="rounded-lg bg-white p-5 text-gray-900 shadow">
-              <p className="text-sm font-medium text-gray-500">
+            <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+              <p className="text-sm font-medium text-industrial-muted">
                 {
                   SAL_TESTI.AVANZAMENTO_TOTALE
                 }
@@ -306,7 +306,7 @@ export default function BackofficeSalPage() {
               </h2>
 
               {sal.lavorazioni.length === 0 ? (
-                <p className="rounded-lg bg-white p-5 text-gray-500 shadow">
+                <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
                   {
                     SAL_TESTI.NESSUNA_LAVORAZIONE
                   }

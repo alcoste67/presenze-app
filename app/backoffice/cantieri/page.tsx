@@ -302,7 +302,7 @@ export default function BackofficeCantieriPage() {
     : "Nuovo cantiere";
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -314,13 +314,13 @@ export default function BackofficeCantieriPage() {
           <div className="flex gap-4 text-sm font-semibold">
             <Link
               href="/backoffice"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               Back-office
             </Link>
             <Link
               href="/"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               Timbrature
             </Link>
@@ -328,19 +328,19 @@ export default function BackofficeCantieriPage() {
         </div>
 
         {errore && (
-          <p className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
             {errore}
           </p>
         )}
 
         {messaggio && (
-          <p className="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
             {messaggio}
           </p>
         )}
 
         <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <section className="rounded-lg bg-white p-5 text-gray-900 shadow">
+          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
             <h2 className="mb-4 text-xl font-semibold">
               {formTitolo}
             </h2>
@@ -350,7 +350,7 @@ export default function BackofficeCantieriPage() {
               className="flex flex-col gap-4"
             >
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-gray-700">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
                   Nome
                 </span>
                 <input
@@ -364,12 +364,12 @@ export default function BackofficeCantieriPage() {
                     )
                   }
                   disabled={salvataggio}
-                  className="w-full rounded-lg border p-3 text-gray-900"
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-gray-700">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
                   Indirizzo
                 </span>
                 <input
@@ -384,12 +384,12 @@ export default function BackofficeCantieriPage() {
                     )
                   }
                   disabled={salvataggio}
-                  className="w-full rounded-lg border p-3 text-gray-900"
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-gray-700">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
                   Lavorazioni
                 </span>
                 <textarea
@@ -405,11 +405,11 @@ export default function BackofficeCantieriPage() {
                   }
                   disabled={salvataggio}
                   rows={4}
-                  className="w-full rounded-lg border p-3 text-gray-900"
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                 />
               </label>
 
-              <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
+              <label className="flex items-center gap-3 text-sm font-medium text-industrial-muted">
                 <input
                   type="checkbox"
                   checked={form.attivo}
@@ -432,7 +432,7 @@ export default function BackofficeCantieriPage() {
                 <button
                   type="submit"
                   disabled={salvataggio}
-                  className="rounded-lg bg-black px-4 py-3 font-semibold text-white disabled:bg-gray-400"
+                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
                 >
                   {salvataggio
                     ? "Salvataggio..."
@@ -444,7 +444,7 @@ export default function BackofficeCantieriPage() {
                     type="button"
                     onClick={resetForm}
                     disabled={salvataggio}
-                    className="rounded-lg border px-4 py-3 font-semibold disabled:text-gray-400"
+                    className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                   >
                     Annulla
                   </button>
@@ -453,7 +453,7 @@ export default function BackofficeCantieriPage() {
             </form>
           </section>
 
-          <section className="rounded-lg bg-white p-5 text-gray-900 shadow">
+          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold">
                 Lista cantieri
@@ -465,20 +465,20 @@ export default function BackofficeCantieriPage() {
                   void caricaCantieri()
                 }
                 disabled={loading || salvataggio}
-                className="text-sm font-semibold text-blue-600 disabled:text-gray-400"
+                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
               >
                 Aggiorna
               </button>
             </div>
 
             {loading && (
-              <p className="text-gray-500">
+              <p className="text-industrial-muted">
                 Caricamento...
               </p>
             )}
 
             {!loading && cantieri.length === 0 && (
-              <p className="text-gray-500">
+              <p className="text-industrial-muted">
                 Nessun cantiere
               </p>
             )}
@@ -487,7 +487,7 @@ export default function BackofficeCantieriPage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b text-gray-500">
+                    <tr className="border-b border-industrial-border-soft text-industrial-muted">
                       <th className="py-3 pr-4 font-semibold">
                         Nome
                       </th>
@@ -510,16 +510,16 @@ export default function BackofficeCantieriPage() {
                     {cantieri.map((cantiere) => (
                       <tr
                         key={cantiere.id}
-                        className="border-b last:border-b-0"
+                        className="border-b border-industrial-border-soft last:border-b-0"
                       >
                         <td className="py-4 pr-4 font-semibold">
                           {cantiere.nome}
                         </td>
-                        <td className="py-4 pr-4 text-gray-700">
+                        <td className="py-4 pr-4 text-industrial-muted">
                           {cantiere.indirizzo ||
                             "-"}
                         </td>
-                        <td className="max-w-xs py-4 pr-4 text-gray-700">
+                        <td className="max-w-xs py-4 pr-4 text-industrial-muted">
                           {cantiere.lavorazioni ||
                             "-"}
                         </td>
@@ -527,8 +527,8 @@ export default function BackofficeCantieriPage() {
                           <span
                             className={
                               cantiere.attivo
-                                ? "rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700"
-                                : "rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600"
+                                ? "rounded-full bg-industrial-success-bg px-3 py-1 text-xs font-semibold text-industrial-success-text"
+                                : "rounded-full bg-industrial-bg-soft px-3 py-1 text-xs font-semibold text-industrial-muted"
                             }
                           >
                             {cantiere.attivo
@@ -546,7 +546,7 @@ export default function BackofficeCantieriPage() {
                                 )
                               }
                               disabled={salvataggio}
-                              className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                             >
                               Modifica
                             </button>
@@ -559,7 +559,7 @@ export default function BackofficeCantieriPage() {
                                 )
                               }
                               disabled={salvataggio}
-                              className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                             >
                               {cantiere.attivo
                                 ? "Disattiva"
@@ -575,7 +575,7 @@ export default function BackofficeCantieriPage() {
                                   )
                                 }
                                 disabled={salvataggio}
-                                className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 disabled:text-gray-400"
+                                className="rounded-lg border border-industrial-danger-border px-3 py-2 font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                               >
                                 Elimina
                               </button>

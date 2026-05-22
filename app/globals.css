@@ -1,38 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ece7de;
+  --foreground: #24262b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-industrial-bg: #1f1f22;
-  --color-industrial-bg-soft: #26272b;
-  --color-industrial-surface: #2d2e33;
-  --color-industrial-surface-strong: #33343a;
-  --color-industrial-control: #28292e;
-  --color-industrial-border: #3f4148;
-  --color-industrial-border-soft: #35373d;
-  --color-industrial-text: #f4f1ec;
-  --color-industrial-muted: #b9b1a7;
-  --color-industrial-muted-strong: #918b82;
-  --color-industrial-orange: #c66f3d;
-  --color-industrial-orange-hover: #d17a45;
-  --color-industrial-orange-active: #b76032;
-  --color-industrial-orange-soft: #d89a68;
-  --color-industrial-danger-bg: #3a2524;
-  --color-industrial-danger-border: #714038;
-  --color-industrial-danger-text: #f0b6aa;
+  --color-industrial-bg: #ece7de;
+  --color-industrial-bg-soft: #f7f3ec;
+  --color-industrial-surface: #fffdf9;
+  --color-industrial-surface-strong: #f4f0e8;
+  --color-industrial-control: #fbf8f2;
+  --color-industrial-border: #d9d1c5;
+  --color-industrial-border-soft: #e8e0d6;
+  --color-industrial-text: #24262b;
+  --color-industrial-muted: #6f6a61;
+  --color-industrial-muted-strong: #928a80;
+  --color-industrial-orange: #bd7448;
+  --color-industrial-orange-hover: #a95f36;
+  --color-industrial-orange-active: #9b4f29;
+  --color-industrial-orange-soft: #f0dfd1;
+  --color-industrial-danger-bg: #fff0ec;
+  --color-industrial-danger-border: #e6b7a9;
+  --color-industrial-danger-text: #9e3f2d;
+  --color-industrial-success-bg: #edf7ef;
+  --color-industrial-success-text: #2f6b3f;
+  --color-industrial-warning-bg: #fff7df;
+  --color-industrial-warning-text: #8a641d;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff;
-    --foreground: #171717;
+    --background: #ece7de;
+    --foreground: #24262b;
   }
 }
 

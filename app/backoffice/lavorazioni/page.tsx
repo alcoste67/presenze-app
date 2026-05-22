@@ -828,7 +828,7 @@ export default function BackofficeLavorazioniPage() {
     estrazioneImport || salvataggioImport;
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -840,13 +840,13 @@ export default function BackofficeLavorazioniPage() {
           <div className="flex gap-4 text-sm font-semibold">
             <Link
               href="/backoffice"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {LAVORAZIONI_TESTI.BACKOFFICE}
             </Link>
             <Link
               href="/"
-              className="text-blue-600"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {LAVORAZIONI_TESTI.TIMBRATURE}
             </Link>
@@ -854,20 +854,20 @@ export default function BackofficeLavorazioniPage() {
         </div>
 
         {errore && (
-          <p className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
             {errore}
           </p>
         )}
 
         {messaggio && (
-          <p className="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
             {messaggio}
           </p>
         )}
 
-        <section className="mb-6 rounded-lg bg-white p-5 text-gray-900 shadow">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           <label className="block max-w-xl">
-            <span className="mb-1 block text-sm font-medium text-gray-700">
+            <span className="mb-1 block text-sm font-medium text-industrial-muted">
               {LAVORAZIONI_TESTI.CANTIERE}
             </span>
             <select
@@ -878,7 +878,7 @@ export default function BackofficeLavorazioniPage() {
                 )
               }
               disabled={loadingCantieri}
-              className="w-full rounded-lg border p-3 text-gray-900 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
             >
               <option value="">
                 {
@@ -899,7 +899,7 @@ export default function BackofficeLavorazioniPage() {
 
         {!loadingCantieri &&
           cantieri.length > 0 && (
-            <section className="mb-6 rounded-lg bg-white p-5 text-gray-900 shadow">
+            <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-xl font-semibold">
                   {
@@ -912,7 +912,7 @@ export default function BackofficeLavorazioniPage() {
                     type="button"
                     onClick={resetImport}
                     disabled={bloccoImport}
-                    className="text-sm font-semibold text-gray-500 disabled:text-gray-400"
+                    className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                   >
                     {LAVORAZIONI_TESTI.ANNULLA}
                   </button>
@@ -921,7 +921,7 @@ export default function BackofficeLavorazioniPage() {
 
               <div className="flex flex-col gap-4 md:flex-row md:items-end">
                 <label className="block flex-1">
-                  <span className="mb-1 block text-sm font-medium text-gray-700">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
                     {
                       LAVORAZIONI_TESTI.FILE_COMPUTO
                     }
@@ -937,7 +937,7 @@ export default function BackofficeLavorazioniPage() {
                     disabled={
                       !cantiereId || bloccoImport
                     }
-                    className="w-full rounded-lg border p-3 text-gray-900 disabled:bg-gray-100"
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
                 </label>
 
@@ -951,7 +951,7 @@ export default function BackofficeLavorazioniPage() {
                     !fileComputo ||
                     bloccoImport
                   }
-                  className="rounded-lg bg-black px-4 py-3 font-semibold text-white disabled:bg-gray-400"
+                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
                 >
                   {estrazioneImport
                     ? LAVORAZIONI_TESTI.ESTRAZIONE
@@ -977,7 +977,7 @@ export default function BackofficeLavorazioniPage() {
                         bloccoImport ||
                         previewImport.length === 0
                       }
-                      className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:bg-gray-400"
+                      className="rounded-lg border border-industrial-success-text bg-industrial-success-text px-4 py-2 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange hover:bg-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
                     >
                       {salvataggioImport
                         ? LAVORAZIONI_TESTI.SALVATAGGIO
@@ -988,7 +988,7 @@ export default function BackofficeLavorazioniPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
-                        <tr className="border-b text-gray-500">
+                        <tr className="border-b border-industrial-border-soft text-industrial-muted">
                           <th className="py-3 pr-4 font-semibold">
                             {
                               LAVORAZIONI_TESTI.ORDINE
@@ -1015,7 +1015,7 @@ export default function BackofficeLavorazioniPage() {
                           ) => (
                             <tr
                               key={`${lavorazione.ordine}-${index}`}
-                              className="border-b last:border-b-0"
+                              className="border-b border-industrial-border-soft last:border-b-0"
                             >
                               <td className="py-3 pr-4">
                                 <input
@@ -1050,7 +1050,7 @@ export default function BackofficeLavorazioniPage() {
                                   disabled={
                                     bloccoImport
                                   }
-                                  className="w-24 rounded-lg border p-2 text-gray-900"
+                                  className="w-24 rounded-lg border border-industrial-border bg-industrial-control p-2 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                                 />
                               </td>
                               <td className="py-3 pr-4">
@@ -1074,7 +1074,7 @@ export default function BackofficeLavorazioniPage() {
                                   disabled={
                                     bloccoImport
                                   }
-                                  className="w-full min-w-64 rounded-lg border p-2 text-gray-900"
+                                  className="w-full min-w-64 rounded-lg border border-industrial-border bg-industrial-control p-2 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                                 />
                               </td>
                               <td className="py-3 text-right">
@@ -1088,7 +1088,7 @@ export default function BackofficeLavorazioniPage() {
                                   disabled={
                                     bloccoImport
                                   }
-                                  className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                                  className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                                 >
                                   {
                                     LAVORAZIONI_TESTI.RIMUOVI
@@ -1107,14 +1107,14 @@ export default function BackofficeLavorazioniPage() {
           )}
 
         {loadingCantieri && (
-          <p className="text-gray-500">
+          <p className="text-industrial-muted">
             {LAVORAZIONI_TESTI.CARICAMENTO}
           </p>
         )}
 
         {!loadingCantieri &&
           cantieri.length === 0 && (
-            <p className="rounded-lg bg-white p-5 text-gray-500 shadow">
+            <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
               {
                 LAVORAZIONI_TESTI.NESSUN_CANTIERE
               }
@@ -1124,7 +1124,7 @@ export default function BackofficeLavorazioniPage() {
         {!loadingCantieri &&
           cantieri.length > 0 && (
             <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-              <section className="rounded-lg bg-white p-5 text-gray-900 shadow">
+              <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
                 <h2 className="mb-4 text-xl font-semibold">
                   {formTitolo}
                 </h2>
@@ -1134,7 +1134,7 @@ export default function BackofficeLavorazioniPage() {
                   className="flex flex-col gap-4"
                 >
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
                       {LAVORAZIONI_TESTI.NOME}
                     </span>
                     <input
@@ -1148,12 +1148,12 @@ export default function BackofficeLavorazioniPage() {
                         )
                       }
                       disabled={salvataggio}
-                      className="w-full rounded-lg border p-3 text-gray-900"
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
                       {LAVORAZIONI_TESTI.ORDINE}
                     </span>
                     <input
@@ -1169,12 +1169,12 @@ export default function BackofficeLavorazioniPage() {
                         )
                       }
                       disabled={salvataggio}
-                      className="w-full rounded-lg border p-3 text-gray-900"
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
                       {
                         LAVORAZIONI_TESTI.PERCENTUALE
                       }
@@ -1200,11 +1200,11 @@ export default function BackofficeLavorazioniPage() {
                         )
                       }
                       disabled={salvataggio}
-                      className="w-full rounded-lg border p-3 text-gray-900"
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                     />
                   </label>
 
-                  <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                  <label className="flex items-center gap-3 text-sm font-medium text-industrial-muted">
                     <input
                       type="checkbox"
                       checked={form.attiva}
@@ -1229,7 +1229,7 @@ export default function BackofficeLavorazioniPage() {
                       disabled={
                         salvataggio || !cantiereId
                       }
-                      className="rounded-lg bg-black px-4 py-3 font-semibold text-white disabled:bg-gray-400"
+                      className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
                     >
                       {salvataggio
                         ? LAVORAZIONI_TESTI.SALVATAGGIO
@@ -1241,7 +1241,7 @@ export default function BackofficeLavorazioniPage() {
                         type="button"
                         onClick={resetForm}
                         disabled={salvataggio}
-                        className="rounded-lg border px-4 py-3 font-semibold disabled:text-gray-400"
+                        className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                       >
                         {LAVORAZIONI_TESTI.ANNULLA}
                       </button>
@@ -1250,7 +1250,7 @@ export default function BackofficeLavorazioniPage() {
                 </form>
               </section>
 
-              <section className="rounded-lg bg-white p-5 text-gray-900 shadow">
+              <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <h2 className="text-xl font-semibold">
                     {
@@ -1266,14 +1266,14 @@ export default function BackofficeLavorazioniPage() {
                       )
                     }
                     disabled={loading || salvataggio}
-                    className="text-sm font-semibold text-blue-600 disabled:text-gray-400"
+                    className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                   >
                     {LAVORAZIONI_TESTI.AGGIORNA}
                   </button>
                 </div>
 
                 {loadingLavorazioni && (
-                  <p className="text-gray-500">
+                  <p className="text-industrial-muted">
                     {
                       LAVORAZIONI_TESTI.CARICAMENTO
                     }
@@ -1282,7 +1282,7 @@ export default function BackofficeLavorazioniPage() {
 
                 {!loadingLavorazioni &&
                   lavorazioni.length === 0 && (
-                    <p className="text-gray-500">
+                    <p className="text-industrial-muted">
                       {
                         LAVORAZIONI_TESTI.NESSUNA_LAVORAZIONE
                       }
@@ -1294,7 +1294,7 @@ export default function BackofficeLavorazioniPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse text-left text-sm">
                         <thead>
-                          <tr className="border-b text-gray-500">
+                          <tr className="border-b border-industrial-border-soft text-industrial-muted">
                             <th className="py-3 pr-4 font-semibold">
                               {
                                 LAVORAZIONI_TESTI.ORDINE
@@ -1328,7 +1328,7 @@ export default function BackofficeLavorazioniPage() {
                             (lavorazione) => (
                               <tr
                                 key={lavorazione.id}
-                                className="border-b last:border-b-0"
+                                className="border-b border-industrial-border-soft last:border-b-0"
                               >
                                 <td className="py-4 pr-4 font-semibold">
                                   {
@@ -1372,7 +1372,7 @@ export default function BackofficeLavorazioniPage() {
                                       disabled={
                                         salvataggio
                                       }
-                                      className="w-20 rounded-lg border p-2 text-gray-900"
+                                      className="w-20 rounded-lg border border-industrial-border bg-industrial-control p-2 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
                                     />
                                     <button
                                       type="button"
@@ -1384,7 +1384,7 @@ export default function BackofficeLavorazioniPage() {
                                       disabled={
                                         salvataggio
                                       }
-                                      className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                                     >
                                       {
                                         LAVORAZIONI_TESTI.AGGIORNA_PERCENTUALE
@@ -1396,8 +1396,8 @@ export default function BackofficeLavorazioniPage() {
                                   <span
                                     className={
                                       lavorazione.attiva
-                                        ? "rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700"
-                                        : "rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600"
+                                        ? "rounded-full bg-industrial-success-bg px-3 py-1 text-xs font-semibold text-industrial-success-text"
+                                        : "rounded-full bg-industrial-bg-soft px-3 py-1 text-xs font-semibold text-industrial-muted"
                                     }
                                   >
                                     {lavorazione.attiva
@@ -1417,7 +1417,7 @@ export default function BackofficeLavorazioniPage() {
                                       disabled={
                                         salvataggio
                                       }
-                                      className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                                     >
                                       {
                                         LAVORAZIONI_TESTI.MODIFICA
@@ -1434,7 +1434,7 @@ export default function BackofficeLavorazioniPage() {
                                       disabled={
                                         salvataggio
                                       }
-                                      className="rounded-lg border px-3 py-2 font-semibold disabled:text-gray-400"
+                                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                                     >
                                       {lavorazione.attiva
                                         ? LAVORAZIONI_TESTI.DISATTIVA

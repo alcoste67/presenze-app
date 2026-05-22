@@ -45,7 +45,7 @@ function PulsanteAzione({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`group flex min-h-20 w-full items-center justify-between gap-4 border px-4 py-4 text-left transition-colors duration-200 ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
+      className={`group flex min-h-20 w-full items-center justify-between gap-4 border px-4 py-4 text-left transition-colors duration-200 ease-out active:scale-[0.99] disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong disabled:opacity-60 ${STILI_PULSANTE[tono]}`}
     >
       <span className="min-w-0">
         <span className="block text-[11px] font-medium uppercase tracking-[0.22em]">
@@ -58,7 +58,7 @@ function PulsanteAzione({
         </span>
       </span>
 
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/15 bg-white/10 text-lg transition-transform duration-200 group-hover:translate-x-0.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/15 bg-industrial-surface-strong text-lg transition-transform duration-200 group-hover:translate-x-0.5">
         {loading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (

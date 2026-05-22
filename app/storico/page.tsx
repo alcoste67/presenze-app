@@ -180,34 +180,34 @@ export default function StoricoPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
-      <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6 shadow">
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6">
+      <div className="mx-auto max-w-2xl rounded-xl border border-industrial-border-soft bg-industrial-surface p-6 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
         <h1 className="mb-3 text-3xl font-bold">
           Storico giornaliero
         </h1>
 
         <Link
           href="/"
-          className="mb-6 inline-block font-semibold text-blue-600"
+          className="mb-6 inline-flex rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
         >
           Torna alla timbratura
         </Link>
 
         {!user && !loading && (
-          <p className="text-gray-500">
+          <p className="text-industrial-muted">
             Effettua il login per vedere lo
             storico.
           </p>
         )}
 
         {loading && (
-          <p className="text-gray-500">
+          <p className="text-industrial-muted">
             Caricamento...
           </p>
         )}
 
         {errore && (
-          <p className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+          <p className="rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
             {errore}
           </p>
         )}
@@ -216,7 +216,7 @@ export default function StoricoPage() {
           !errore &&
           user &&
           timbrature.length === 0 && (
-            <p className="text-gray-500">
+            <p className="text-industrial-muted">
               Nessuna timbratura oggi
             </p>
           )}
@@ -225,7 +225,7 @@ export default function StoricoPage() {
           !errore &&
           user &&
           timbrature.length > 0 && (
-            <div className="mb-4 rounded-lg bg-gray-50 p-4">
+            <div className="mb-4 rounded-lg bg-industrial-surface-strong p-4">
               <p className="font-semibold">
                 Ore lavorate:{" "}
                 {formattaOreLavorate(
@@ -234,13 +234,13 @@ export default function StoricoPage() {
               </p>
 
               {oreLavorate.giornataAperta && (
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-industrial-muted">
                   Giornata aperta
                 </p>
               )}
 
               {oreLavorate.sequenzaIncompleta && (
-                <p className="mt-1 text-sm text-yellow-700">
+                <p className="mt-1 text-sm text-industrial-warning-text">
                   Sequenza timbrature incompleta
                 </p>
               )}
@@ -251,7 +251,7 @@ export default function StoricoPage() {
           {timbratureVisualizzate.map((timbratura) => (
             <div
               key={timbratura.id}
-              className="rounded-lg border border-gray-200 p-4"
+              className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-4"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -263,14 +263,14 @@ export default function StoricoPage() {
                     }
                   </p>
 
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-industrial-muted">
                     {formattaDestinazione(
                       timbratura
                     )}
                   </p>
                 </div>
 
-                <p className="text-right text-sm font-semibold text-gray-700">
+                <p className="text-right text-sm font-semibold text-industrial-muted">
                   {formattaDataOra(
                     timbratura.created_at
                   )}

@@ -32,7 +32,7 @@ export function A2CLogo({
 }: A2CLogoProps) {
   const logo =
     color === "auto"
-      ? logoBianco
+      ? logoNero
       : LOGHI[color];
 
   return (

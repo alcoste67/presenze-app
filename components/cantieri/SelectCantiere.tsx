@@ -11,7 +11,7 @@ type Cantiere = {
 };
 
 const INPUT_CLASS_NAME =
-  "h-12 w-full rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong";
+  "h-12 w-full rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong";
 
 type Props = {
   cantieri: Cantiere[];
@@ -103,7 +103,7 @@ export function SelectCantiere({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+      <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
         Cantiere
       </label>
 
@@ -128,13 +128,13 @@ export function SelectCantiere({
           className={INPUT_CLASS_NAME}
         />
 
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#8C8780]">
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-industrial-muted-strong">
           ▾
         </span>
       </div>
 
       {aperto && !disabled && (
-        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-industrial-border bg-industrial-surface-strong shadow-[0_16px_36px_rgb(0_0_0/0.18)]">
+        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           {cantieriFiltrati.map((cantiere) => (
             <button
               key={cantiere.id}
@@ -155,7 +155,7 @@ export function SelectCantiere({
           ))}
 
           {cantieriFiltrati.length === 0 && (
-            <div className="px-3 py-3 text-sm text-[#8C8780]">
+            <div className="px-3 py-3 text-sm text-industrial-muted-strong">
               Nessun cantiere trovato
             </div>
           )}

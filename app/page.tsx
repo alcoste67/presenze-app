@@ -62,15 +62,15 @@ const STILI_UI = {
   appBg:
     "bg-gradient-to-br from-industrial-bg to-industrial-bg-soft text-industrial-text",
   card:
-    "rounded-xl border border-industrial-border bg-industrial-surface shadow-[0_18px_42px_rgb(0_0_0/0.14)]",
+    "rounded-xl border border-industrial-border bg-industrial-surface shadow-[0_12px_28px_rgb(36_38_43/0.08)]",
   cardFlat:
     "rounded-lg border border-industrial-border-soft bg-industrial-surface-strong",
   button:
-    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong",
   buttonPrimary:
-    "rounded-lg border border-industrial-orange bg-industrial-orange text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+    "rounded-lg border border-industrial-orange bg-industrial-orange text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong",
   input:
-    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:border-industrial-border-soft disabled:bg-[#24252a] disabled:text-industrial-muted-strong",
+    "rounded-lg border border-industrial-border bg-industrial-control text-industrial-text transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong",
   error:
     "rounded-lg border border-industrial-danger-border bg-industrial-danger-bg text-industrial-danger-text",
 } as const;
@@ -1106,13 +1106,13 @@ export default function HomePage() {
         <div className="mx-auto flex min-h-dvh w-full max-w-md items-center">
           <section className={`${STILI_UI.card} w-full p-5`}>
             <A2CLogo color="auto" className="h-12 w-auto" />
-            <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
+            <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.28em] text-industrial-muted-strong">
               {AUTH_TESTI.TITOLO}
             </p>
-            <h1 className="mt-2 text-3xl font-medium tracking-tight text-[#FAFAF7]">
+            <h1 className="mt-2 text-3xl font-medium tracking-tight text-industrial-text">
               {AUTH_TESTI.TITOLO}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+            <p className="mt-2 text-sm leading-6 text-industrial-muted">
               {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
             </p>
 
@@ -1122,7 +1122,7 @@ export default function HomePage() {
               className="mt-6 space-y-4"
             >
               <label className="block">
-                <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+                <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
                   {AUTH_TESTI.EMAIL_LABEL}
                 </span>
 
@@ -1160,7 +1160,7 @@ export default function HomePage() {
                 className="mt-4 space-y-4"
               >
                 <label className="block">
-                  <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+                  <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
                     {AUTH_TESTI.CODICE_LABEL}
                   </span>
 
@@ -1229,13 +1229,13 @@ export default function HomePage() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <A2CLogo color="auto" className="h-10 w-auto" />
-              <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[#8C8780]">
+              <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.28em] text-industrial-muted-strong">
                 {TIMBRATURE_TESTI.UI.APP_SOTTOTITOLO}
               </p>
-              <h1 className="mt-2 text-4xl font-medium tracking-tight text-[#FAFAF7]">
+              <h1 className="mt-2 text-4xl font-medium tracking-tight text-industrial-text">
                 {TIMBRATURE_TESTI.UI.APP_TITOLO}
               </h1>
-              <p className="mt-2 truncate text-sm text-[#C7C2B7]">
+              <p className="mt-2 truncate text-sm text-industrial-muted">
                 {TIMBRATURE_TESTI.UI.UTENTE_PREFIX}
                 {": "}
                 {user.email}
@@ -1282,10 +1282,10 @@ export default function HomePage() {
 
         <section className={`${STILI_UI.card} p-4`}>
           <div className="mb-4">
-            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#8C8780]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
               {TIMBRATURE_TESTI.UI.DESTINAZIONE_TITOLO}
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+            <p className="mt-2 text-sm leading-6 text-industrial-muted">
               {TIMBRATURE_TESTI.UI.DESTINAZIONE_DESCRIZIONE}
             </p>
           </div>
@@ -1318,7 +1318,7 @@ export default function HomePage() {
           aria-labelledby="lavorazioni-uscita-titolo"
           className="fixed inset-0 z-50 flex items-end justify-center bg-industrial-bg/80 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         >
-          <div className={`${STILI_UI.card} max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden text-[#FAFAF7]`}>
+          <div className={`${STILI_UI.card} max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden text-industrial-text`}>
             <div className="border-b border-industrial-border-soft p-4">
               <h2
                 id="lavorazioni-uscita-titolo"
@@ -1329,7 +1329,7 @@ export default function HomePage() {
                   : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-[#C7C2B7]">
+              <p className="mt-2 text-sm leading-6 text-industrial-muted">
                 {dialogCambioCantiere
                   ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CAMBIO_CANTIERE
                   : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
@@ -1358,7 +1358,7 @@ export default function HomePage() {
 
                     <label
                       htmlFor={`lavorazione-uscita-${lavorazione.id}`}
-                      className="min-w-0 flex-1 text-sm font-medium leading-5 text-[#FAFAF7]"
+                      className="min-w-0 flex-1 text-sm font-medium leading-5 text-industrial-text"
                     >
                       {lavorazione.nome}
                     </label>

@@ -75,8 +75,8 @@ export function ProtezioneBackoffice({
 
   if (!autorizzato) {
     return (
-      <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
-        <div className="text-gray-500">
+      <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
+        <div className="text-industrial-muted">
           Caricamento...
         </div>
       </main>
