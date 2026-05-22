@@ -217,6 +217,9 @@ export default function BackofficeSalPage() {
   };
 
   const loading = loadingCantieri || loadingSal;
+  const salPdfHref = cantiereId
+    ? `/api/report/sal-pdf?cantiereId=${encodeURIComponent(cantiereId)}`
+    : "";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
@@ -229,6 +232,22 @@ export default function BackofficeSalPage() {
           </div>
 
           <div className="flex gap-4 text-sm font-semibold">
+            {salPdfHref ? (
+              <a
+                href={salPdfHref}
+                className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
+              >
+                {SAL_TESTI.ESPORTA_PDF}
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-2 text-industrial-muted-strong"
+              >
+                {SAL_TESTI.ESPORTA_PDF}
+              </button>
+            )}
             <Link
               href="/backoffice"
               className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
