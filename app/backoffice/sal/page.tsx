@@ -53,6 +53,13 @@ function getStatoClassName(
   return "bg-industrial-orange-soft text-industrial-orange-hover";
 }
 
+function formattaOreUomo(minutiTotali: number) {
+  const ore = Math.floor(minutiTotali / 60);
+  const minuti = minutiTotali % 60;
+
+  return `${ore}${SAL_TESTI.UNITA_ORA} ${minuti}${SAL_TESTI.UNITA_MINUTO}`;
+}
+
 function BarraProgresso({
   percentuale,
 }: {
@@ -88,6 +95,12 @@ function RigaLavorazione({
               lavorazione.percentuale_completamento
             }
             %
+          </p>
+          <p className="mt-1 text-sm text-industrial-muted">
+            {SAL_TESTI.ORE_UOMO}:{" "}
+            {formattaOreUomo(
+              lavorazione.oreUomoMinuti
+            )}
           </p>
         </div>
 
@@ -290,6 +303,12 @@ export default function BackofficeSalPage() {
               </p>
               <p className="mt-3 text-4xl font-bold">
                 {sal.avanzamentoTotale}%
+              </p>
+              <p className="mt-3 text-sm font-medium text-industrial-muted">
+                {SAL_TESTI.ORE_UOMO_TOTALI}:{" "}
+                {formattaOreUomo(
+                  sal.oreUomoTotaliMinuti
+                )}
               </p>
               <div className="mt-4">
                 <BarraProgresso

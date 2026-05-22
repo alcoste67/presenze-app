@@ -18,9 +18,13 @@ export const SAL_TESTI = {
   CARICAMENTO: "Caricamento...",
   AVANZAMENTO_TOTALE:
     "Avanzamento totale cantiere",
+  ORE_UOMO_TOTALI: "Ore uomo totali",
   LAVORAZIONI_ATTIVE:
     "Lavorazioni attive",
   PERCENTUALE: "Percentuale",
+  ORE_UOMO: "Ore uomo",
+  UNITA_ORA: "h",
+  UNITA_MINUTO: "m",
   STATO: "Stato",
   NESSUNA_LAVORAZIONE:
     "Nessuna lavorazione attiva per questo cantiere",

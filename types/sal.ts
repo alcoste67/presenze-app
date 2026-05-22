@@ -9,11 +9,13 @@ export type SalLavorazione = {
   nome: string;
   ordine: number;
   percentuale_completamento: number;
+  oreUomoMinuti: number;
   stato: StatoSalLavorazione;
 };
 
 export type SalCantiere = {
   cantiereId: string;
   avanzamentoTotale: number;
+  oreUomoTotaliMinuti: number;
   lavorazioni: SalLavorazione[];
 };
