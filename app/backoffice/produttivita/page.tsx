@@ -59,6 +59,18 @@ function getStatoClassName(
   return "bg-industrial-orange-soft text-industrial-orange-hover";
 }
 
+function getRigaLavorazioneClassName(
+  lavorazione: SalLavorazione
+) {
+  if (
+    lavorazione.percentuale_completamento === 100
+  ) {
+    return "bg-industrial-success-bg";
+  }
+
+  return "";
+}
+
 function formattaOreUomo(minutiTotali: number) {
   const ore = Math.floor(minutiTotali / 60);
   const minuti = minutiTotali % 60;
@@ -185,7 +197,12 @@ function TabellaLavorazioni({
         </thead>
         <tbody className="divide-y divide-industrial-border-soft">
           {lavorazioni.map((lavorazione) => (
-            <tr key={lavorazione.id}>
+            <tr
+              key={lavorazione.id}
+              className={getRigaLavorazioneClassName(
+                lavorazione
+              )}
+            >
               <td className="px-4 py-3 font-medium text-industrial-text">
                 {lavorazione.nome}
               </td>
