@@ -6,10 +6,13 @@ import {
   useState,
 } from "react";
 
+import { API_HEADERS } from "@/constants/api";
+import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 import {
   SAL_STATI,
   SAL_TESTI,
 } from "@/constants/sal";
+import { supabase } from "@/lib/supabase";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
 import type { CantiereBackoffice } from "@/types/cantieri";
@@ -23,6 +26,65 @@ function getMessaggioErrore(error: unknown) {
   return error instanceof Error
     ? error.message
     : SAL_TESTI.ERRORI.GENERICO;
+}
+
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
+async function leggiMessaggioErrorePdf(
+  response: Response
+) {
+  try {
+    const payload = await response.json();
+
+    if (
+      isRecord(payload) &&
+      typeof payload.error === "string"
+    ) {
+      return payload.error;
+    }
+  } catch {
+    return SAL_TESTI.ERRORI.GENERICO;
+  }
+
+  return SAL_TESTI.ERRORI.GENERICO;
+}
+
+function getNomeFilePdf(response: Response) {
+  const contentDisposition =
+    response.headers.get("Content-Disposition") ||
+    "";
+  const match = /filename="([^"]+)"/.exec(
+    contentDisposition
+  );
+
+  return match?.[1] || "SAL.pdf";
+}
+
+function scaricaBlobPdf({
+  blob,
+  nomeFile,
+}: {
+  blob: Blob;
+  nomeFile: string;
+}) {
+  const url = URL.createObjectURL(blob);
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = nomeFile;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function getStatoLabel(
@@ -136,6 +198,8 @@ export default function BackofficeSalPage() {
     useState(true);
   const [loadingSal, setLoadingSal] =
     useState(false);
+  const [loadingPdf, setLoadingPdf] =
+    useState(false);
   const [errore, setErrore] = useState<
     string | null
   >(null);
@@ -216,10 +280,60 @@ export default function BackofficeSalPage() {
     void caricaSal(nextCantiereId);
   };
 
+  const handleEsportaPdf = async () => {
+    if (!cantiereId) {
+      return;
+    }
+
+    try {
+      setLoadingPdf(true);
+      setErrore(null);
+
+      const { data, error } =
+        await supabase.auth.getSession();
+
+      if (error) {
+        throw error;
+      }
+
+      const accessToken =
+        data.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(
+          REPORT_PRESENZE_TESTI.ERRORI
+            .SESSIONE_MANCANTE
+        );
+      }
+
+      const response = await fetch(
+        `/api/report/sal-pdf?cantiereId=${encodeURIComponent(cantiereId)}`,
+        {
+          headers: {
+            [API_HEADERS.AUTHORIZATION]:
+              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await leggiMessaggioErrorePdf(response)
+        );
+      }
+
+      scaricaBlobPdf({
+        blob: await response.blob(),
+        nomeFile: getNomeFilePdf(response),
+      });
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
   const loading = loadingCantieri || loadingSal;
-  const salPdfHref = cantiereId
-    ? `/api/report/sal-pdf?cantiereId=${encodeURIComponent(cantiereId)}`
-    : "";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
@@ -232,13 +346,17 @@ export default function BackofficeSalPage() {
           </div>
 
           <div className="flex gap-4 text-sm font-semibold">
-            {salPdfHref ? (
-              <a
-                href={salPdfHref}
+            {cantiereId ? (
+              <button
+                type="button"
+                onClick={handleEsportaPdf}
+                disabled={loadingPdf}
                 className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
               >
-                {SAL_TESTI.ESPORTA_PDF}
-              </a>
+                {loadingPdf
+                  ? SAL_TESTI.CARICAMENTO
+                  : SAL_TESTI.ESPORTA_PDF}
+              </button>
             ) : (
               <button
                 type="button"
