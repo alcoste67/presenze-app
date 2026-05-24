@@ -1,0 +1,1347 @@
+"use client";
+
+import Link from "next/link";
+import type {
+  ChangeEvent,
+  FormEvent,
+} from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
+import {
+  LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
+  LABEL_STATI_RAPPORTO_INTERVENTO,
+  RAPPORTI_INTERVENTO_LIMITI,
+  RAPPORTI_INTERVENTO_PDF,
+  RAPPORTI_INTERVENTO_STATI,
+  RAPPORTI_INTERVENTO_TESTI,
+} from "@/constants/rapportiIntervento";
+import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { aggiornaRapportoIntervento } from "@/services/rapportiIntervento/aggiornaRapportoIntervento";
+import { calcolaOreFatturabili } from "@/services/rapportiIntervento/calcolaOreFatturabili";
+import { creaRapportoIntervento } from "@/services/rapportiIntervento/creaRapportoIntervento";
+import { fetchRapportoInterventoPdf } from "@/services/rapportiIntervento/fetchRapportoInterventoPdf";
+import { loadLavorazioniRapportoIntervento } from "@/services/rapportiIntervento/loadLavorazioniRapportoIntervento";
+import { loadRapportiIntervento } from "@/services/rapportiIntervento/loadRapportiIntervento";
+import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
+import type { CantiereBackoffice } from "@/types/cantieri";
+import type {
+  RapportoIntervento,
+  RapportoInterventoInput,
+  RapportoInterventoLavorazioneInput,
+} from "@/types/rapportiIntervento";
+
+type LavorazioneForm =
+  RapportoInterventoLavorazioneInput & {
+    localId: string;
+  };
+
+type RapportoForm = {
+  cantiere_id: string;
+  data_intervento: string;
+  cliente_committente: string;
+  responsabile_nome: string;
+  viaggio_minuti: string;
+  diritto_uscita: boolean;
+  note: string;
+  firma_responsabile_data_url: string | null;
+  firma_responsabile_nome: string;
+  firma_cliente_data_url: string | null;
+  firma_cliente_nome: string;
+};
+
+const FORM_INIZIALE: RapportoForm = {
+  cantiere_id: "",
+  data_intervento: "",
+  cliente_committente: "",
+  responsabile_nome: "",
+  viaggio_minuti: "0",
+  diritto_uscita: false,
+  note: "",
+  firma_responsabile_data_url: null,
+  firma_responsabile_nome: "",
+  firma_cliente_data_url: null,
+  firma_cliente_nome: "",
+};
+
+function getLocalId() {
+  if (
+    typeof crypto !== "undefined" &&
+    "randomUUID" in crypto
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random()}`;
+}
+
+function getMessaggioErrore(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : RAPPORTI_INTERVENTO_TESTI.ERRORI
+        .GENERICO;
+}
+
+function formattaData(data: string) {
+  if (!data) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(
+    RAPPORTI_INTERVENTO_PDF.LOCALE
+  ).format(new Date(`${data}T00:00:00`));
+}
+
+function formattaOre(minutiTotali: number) {
+  const ore = Math.floor(minutiTotali / 60);
+  const minuti = minutiTotali % 60;
+
+  return `${ore}${RAPPORTI_INTERVENTO_TESTI.UNITA_ORA} ${minuti}${RAPPORTI_INTERVENTO_TESTI.UNITA_MINUTO}`;
+}
+
+function getNumeroIntero(
+  value: string
+): number | null {
+  const numero = Number(value.trim());
+
+  if (!Number.isInteger(numero) || numero < 0) {
+    return null;
+  }
+
+  return numero;
+}
+
+function isFirmaValida(
+  firmaDataUrl: string | null
+) {
+  return (
+    !firmaDataUrl ||
+    firmaDataUrl.length <=
+      RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI
+  );
+}
+
+function getStatoClassName(
+  stato: RapportoIntervento["stato"]
+) {
+  if (
+    stato === RAPPORTI_INTERVENTO_STATI.FIRMATO
+  ) {
+    return "bg-industrial-success-bg text-industrial-success-text";
+  }
+
+  if (
+    stato === RAPPORTI_INTERVENTO_STATI.ANNULLATO
+  ) {
+    return "bg-industrial-danger-bg text-industrial-danger-text";
+  }
+
+  return "bg-industrial-warning-bg text-industrial-warning-text";
+}
+
+function scaricaBlobPdf({
+  blob,
+  nomeFile,
+}: {
+  blob: Blob;
+  nomeFile: string;
+}) {
+  const url = URL.createObjectURL(blob);
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = nomeFile;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function normalizzaLavorazioni(
+  lavorazioni: LavorazioneForm[]
+):
+  | {
+      lavorazioni: RapportoInterventoLavorazioneInput[];
+    }
+  | { errore: string } {
+  if (lavorazioni.length === 0) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .LAVORAZIONE_OBBLIGATORIA,
+    };
+  }
+
+  const lavorazioniNormalizzate: RapportoInterventoLavorazioneInput[] =
+    [];
+
+  for (const [
+    index,
+    lavorazione,
+  ] of lavorazioni.entries()) {
+    const descrizione =
+      lavorazione.descrizione_snapshot
+        .trim()
+        .replace(/\s+/g, " ");
+
+    if (!descrizione) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .DESCRIZIONE_OBBLIGATORIA,
+      };
+    }
+
+    if (
+      !Number.isInteger(
+        lavorazione.ore_uomo_minuti
+      ) ||
+      lavorazione.ore_uomo_minuti < 0
+    ) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .ORE_NON_VALIDE,
+      };
+    }
+
+    lavorazioniNormalizzate.push({
+      lavorazione_id:
+        lavorazione.lavorazione_id,
+      descrizione_snapshot: descrizione,
+      ore_uomo_minuti:
+        lavorazione.ore_uomo_minuti,
+      ordine: index + 1,
+    });
+  }
+
+  return {
+    lavorazioni: lavorazioniNormalizzate,
+  };
+}
+
+function preparaPayload({
+  form,
+  lavorazioni,
+}: {
+  form: RapportoForm;
+  lavorazioni: LavorazioneForm[];
+}):
+  | { payload: RapportoInterventoInput }
+  | { errore: string } {
+  if (!form.cantiere_id) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .CANTIERE_OBBLIGATORIO,
+    };
+  }
+
+  if (!form.data_intervento) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .DATA_OBBLIGATORIA,
+    };
+  }
+
+  const cliente =
+    form.cliente_committente.trim();
+
+  if (!cliente) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .CLIENTE_OBBLIGATORIO,
+    };
+  }
+
+  const responsabile =
+    form.responsabile_nome.trim();
+
+  if (!responsabile) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .RESPONSABILE_OBBLIGATORIO,
+    };
+  }
+
+  const viaggioMinuti = getNumeroIntero(
+    form.viaggio_minuti
+  );
+
+  if (viaggioMinuti === null) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .VIAGGIO_NON_VALIDO,
+    };
+  }
+
+  if (
+    !isFirmaValida(
+      form.firma_responsabile_data_url
+    ) ||
+    !isFirmaValida(
+      form.firma_cliente_data_url
+    )
+  ) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .FIRMA_TROPPO_GRANDE,
+    };
+  }
+
+  const lavorazioniNormalizzate =
+    normalizzaLavorazioni(lavorazioni);
+
+  if ("errore" in lavorazioniNormalizzate) {
+    return lavorazioniNormalizzate;
+  }
+
+  return {
+    payload: {
+      cantiere_id: form.cantiere_id,
+      data_intervento:
+        form.data_intervento,
+      cliente_committente: cliente,
+      responsabile_nome: responsabile,
+      viaggio_minuti: viaggioMinuti,
+      diritto_uscita:
+        form.diritto_uscita,
+      note: form.note.trim(),
+      firma_responsabile_data_url:
+        form.firma_responsabile_data_url,
+      firma_responsabile_nome:
+        form.firma_responsabile_data_url
+          ? form.firma_responsabile_nome.trim() ||
+            responsabile
+          : null,
+      firma_cliente_data_url:
+        form.firma_cliente_data_url,
+      firma_cliente_nome:
+        form.firma_cliente_data_url
+          ? form.firma_cliente_nome.trim() ||
+            cliente
+          : null,
+      lavorazioni:
+        lavorazioniNormalizzate.lavorazioni,
+    },
+  };
+}
+
+export default function BackofficeRapportiInterventoPage() {
+  const [cantieri, setCantieri] = useState<
+    CantiereBackoffice[]
+  >([]);
+  const [rapporti, setRapporti] = useState<
+    RapportoIntervento[]
+  >([]);
+  const [form, setForm] =
+    useState<RapportoForm>(FORM_INIZIALE);
+  const [lavorazioni, setLavorazioni] =
+    useState<LavorazioneForm[]>([]);
+  const [
+    rapportoInModificaId,
+    setRapportoInModificaId,
+  ] = useState<string | null>(null);
+  const [readonly, setReadonly] =
+    useState(false);
+  const [loading, setLoading] =
+    useState(true);
+  const [loadingSnapshot, setLoadingSnapshot] =
+    useState(false);
+  const [salvataggio, setSalvataggio] =
+    useState(false);
+  const [pdfId, setPdfId] = useState<
+    string | null
+  >(null);
+  const [errore, setErrore] = useState<
+    string | null
+  >(null);
+  const [messaggio, setMessaggio] =
+    useState<string | null>(null);
+
+  const oreUomoRealiMinuti = useMemo(
+    () =>
+      lavorazioni.reduce(
+        (totale, lavorazione) =>
+          totale +
+          lavorazione.ore_uomo_minuti,
+        0
+      ),
+    [lavorazioni]
+  );
+
+  const viaggioMinuti =
+    getNumeroIntero(form.viaggio_minuti) || 0;
+  const calcolo = calcolaOreFatturabili({
+    oreUomoRealiMinuti,
+    viaggioMinuti,
+  });
+
+  const caricaDati = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErrore(null);
+
+      const [cantieriData, rapportiData] =
+        await Promise.all([
+          loadCantieriBackoffice(),
+          loadRapportiIntervento(),
+        ]);
+
+      setCantieri(cantieriData);
+      setRapporti(rapportiData);
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let attivo = true;
+
+    const caricaDatiIniziali =
+      async () => {
+        try {
+          const [
+            cantieriData,
+            rapportiData,
+          ] = await Promise.all([
+            loadCantieriBackoffice(),
+            loadRapportiIntervento(),
+          ]);
+
+          if (!attivo) {
+            return;
+          }
+
+          setCantieri(cantieriData);
+          setRapporti(rapportiData);
+        } catch (error: unknown) {
+          if (attivo) {
+            setErrore(
+              getMessaggioErrore(error)
+            );
+          }
+        } finally {
+          if (attivo) {
+            setLoading(false);
+          }
+        }
+      };
+
+    void caricaDatiIniziali();
+
+    return () => {
+      attivo = false;
+    };
+  }, []);
+
+  const resetForm = ({
+    mantieniMessaggio = false,
+  }: {
+    mantieniMessaggio?: boolean;
+  } = {}) => {
+    setForm(FORM_INIZIALE);
+    setLavorazioni([]);
+    setRapportoInModificaId(null);
+    setReadonly(false);
+    setErrore(null);
+    if (!mantieniMessaggio) {
+      setMessaggio(null);
+    }
+  };
+
+  const handleFormChange = <Field extends keyof RapportoForm>(
+    field: Field,
+    value: RapportoForm[Field]
+  ) => {
+    setForm((formCorrente) => ({
+      ...formCorrente,
+      [field]: value,
+    }));
+  };
+
+  const handleLavorazioneChange = ({
+    localId,
+    field,
+    value,
+  }: {
+    localId: string;
+    field:
+      | "descrizione_snapshot"
+      | "ore_uomo_minuti";
+    value: string;
+  }) => {
+    setLavorazioni((lavorazioniCorrenti) =>
+      lavorazioniCorrenti.map(
+        (lavorazione) => {
+          if (lavorazione.localId !== localId) {
+            return lavorazione;
+          }
+
+          if (field === "ore_uomo_minuti") {
+            const minuti =
+              getNumeroIntero(value);
+
+            return {
+              ...lavorazione,
+              ore_uomo_minuti:
+                minuti === null ? 0 : minuti,
+            };
+          }
+
+          return {
+            ...lavorazione,
+            descrizione_snapshot: value,
+          };
+        }
+      )
+    );
+  };
+
+  const aggiungiLavorazione = () => {
+    setLavorazioni((lavorazioniCorrenti) => [
+      ...lavorazioniCorrenti,
+      {
+        localId: getLocalId(),
+        lavorazione_id: null,
+        descrizione_snapshot: "",
+        ore_uomo_minuti: 0,
+        ordine:
+          lavorazioniCorrenti.length + 1,
+      },
+    ]);
+  };
+
+  const rimuoviLavorazione = (
+    localId: string
+  ) => {
+    setLavorazioni((lavorazioniCorrenti) =>
+      lavorazioniCorrenti.filter(
+        (lavorazione) =>
+          lavorazione.localId !== localId
+      )
+    );
+  };
+
+  const caricaSnapshot = async () => {
+    if (!form.cantiere_id) {
+      setErrore(
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .CANTIERE_OBBLIGATORIO
+      );
+      return;
+    }
+
+    if (!form.data_intervento) {
+      setErrore(
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .DATA_OBBLIGATORIA
+      );
+      return;
+    }
+
+    try {
+      setLoadingSnapshot(true);
+      setErrore(null);
+      setMessaggio(null);
+
+      const snapshot =
+        await loadLavorazioniRapportoIntervento({
+          cantiereId: form.cantiere_id,
+          dataIntervento:
+            form.data_intervento,
+        });
+
+      setLavorazioni(
+        snapshot.map((lavorazione) => ({
+          ...lavorazione,
+          localId: getLocalId(),
+        }))
+      );
+      setMessaggio(
+        RAPPORTI_INTERVENTO_TESTI.MESSAGGI
+          .SNAPSHOT_CARICATO
+      );
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setLoadingSnapshot(false);
+    }
+  };
+
+  const caricaRapportoInForm = async (
+    rapporto: RapportoIntervento
+  ) => {
+    try {
+      setErrore(null);
+      setMessaggio(null);
+
+      const rapportoCompleto =
+        await loadRapportoIntervento(
+          rapporto.id
+        );
+
+      if (!rapportoCompleto) {
+        throw new Error(
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .RAPPORTO_NON_TROVATO
+        );
+      }
+
+      setRapportoInModificaId(
+        rapportoCompleto.id
+      );
+      setReadonly(
+        rapportoCompleto.stato ===
+          RAPPORTI_INTERVENTO_STATI.FIRMATO
+      );
+      setForm({
+        cantiere_id:
+          rapportoCompleto.cantiere_id,
+        data_intervento:
+          rapportoCompleto.data_intervento,
+        cliente_committente:
+          rapportoCompleto.cliente_committente,
+        responsabile_nome:
+          rapportoCompleto.responsabile_nome,
+        viaggio_minuti: String(
+          rapportoCompleto.viaggio_minuti
+        ),
+        diritto_uscita:
+          rapportoCompleto.diritto_uscita,
+        note: rapportoCompleto.note,
+        firma_responsabile_data_url:
+          rapportoCompleto.firma_responsabile_data_url,
+        firma_responsabile_nome:
+          rapportoCompleto.firma_responsabile_nome ||
+          "",
+        firma_cliente_data_url:
+          rapportoCompleto.firma_cliente_data_url,
+        firma_cliente_nome:
+          rapportoCompleto.firma_cliente_nome ||
+          "",
+      });
+      setLavorazioni(
+        rapportoCompleto.lavorazioni.map(
+          (lavorazione) => ({
+            localId: getLocalId(),
+            lavorazione_id:
+              lavorazione.lavorazione_id,
+            descrizione_snapshot:
+              lavorazione.descrizione_snapshot,
+            ore_uomo_minuti:
+              lavorazione.ore_uomo_minuti,
+            ordine: lavorazione.ordine,
+          })
+        )
+      );
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    }
+  };
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    if (readonly) {
+      return;
+    }
+
+    const preparazione = preparaPayload({
+      form,
+      lavorazioni,
+    });
+
+    if ("errore" in preparazione) {
+      setErrore(preparazione.errore);
+      return;
+    }
+
+    try {
+      setSalvataggio(true);
+      setErrore(null);
+      setMessaggio(null);
+
+      if (rapportoInModificaId) {
+        await aggiornaRapportoIntervento({
+          rapportoInterventoId:
+            rapportoInModificaId,
+          rapporto: preparazione.payload,
+        });
+        setMessaggio(
+          RAPPORTI_INTERVENTO_TESTI.MESSAGGI
+            .AGGIORNATO
+        );
+      } else {
+        await creaRapportoIntervento(
+          preparazione.payload
+        );
+        setMessaggio(
+          RAPPORTI_INTERVENTO_TESTI.MESSAGGI
+            .CREATO
+        );
+      }
+
+      await caricaDati();
+      resetForm({
+        mantieniMessaggio: true,
+      });
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
+  const handlePdf = async (
+    rapportoInterventoId: string
+  ) => {
+    try {
+      setPdfId(rapportoInterventoId);
+      setErrore(null);
+
+      const pdf =
+        await fetchRapportoInterventoPdf(
+          rapportoInterventoId
+        );
+
+      scaricaBlobPdf(pdf);
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setPdfId(null);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">
+              {RAPPORTI_INTERVENTO_TESTI.TITOLO}
+            </h1>
+          </div>
+
+          <div className="flex gap-4 text-sm font-semibold">
+            <Link
+              href="/backoffice"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+            >
+              {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
+            </Link>
+            <Link
+              href="/"
+              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+            >
+              {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
+            </Link>
+          </div>
+        </div>
+
+        {errore && (
+          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
+            {errore}
+          </p>
+        )}
+
+        {messaggio && (
+          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
+            {messaggio}
+          </p>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">
+                {rapportoInModificaId
+                  ? readonly
+                    ? RAPPORTI_INTERVENTO_TESTI.VISUALIZZA
+                    : RAPPORTI_INTERVENTO_TESTI.MODIFICA
+                  : RAPPORTI_INTERVENTO_TESTI.NUOVO}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => resetForm()}
+                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+              >
+                {RAPPORTI_INTERVENTO_TESTI.NUOVO}
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="grid gap-5"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.CANTIERE
+                    }
+                  </span>
+                  <select
+                    value={form.cantiere_id}
+                    onChange={(
+                      event: ChangeEvent<HTMLSelectElement>
+                    ) =>
+                      handleFormChange(
+                        "cantiere_id",
+                        event.target.value
+                      )
+                    }
+                    disabled={readonly}
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  >
+                    <option value="">
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE
+                      }
+                    </option>
+                    {cantieri.map((cantiere) => (
+                      <option
+                        key={cantiere.id}
+                        value={cantiere.id}
+                      >
+                        {cantiere.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO
+                    }
+                  </span>
+                  <input
+                    type="date"
+                    value={form.data_intervento}
+                    onChange={(event) =>
+                      handleFormChange(
+                        "data_intervento",
+                        event.target.value
+                      )
+                    }
+                    disabled={readonly}
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE
+                    }
+                  </span>
+                  <input
+                    type="text"
+                    value={
+                      form.cliente_committente
+                    }
+                    onChange={(event) =>
+                      handleFormChange(
+                        "cliente_committente",
+                        event.target.value
+                      )
+                    }
+                    disabled={readonly}
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.RESPONSABILE_NOME
+                    }
+                  </span>
+                  <input
+                    type="text"
+                    value={form.responsabile_nome}
+                    onChange={(event) =>
+                      handleFormChange(
+                        "responsabile_nome",
+                        event.target.value
+                      )
+                    }
+                    disabled={readonly}
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.VIAGGIO_MINUTI
+                    }
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.viaggio_minuti}
+                    onChange={(event) =>
+                      handleFormChange(
+                        "viaggio_minuti",
+                        event.target.value
+                      )
+                    }
+                    disabled={readonly}
+                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  />
+                </label>
+
+                <label className="flex items-center gap-3 self-end rounded-lg border border-industrial-border bg-industrial-control p-3">
+                  <input
+                    type="checkbox"
+                    checked={
+                      form.diritto_uscita
+                    }
+                    onChange={(event) =>
+                      handleFormChange(
+                        "diritto_uscita",
+                        event.target.checked
+                      )
+                    }
+                    disabled={readonly}
+                    className="h-5 w-5 accent-industrial-orange"
+                  />
+                  <span className="text-sm font-medium text-industrial-text">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.DIRITTO_USCITA
+                    }
+                  </span>
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                  {RAPPORTI_INTERVENTO_TESTI.NOTE}
+                </span>
+                <textarea
+                  value={form.note}
+                  onChange={(event) =>
+                    handleFormChange(
+                      "note",
+                      event.target.value
+                    )
+                  }
+                  disabled={readonly}
+                  rows={4}
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                />
+              </label>
+
+              <section>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI
+                    }
+                  </h3>
+
+                  {!readonly && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={caricaSnapshot}
+                        disabled={loadingSnapshot}
+                        className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                      >
+                        {loadingSnapshot
+                          ? RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
+                          : RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={aggiungiLavorazione}
+                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                      >
+                        {
+                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE
+                        }
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {lavorazioni.length === 0 ? (
+                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.NESSUNA_LAVORAZIONE
+                    }
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {lavorazioni.map(
+                      (lavorazione) => (
+                        <div
+                          key={lavorazione.localId}
+                          className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_140px_auto]"
+                        >
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                              {
+                                RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE
+                              }
+                            </span>
+                            <input
+                              type="text"
+                              value={
+                                lavorazione.descrizione_snapshot
+                              }
+                              onChange={(event) =>
+                                handleLavorazioneChange(
+                                  {
+                                    localId:
+                                      lavorazione.localId,
+                                    field:
+                                      "descrizione_snapshot",
+                                    value:
+                                      event
+                                        .target
+                                        .value,
+                                  }
+                                )
+                              }
+                              disabled={readonly}
+                              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                              {
+                                RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_MINUTI
+                              }
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={
+                                lavorazione.ore_uomo_minuti
+                              }
+                              onChange={(event) =>
+                                handleLavorazioneChange(
+                                  {
+                                    localId:
+                                      lavorazione.localId,
+                                    field:
+                                      "ore_uomo_minuti",
+                                    value:
+                                      event
+                                        .target
+                                        .value,
+                                  }
+                                )
+                              }
+                              disabled={readonly}
+                              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            />
+                          </label>
+
+                          {!readonly && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                rimuoviLavorazione(
+                                  lavorazione.localId
+                                )
+                              }
+                              className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                            >
+                              {
+                                RAPPORTI_INTERVENTO_TESTI.RIMUOVI
+                              }
+                            </button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section className="grid gap-4 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 md:grid-cols-3">
+                <div>
+                  <p className="text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
+                    }
+                  </p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {formattaOre(
+                      oreUomoRealiMinuti
+                    )}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.REGOLA_FATTURAZIONE
+                    }
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">
+                    {
+                      LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
+                        calcolo
+                          .regola_fatturazione
+                      ]
+                    }
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
+                    }
+                  </p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {formattaOre(
+                      calcolo.ore_fatturabili_minuti
+                    )}
+                  </p>
+                </div>
+              </section>
+
+              <section className="grid gap-5 md:grid-cols-2">
+                <div className="grid gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_RESPONSABILE
+                      }
+                    </span>
+                    <input
+                      type="text"
+                      value={
+                        form.firma_responsabile_nome
+                      }
+                      onChange={(event) =>
+                        handleFormChange(
+                          "firma_responsabile_nome",
+                          event.target.value
+                        )
+                      }
+                      disabled={readonly}
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    />
+                  </label>
+                  <FirmaCanvas
+                    label={
+                      RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE
+                    }
+                    clearLabel={
+                      RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA
+                    }
+                    value={
+                      form.firma_responsabile_data_url
+                    }
+                    disabled={readonly}
+                    onChange={(value) =>
+                      handleFormChange(
+                        "firma_responsabile_data_url",
+                        value
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="grid gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_CLIENTE
+                      }
+                    </span>
+                    <input
+                      type="text"
+                      value={
+                        form.firma_cliente_nome
+                      }
+                      onChange={(event) =>
+                        handleFormChange(
+                          "firma_cliente_nome",
+                          event.target.value
+                        )
+                      }
+                      disabled={readonly}
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    />
+                  </label>
+                  <FirmaCanvas
+                    label={
+                      RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE
+                    }
+                    clearLabel={
+                      RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA
+                    }
+                    value={
+                      form.firma_cliente_data_url
+                    }
+                    disabled={readonly}
+                    onChange={(value) =>
+                      handleFormChange(
+                        "firma_cliente_data_url",
+                        value
+                      )
+                    }
+                  />
+                </div>
+              </section>
+
+              {!readonly && (
+                <button
+                  type="submit"
+                  disabled={salvataggio}
+                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                >
+                  {salvataggio
+                    ? RAPPORTI_INTERVENTO_TESTI.SALVATAGGIO
+                    : RAPPORTI_INTERVENTO_TESTI.SALVA}
+                </button>
+              )}
+            </form>
+          </section>
+
+          <aside className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+            <h2 className="mb-4 text-xl font-semibold">
+              {RAPPORTI_INTERVENTO_TESTI.LISTA}
+            </h2>
+
+            {loading ? (
+              <p className="text-industrial-muted">
+                {
+                  RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
+                }
+              </p>
+            ) : rapporti.length === 0 ? (
+              <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
+                {
+                  RAPPORTI_INTERVENTO_TESTI.NESSUN_RAPPORTO
+                }
+              </p>
+            ) : (
+              <ul className="grid gap-3">
+                {rapporti.map((rapporto) => (
+                  <li
+                    key={rapporto.id}
+                    className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">
+                          {
+                            rapporto.cantiere_nome_snapshot
+                          }
+                        </p>
+                        <p className="mt-1 text-sm text-industrial-muted">
+                          {formattaData(
+                            rapporto.data_intervento
+                          )}
+                        </p>
+                        <p className="mt-1 text-sm text-industrial-muted">
+                          {
+                            rapporto.cliente_committente
+                          }
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatoClassName(
+                          rapporto.stato
+                        )}`}
+                      >
+                        {
+                          LABEL_STATI_RAPPORTO_INTERVENTO[
+                            rapporto.stato
+                          ]
+                        }
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-industrial-muted">
+                      <span>
+                        {
+                          RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
+                        }
+                      </span>
+                      <span className="text-right font-semibold text-industrial-text">
+                        {formattaOre(
+                          rapporto.ore_uomo_reali_minuti
+                        )}
+                      </span>
+                      <span>
+                        {
+                          RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
+                        }
+                      </span>
+                      <span className="text-right font-semibold text-industrial-text">
+                        {formattaOre(
+                          rapporto.ore_fatturabili_minuti
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void caricaRapportoInForm(
+                            rapporto
+                          )
+                        }
+                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                      >
+                        {rapporto.stato ===
+                        RAPPORTI_INTERVENTO_STATI.FIRMATO
+                          ? RAPPORTI_INTERVENTO_TESTI.VISUALIZZA
+                          : RAPPORTI_INTERVENTO_TESTI.FIRMA}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handlePdf(
+                            rapporto.id
+                          )
+                        }
+                        disabled={pdfId === rapporto.id}
+                        className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                      >
+                        {pdfId === rapporto.id
+                          ? RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
+                          : RAPPORTI_INTERVENTO_TESTI.GENERA_PDF}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}

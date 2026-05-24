@@ -11,6 +11,8 @@ export const API_ROUTES = {
     "/api/report/libro-presenze",
   REPORT_PRESENZE:
     "/api/report/presenze",
+  REPORT_RAPPORTO_INTERVENTO_PDF:
+    "/api/report/rapporto-intervento-pdf",
   VERIFICA_DIPENDENTE_ATTIVO:
     "/api/dipendenti/verifica-attivo",
 } as const;
