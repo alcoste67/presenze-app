@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
+  RapportoInterventoFoto,
+  RapportoInterventoMateriale,
   RapportoIntervento,
   RapportoInterventoCompleto,
   RapportoInterventoLavorazione,
@@ -12,6 +15,10 @@ const SELECT_RAPPORTO_INTERVENTO =
 
 const SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE =
   "id, rapporto_intervento_id, lavorazione_id, descrizione_snapshot, ore_uomo_minuti, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_FOTO =
+  "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
+  "id, rapporto_intervento_id, descrizione, quantita, unita_misura, ordine, created_at";
 
 export async function loadRapportoIntervento(
   rapportoInterventoId: string,
@@ -29,38 +36,93 @@ export async function loadRapportoIntervento(
       .maybeSingle();
 
   if (error) {
-    throw error;
+    throwErroreSupabase(
+      "Lettura rapporto intervento",
+      error
+    );
   }
 
   if (!rapportoData) {
     return null;
   }
 
-  const {
-    data: lavorazioniData,
-    error: lavorazioniError,
-  } = await supabaseClient
-    .from("rapporti_intervento_lavorazioni")
-    .select(SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE)
-    .eq(
-      "rapporto_intervento_id",
-      rapportoInterventoId
-    )
-    .order("ordine", {
-      ascending: true,
-    })
-    .order("created_at", {
-      ascending: true,
-    });
+  const [
+    lavorazioniResult,
+    fotoResult,
+    materialiResult,
+  ] = await Promise.all([
+    supabaseClient
+      .from("rapporti_intervento_lavorazioni")
+      .select(SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE)
+      .eq(
+        "rapporto_intervento_id",
+        rapportoInterventoId
+      )
+      .order("ordine", {
+        ascending: true,
+      })
+      .order("created_at", {
+        ascending: true,
+      }),
+    supabaseClient
+      .from("rapporti_intervento_foto")
+      .select(SELECT_RAPPORTO_INTERVENTO_FOTO)
+      .eq(
+        "rapporto_intervento_id",
+        rapportoInterventoId
+      )
+      .order("ordine", {
+        ascending: true,
+      })
+      .order("created_at", {
+        ascending: true,
+      }),
+    supabaseClient
+      .from("rapporti_intervento_materiali")
+      .select(SELECT_RAPPORTO_INTERVENTO_MATERIALE)
+      .eq(
+        "rapporto_intervento_id",
+        rapportoInterventoId
+      )
+      .order("ordine", {
+        ascending: true,
+      })
+      .order("created_at", {
+        ascending: true,
+      }),
+  ]);
 
-  if (lavorazioniError) {
-    throw lavorazioniError;
+  if (lavorazioniResult.error) {
+    throwErroreSupabase(
+      "Lettura lavorazioni rapporto intervento",
+      lavorazioniResult.error
+    );
+  }
+
+  if (fotoResult.error) {
+    throwErroreSupabase(
+      "Lettura foto rapporto intervento",
+      fotoResult.error
+    );
+  }
+
+  if (materialiResult.error) {
+    throwErroreSupabase(
+      "Lettura materiali rapporto intervento",
+      materialiResult.error
+    );
   }
 
   return {
     ...(rapportoData as RapportoIntervento),
     lavorazioni:
-      (lavorazioniData ||
+      (lavorazioniResult.data ||
         []) as RapportoInterventoLavorazione[],
+    foto:
+      (fotoResult.data ||
+        []) as RapportoInterventoFoto[],
+    materiali:
+      (materialiResult.data ||
+        []) as RapportoInterventoMateriale[],
   };
 }

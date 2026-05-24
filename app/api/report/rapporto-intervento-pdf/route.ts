@@ -21,9 +21,11 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
+import { formatMinutiOre } from "@/services/rapportiIntervento/oreMinuti";
 import type {
   RapportoInterventoCompleto,
   RapportoInterventoLavorazione,
+  RapportoInterventoMateriale,
 } from "@/types/rapportiIntervento";
 
 export const runtime = "nodejs";
@@ -37,6 +39,11 @@ type FirmaPdf = {
   image: PDFImage | null;
   nome: string | null;
   firmataAt: string | null;
+};
+
+type FotoPdf = {
+  image: PDFImage | null;
+  descrizione: string;
 };
 
 const PAGE_WIDTH = 595.28;
@@ -153,15 +160,19 @@ function formattaDataOra(
   ).format(new Date(data));
 }
 
-function formattaOre(minutiTotali: number) {
-  const ore = Math.floor(minutiTotali / 60);
-  const minuti = minutiTotali % 60;
-
-  return `${ore}${RAPPORTI_INTERVENTO_TESTI.UNITA_ORA} ${minuti}${RAPPORTI_INTERVENTO_TESTI.UNITA_MINUTO}`;
-}
-
 function formattaDataFile(data: string) {
   return data.replaceAll("-", "");
+}
+
+function formattaQuantita(
+  quantita: number
+) {
+  return new Intl.NumberFormat(
+    RAPPORTI_INTERVENTO_PDF.LOCALE,
+    {
+      maximumFractionDigits: 2,
+    }
+  ).format(quantita);
 }
 
 function getNomeFile(
@@ -336,6 +347,29 @@ async function embedFirma(
     return null;
   }
 
+  const match =
+    /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(
+      dataUrl
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const mime = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], "base64");
+
+  if (mime === "png") {
+    return pdfDoc.embedPng(bytes);
+  }
+
+  return pdfDoc.embedJpg(bytes);
+}
+
+async function embedImmagineDataUrl(
+  pdfDoc: PDFDocument,
+  dataUrl: string
+) {
   const match =
     /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(
       dataUrl
@@ -551,7 +585,7 @@ function drawKpis({
     width,
     label:
       RAPPORTI_INTERVENTO_TESTI.PDF.ORE_UOMO,
-    value: formattaOre(
+    value: formatMinutiOre(
       rapporto.ore_uomo_reali_minuti
     ),
   });
@@ -564,7 +598,7 @@ function drawKpis({
     width,
     label:
       RAPPORTI_INTERVENTO_TESTI.PDF.VIAGGIO,
-    value: formattaOre(
+    value: formatMinutiOre(
       rapporto.viaggio_minuti
     ),
   });
@@ -590,7 +624,7 @@ function drawKpis({
     width,
     label:
       RAPPORTI_INTERVENTO_TESTI.PDF.ORE_FATTURABILI,
-    value: formattaOre(
+    value: formatMinutiOre(
       rapporto.ore_fatturabili_minuti
     ),
   });
@@ -688,7 +722,7 @@ function drawLavorazioneRow({
 
   drawText(
     page,
-    formattaOre(lavorazione.ore_uomo_minuti),
+    formatMinutiOre(lavorazione.ore_uomo_minuti),
     {
       x: PAGE_WIDTH - MARGIN_X - 98,
       y: y - 22,
@@ -697,6 +731,155 @@ function drawLavorazioneRow({
       color: COLORS.text,
     }
   );
+}
+
+function drawMaterialiHeader({
+  page,
+  fonts,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - HEADER_ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: HEADER_ROW_HEIGHT,
+    color: COLORS.dark,
+  });
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.MATERIALE,
+    {
+      x: MARGIN_X + 12,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.QUANTITA,
+    {
+      x: PAGE_WIDTH - MARGIN_X - 126,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+}
+
+function drawMaterialeRow({
+  page,
+  fonts,
+  materiale,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  materiale: RapportoInterventoMateriale;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: ROW_HEIGHT,
+    color: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 0.6,
+  });
+
+  drawWrappedText({
+    page,
+    text: materiale.descrizione,
+    x: MARGIN_X + 12,
+    y: y - 14,
+    maxWidth: 340,
+    size: 9,
+    font: fonts.bold,
+    color: COLORS.text,
+    maxLines: 2,
+    lineHeight: 10,
+  });
+
+  drawText(
+    page,
+    `${formattaQuantita(Number(materiale.quantita))} ${materiale.unita_misura}`,
+    {
+      x: PAGE_WIDTH - MARGIN_X - 126,
+      y: y - 22,
+      size: 10,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+}
+
+function drawFotoBox({
+  page,
+  fonts,
+  foto,
+  x,
+  y,
+  width,
+  height,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  foto: FotoPdf;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  page.drawRectangle({
+    x,
+    y,
+    width,
+    height,
+    color: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+  });
+
+  if (foto.image) {
+    const imageMaxWidth = width - 18;
+    const imageMaxHeight = height - 42;
+    const scale = Math.min(
+      imageMaxWidth / foto.image.width,
+      imageMaxHeight / foto.image.height
+    );
+    const imageWidth = foto.image.width * scale;
+    const imageHeight =
+      foto.image.height * scale;
+
+    page.drawImage(foto.image, {
+      x: x + (width - imageWidth) / 2,
+      y: y + height - imageHeight - 12,
+      width: imageWidth,
+      height: imageHeight,
+    });
+  }
+
+  drawWrappedText({
+    page,
+    text: foto.descrizione,
+    x: x + 9,
+    y: y + 18,
+    maxWidth: width - 18,
+    size: 8,
+    font: fonts.regular,
+    color: COLORS.muted,
+    maxLines: 2,
+    lineHeight: 9,
+  });
 }
 
 function drawNote({
@@ -888,6 +1071,17 @@ async function generaRapportoInterventoPdf(
     nome: rapporto.firma_cliente_nome,
     firmataAt: rapporto.firma_cliente_at,
   };
+  const fotoPdf = await Promise.all(
+    rapporto.foto.map(async (foto) => ({
+      image: await embedImmagineDataUrl(
+        pdfDoc,
+        foto.immagine_data_url
+      ),
+      descrizione:
+        foto.descrizione ||
+        RAPPORTI_INTERVENTO_TESTI.PDF.FOTO_DESCRIZIONE,
+    }))
+  );
 
   let page = pdfDoc.addPage([
     PAGE_WIDTH,
@@ -956,6 +1150,133 @@ async function generaRapportoInterventoPdf(
       tableY -= ROW_HEIGHT;
     }
   );
+
+  if (rapporto.materiali.length > 0) {
+    if (tableY - 88 < TABLE_BOTTOM_Y) {
+      page = pdfDoc.addPage([
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+      ]);
+      tableY = PAGE_HEIGHT - 80;
+    } else {
+      tableY -= 26;
+    }
+
+    drawText(
+      page,
+      RAPPORTI_INTERVENTO_TESTI.PDF.MATERIALI,
+      {
+        x: MARGIN_X,
+        y: tableY,
+        size: 13,
+        font: fonts.bold,
+        color: COLORS.text,
+      }
+    );
+
+    tableY -= 14;
+    drawMaterialiHeader({
+      page,
+      fonts,
+      y: tableY,
+    });
+    tableY -= HEADER_ROW_HEIGHT;
+
+    rapporto.materiali.forEach((materiale) => {
+      if (tableY - ROW_HEIGHT < TABLE_BOTTOM_Y) {
+        page = pdfDoc.addPage([
+          PAGE_WIDTH,
+          PAGE_HEIGHT,
+        ]);
+        tableY = PAGE_HEIGHT - 80;
+        drawMaterialiHeader({
+          page,
+          fonts,
+          y: tableY,
+        });
+        tableY -= HEADER_ROW_HEIGHT;
+      }
+
+      drawMaterialeRow({
+        page,
+        fonts,
+        materiale,
+        y: tableY,
+      });
+      tableY -= ROW_HEIGHT;
+    });
+  }
+
+  if (fotoPdf.length > 0) {
+    page = pdfDoc.addPage([
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
+    ]);
+    drawText(
+      page,
+      RAPPORTI_INTERVENTO_TESTI.PDF.FOTO,
+      {
+        x: MARGIN_X,
+        y: PAGE_HEIGHT - 80,
+        size: 13,
+        font: fonts.bold,
+        color: COLORS.text,
+      }
+    );
+
+    const fotoGap = 14;
+    const fotoWidth =
+      (PAGE_WIDTH - MARGIN_X * 2 - fotoGap) /
+      2;
+    const fotoHeight = 190;
+    let fotoX = MARGIN_X;
+    let fotoY = PAGE_HEIGHT - 290;
+
+    fotoPdf.forEach((foto, index) => {
+      if (fotoY < 92) {
+        page = pdfDoc.addPage([
+          PAGE_WIDTH,
+          PAGE_HEIGHT,
+        ]);
+        drawText(
+          page,
+          RAPPORTI_INTERVENTO_TESTI.PDF.FOTO,
+          {
+            x: MARGIN_X,
+            y: PAGE_HEIGHT - 80,
+            size: 13,
+            font: fonts.bold,
+            color: COLORS.text,
+          }
+        );
+        fotoX = MARGIN_X;
+        fotoY = PAGE_HEIGHT - 290;
+      }
+
+      drawFotoBox({
+        page,
+        fonts,
+        foto,
+        x: fotoX,
+        y: fotoY,
+        width: fotoWidth,
+        height: fotoHeight,
+      });
+
+      if (index % 2 === 0) {
+        fotoX = MARGIN_X + fotoWidth + fotoGap;
+      } else {
+        fotoX = MARGIN_X;
+        fotoY -= fotoHeight + fotoGap;
+      }
+    });
+
+    page = pdfDoc.addPage([
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
+    ]);
+    tableY = PAGE_HEIGHT - 80;
+  }
 
   if (tableY < 360) {
     page = pdfDoc.addPage([

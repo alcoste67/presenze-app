@@ -3,6 +3,7 @@ import {
 } from "@/constants/rapportiIntervento";
 import { supabase } from "@/lib/supabase";
 import { calcolaOreUomoLavorazioni } from "@/services/lavorazioni/calcolaOreUomoLavorazioni";
+import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   TimbraturaLavorazioneOreUomo,
   TimbraturaOreUomoLavorazione,
@@ -196,7 +197,10 @@ async function loadTimbratureLavorazioni(
     .in("timbratura_id", timbraturaIds);
 
   if (error) {
-    throw error;
+    throwErroreSupabase(
+      "Lettura timbrature lavorazioni rapporto intervento",
+      error
+    );
   }
 
   return (
@@ -237,7 +241,10 @@ export async function loadLavorazioniRapportoIntervento(
       });
 
   if (error) {
-    throw error;
+    throwErroreSupabase(
+      "Lettura lavorazioni cantiere rapporto intervento",
+      error
+    );
   }
 
   const lavorazioni =
@@ -272,7 +279,10 @@ export async function loadLavorazioniRapportoIntervento(
     });
 
   if (timbratureCantiereError) {
-    throw timbratureCantiereError;
+    throwErroreSupabase(
+      "Lettura timbrature cantiere rapporto intervento",
+      timbratureCantiereError
+    );
   }
 
   const timbratureCantiere =
@@ -309,7 +319,10 @@ export async function loadLavorazioniRapportoIntervento(
       });
 
     if (timbratureUtentiError) {
-      throw timbratureUtentiError;
+      throwErroreSupabase(
+        "Lettura timbrature utenti rapporto intervento",
+        timbratureUtentiError
+      );
     }
 
     timbratureUtenti =

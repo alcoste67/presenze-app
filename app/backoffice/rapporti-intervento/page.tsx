@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type {
   ChangeEvent,
   FormEvent,
@@ -29,17 +30,37 @@ import { fetchRapportoInterventoPdf } from "@/services/rapportiIntervento/fetchR
 import { loadLavorazioniRapportoIntervento } from "@/services/rapportiIntervento/loadLavorazioniRapportoIntervento";
 import { loadRapportiIntervento } from "@/services/rapportiIntervento/loadRapportiIntervento";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
+import {
+  formatMinutiOre,
+  formatMinutiOreInput,
+  parseOreMinutiInput,
+} from "@/services/rapportiIntervento/oreMinuti";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   RapportoIntervento,
+  RapportoInterventoFotoInput,
   RapportoInterventoInput,
   RapportoInterventoLavorazioneInput,
+  RapportoInterventoMaterialeInput,
 } from "@/types/rapportiIntervento";
 
 type LavorazioneForm =
   RapportoInterventoLavorazioneInput & {
     localId: string;
+    ore_uomo_input: string;
   };
+
+type FotoForm = RapportoInterventoFotoInput & {
+  localId: string;
+};
+
+type MaterialeForm = Omit<
+  RapportoInterventoMaterialeInput,
+  "quantita"
+> & {
+  localId: string;
+  quantita: string;
+};
 
 type RapportoForm = {
   cantiere_id: string;
@@ -97,19 +118,26 @@ function formattaData(data: string) {
   ).format(new Date(`${data}T00:00:00`));
 }
 
-function formattaOre(minutiTotali: number) {
-  const ore = Math.floor(minutiTotali / 60);
-  const minuti = minutiTotali % 60;
-
-  return `${ore}${RAPPORTI_INTERVENTO_TESTI.UNITA_ORA} ${minuti}${RAPPORTI_INTERVENTO_TESTI.UNITA_MINUTO}`;
-}
-
 function getNumeroIntero(
   value: string
 ): number | null {
   const numero = Number(value.trim());
 
   if (!Number.isInteger(numero) || numero < 0) {
+    return null;
+  }
+
+  return numero;
+}
+
+function getNumeroDecimale(
+  value: string
+): number | null {
+  const numero = Number(
+    value.trim().replace(",", ".")
+  );
+
+  if (!Number.isFinite(numero) || numero < 0) {
     return null;
   }
 
@@ -123,6 +151,14 @@ function isFirmaValida(
     !firmaDataUrl ||
     firmaDataUrl.length <=
       RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI
+  );
+}
+
+function isFotoValida(fotoDataUrl: string) {
+  return (
+    fotoDataUrl.startsWith("data:image/") &&
+    fotoDataUrl.length <=
+      RAPPORTI_INTERVENTO_LIMITI.FOTO_MAX_DATA_URL_CARATTERI
   );
 }
 
@@ -199,10 +235,7 @@ function normalizzaLavorazioni(
     }
 
     if (
-      !Number.isInteger(
-        lavorazione.ore_uomo_minuti
-      ) ||
-      lavorazione.ore_uomo_minuti < 0
+      !lavorazione.ore_uomo_input.trim()
     ) {
       return {
         errore:
@@ -211,12 +244,24 @@ function normalizzaLavorazioni(
       };
     }
 
+    const oreUomoMinuti =
+      parseOreMinutiInput(
+        lavorazione.ore_uomo_input
+      );
+
+    if (oreUomoMinuti === null) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .FORMATO_ORE_NON_VALIDO,
+      };
+    }
+
     lavorazioniNormalizzate.push({
       lavorazione_id:
         lavorazione.lavorazione_id,
       descrizione_snapshot: descrizione,
-      ore_uomo_minuti:
-        lavorazione.ore_uomo_minuti,
+      ore_uomo_minuti: oreUomoMinuti,
       ordine: index + 1,
     });
   }
@@ -226,12 +271,118 @@ function normalizzaLavorazioni(
   };
 }
 
+function normalizzaFoto(
+  foto: FotoForm[]
+):
+  | {
+      foto: RapportoInterventoFotoInput[];
+    }
+  | { errore: string } {
+  const fotoNormalizzate: RapportoInterventoFotoInput[] =
+    [];
+
+  for (const [index, immagine] of foto.entries()) {
+    if (!isFotoValida(immagine.immagine_data_url)) {
+      return {
+        errore:
+          immagine.immagine_data_url.length >
+          RAPPORTI_INTERVENTO_LIMITI.FOTO_MAX_DATA_URL_CARATTERI
+            ? RAPPORTI_INTERVENTO_TESTI.ERRORI
+                .FOTO_TROPPO_GRANDE
+            : RAPPORTI_INTERVENTO_TESTI.ERRORI
+                .FOTO_NON_VALIDA,
+      };
+    }
+
+    fotoNormalizzate.push({
+      immagine_data_url:
+        immagine.immagine_data_url,
+      descrizione:
+        immagine.descrizione.trim(),
+      ordine: index + 1,
+    });
+  }
+
+  return {
+    foto: fotoNormalizzate,
+  };
+}
+
+function normalizzaMateriali(
+  materiali: MaterialeForm[]
+):
+  | {
+      materiali: RapportoInterventoMaterialeInput[];
+    }
+  | { errore: string } {
+  const materialiNormalizzati: RapportoInterventoMaterialeInput[] =
+    [];
+
+  for (const [
+    index,
+    materiale,
+  ] of materiali.entries()) {
+    const descrizione =
+      materiale.descrizione
+        .trim()
+        .replace(/\s+/g, " ");
+
+    if (!descrizione) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .MATERIALE_DESCRIZIONE_OBBLIGATORIA,
+      };
+    }
+
+    const quantita = getNumeroDecimale(
+      materiale.quantita
+    );
+
+    if (quantita === null) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .MATERIALE_QUANTITA_NON_VALIDA,
+      };
+    }
+
+    const unitaMisura =
+      materiale.unita_misura
+        .trim()
+        .replace(/\s+/g, " ");
+
+    if (!unitaMisura) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .MATERIALE_UNITA_OBBLIGATORIA,
+      };
+    }
+
+    materialiNormalizzati.push({
+      descrizione,
+      quantita,
+      unita_misura: unitaMisura,
+      ordine: index + 1,
+    });
+  }
+
+  return {
+    materiali: materialiNormalizzati,
+  };
+}
+
 function preparaPayload({
   form,
   lavorazioni,
+  foto,
+  materiali,
 }: {
   form: RapportoForm;
   lavorazioni: LavorazioneForm[];
+  foto: FotoForm[];
+  materiali: MaterialeForm[];
 }):
   | { payload: RapportoInterventoInput }
   | { errore: string } {
@@ -307,6 +458,20 @@ function preparaPayload({
     return lavorazioniNormalizzate;
   }
 
+  const fotoNormalizzate =
+    normalizzaFoto(foto);
+
+  if ("errore" in fotoNormalizzate) {
+    return fotoNormalizzate;
+  }
+
+  const materialiNormalizzati =
+    normalizzaMateriali(materiali);
+
+  if ("errore" in materialiNormalizzati) {
+    return materialiNormalizzati;
+  }
+
   return {
     payload: {
       cantiere_id: form.cantiere_id,
@@ -334,6 +499,9 @@ function preparaPayload({
           : null,
       lavorazioni:
         lavorazioniNormalizzate.lavorazioni,
+      foto: fotoNormalizzate.foto,
+      materiali:
+        materialiNormalizzati.materiali,
     },
   };
 }
@@ -349,6 +517,11 @@ export default function BackofficeRapportiInterventoPage() {
     useState<RapportoForm>(FORM_INIZIALE);
   const [lavorazioni, setLavorazioni] =
     useState<LavorazioneForm[]>([]);
+  const [foto, setFoto] = useState<
+    FotoForm[]
+  >([]);
+  const [materiali, setMateriali] =
+    useState<MaterialeForm[]>([]);
   const [
     rapportoInModificaId,
     setRapportoInModificaId,
@@ -375,7 +548,9 @@ export default function BackofficeRapportiInterventoPage() {
       lavorazioni.reduce(
         (totale, lavorazione) =>
           totale +
-          lavorazione.ore_uomo_minuti,
+          (parseOreMinutiInput(
+            lavorazione.ore_uomo_input
+          ) || 0),
         0
       ),
     [lavorazioni]
@@ -455,6 +630,8 @@ export default function BackofficeRapportiInterventoPage() {
   } = {}) => {
     setForm(FORM_INIZIALE);
     setLavorazioni([]);
+    setFoto([]);
+    setMateriali([]);
     setRapportoInModificaId(null);
     setReadonly(false);
     setErrore(null);
@@ -481,7 +658,7 @@ export default function BackofficeRapportiInterventoPage() {
     localId: string;
     field:
       | "descrizione_snapshot"
-      | "ore_uomo_minuti";
+      | "ore_uomo_input";
     value: string;
   }) => {
     setLavorazioni((lavorazioniCorrenti) =>
@@ -491,20 +668,18 @@ export default function BackofficeRapportiInterventoPage() {
             return lavorazione;
           }
 
-          if (field === "ore_uomo_minuti") {
-            const minuti =
-              getNumeroIntero(value);
-
-            return {
-              ...lavorazione,
-              ore_uomo_minuti:
-                minuti === null ? 0 : minuti,
-            };
-          }
+          const minuti =
+            field === "ore_uomo_input"
+              ? parseOreMinutiInput(value)
+              : null;
 
           return {
             ...lavorazione,
-            descrizione_snapshot: value,
+            [field]: value,
+            ore_uomo_minuti:
+              field === "ore_uomo_input"
+                ? minuti || 0
+                : lavorazione.ore_uomo_minuti,
           };
         }
       )
@@ -519,6 +694,7 @@ export default function BackofficeRapportiInterventoPage() {
         lavorazione_id: null,
         descrizione_snapshot: "",
         ore_uomo_minuti: 0,
+        ore_uomo_input: "",
         ordine:
           lavorazioniCorrenti.length + 1,
       },
@@ -532,6 +708,159 @@ export default function BackofficeRapportiInterventoPage() {
       lavorazioniCorrenti.filter(
         (lavorazione) =>
           lavorazione.localId !== localId
+      )
+    );
+  };
+
+  const leggiFileComeDataUrl = (
+    file: File
+  ) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+          return;
+        }
+
+        reject(
+          new Error(
+            RAPPORTI_INTERVENTO_TESTI.ERRORI
+              .FOTO_NON_VALIDA
+          )
+        );
+      };
+
+      reader.onerror = () => {
+        reject(
+          new Error(
+            RAPPORTI_INTERVENTO_TESTI.ERRORI
+              .FOTO_NON_VALIDA
+          )
+        );
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+  const handleFotoChange = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(
+      event.target.files || []
+    );
+
+    if (files.length === 0) {
+      return;
+    }
+
+    try {
+      const fotoDataUrl = await Promise.all(
+        files.map(async (file) => {
+          if (!file.type.startsWith("image/")) {
+            throw new Error(
+              RAPPORTI_INTERVENTO_TESTI.ERRORI
+                .FOTO_NON_VALIDA
+            );
+          }
+
+          return leggiFileComeDataUrl(file);
+        })
+      );
+
+      const nuoveFoto = fotoDataUrl.map(
+        (immagineDataUrl, index) => ({
+          localId: getLocalId(),
+          immagine_data_url: immagineDataUrl,
+          descrizione: "",
+          ordine: foto.length + index + 1,
+        })
+      );
+
+      setFoto((fotoCorrenti) => [
+        ...fotoCorrenti,
+        ...nuoveFoto,
+      ]);
+      event.target.value = "";
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    }
+  };
+
+  const handleDescrizioneFotoChange = ({
+    localId,
+    descrizione,
+  }: {
+    localId: string;
+    descrizione: string;
+  }) => {
+    setFoto((fotoCorrenti) =>
+      fotoCorrenti.map((immagine) =>
+        immagine.localId === localId
+          ? {
+              ...immagine,
+              descrizione,
+            }
+          : immagine
+      )
+    );
+  };
+
+  const rimuoviFoto = (localId: string) => {
+    setFoto((fotoCorrenti) =>
+      fotoCorrenti.filter(
+        (immagine) =>
+          immagine.localId !== localId
+      )
+    );
+  };
+
+  const aggiungiMateriale = () => {
+    setMateriali((materialiCorrenti) => [
+      ...materialiCorrenti,
+      {
+        localId: getLocalId(),
+        descrizione: "",
+        quantita: "1",
+        unita_misura: "",
+        ordine:
+          materialiCorrenti.length + 1,
+      },
+    ]);
+  };
+
+  const handleMaterialeChange = ({
+    localId,
+    field,
+    value,
+  }: {
+    localId: string;
+    field:
+      | "descrizione"
+      | "quantita"
+      | "unita_misura";
+    value: string;
+  }) => {
+    setMateriali((materialiCorrenti) =>
+      materialiCorrenti.map((materiale) =>
+        materiale.localId === localId
+          ? {
+              ...materiale,
+              [field]: value,
+            }
+          : materiale
+      )
+    );
+  };
+
+  const rimuoviMateriale = (
+    localId: string
+  ) => {
+    setMateriali((materialiCorrenti) =>
+      materialiCorrenti.filter(
+        (materiale) =>
+          materiale.localId !== localId
       )
     );
   };
@@ -569,6 +898,10 @@ export default function BackofficeRapportiInterventoPage() {
         snapshot.map((lavorazione) => ({
           ...lavorazione,
           localId: getLocalId(),
+          ore_uomo_input:
+            formatMinutiOreInput(
+              lavorazione.ore_uomo_minuti
+            ),
         }))
       );
       setMessaggio(
@@ -644,7 +977,38 @@ export default function BackofficeRapportiInterventoPage() {
               lavorazione.descrizione_snapshot,
             ore_uomo_minuti:
               lavorazione.ore_uomo_minuti,
+            ore_uomo_input:
+              formatMinutiOreInput(
+                lavorazione.ore_uomo_minuti
+              ),
             ordine: lavorazione.ordine,
+          })
+        )
+      );
+      setFoto(
+        rapportoCompleto.foto.map(
+          (immagine) => ({
+            localId: getLocalId(),
+            immagine_data_url:
+              immagine.immagine_data_url,
+            descrizione:
+              immagine.descrizione,
+            ordine: immagine.ordine,
+          })
+        )
+      );
+      setMateriali(
+        rapportoCompleto.materiali.map(
+          (materiale) => ({
+            localId: getLocalId(),
+            descrizione:
+              materiale.descrizione,
+            quantita: String(
+              materiale.quantita
+            ),
+            unita_misura:
+              materiale.unita_misura,
+            ordine: materiale.ordine,
           })
         )
       );
@@ -665,6 +1029,8 @@ export default function BackofficeRapportiInterventoPage() {
     const preparazione = preparaPayload({
       form,
       lavorazioni,
+      foto,
+      materiali,
     });
 
     if ("errore" in preparazione) {
@@ -1035,11 +1401,9 @@ export default function BackofficeRapportiInterventoPage() {
                               }
                             </span>
                             <input
-                              type="number"
-                              min="0"
-                              step="1"
+                              type="text"
                               value={
-                                lavorazione.ore_uomo_minuti
+                                lavorazione.ore_uomo_input
                               }
                               onChange={(event) =>
                                 handleLavorazioneChange(
@@ -1047,7 +1411,7 @@ export default function BackofficeRapportiInterventoPage() {
                                     localId:
                                       lavorazione.localId,
                                     field:
-                                      "ore_uomo_minuti",
+                                      "ore_uomo_input",
                                     value:
                                       event
                                         .target
@@ -1058,6 +1422,19 @@ export default function BackofficeRapportiInterventoPage() {
                               disabled={readonly}
                               className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                             />
+                            <span className="mt-1 block text-xs text-industrial-muted">
+                              {parseOreMinutiInput(
+                                lavorazione.ore_uomo_input
+                              ) === null
+                                ? RAPPORTI_INTERVENTO_TESTI
+                                    .ERRORI
+                                    .FORMATO_ORE_NON_VALIDO
+                                : formatMinutiOre(
+                                    parseOreMinutiInput(
+                                      lavorazione.ore_uomo_input
+                                    ) || 0
+                                  )}
+                            </span>
                           </label>
 
                           {!readonly && (
@@ -1082,6 +1459,244 @@ export default function BackofficeRapportiInterventoPage() {
                 )}
               </section>
 
+              <section>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.MATERIALI
+                    }
+                  </h3>
+
+                  {!readonly && (
+                    <button
+                      type="button"
+                      onClick={aggiungiMateriale}
+                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                    >
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE
+                      }
+                    </button>
+                  )}
+                </div>
+
+                {materiali.length === 0 ? (
+                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.NESSUN_MATERIALE
+                    }
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {materiali.map((materiale) => (
+                      <div
+                        key={materiale.localId}
+                        className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_120px_120px_auto]"
+                      >
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE
+                            }
+                          </span>
+                          <input
+                            type="text"
+                            value={
+                              materiale.descrizione
+                            }
+                            onChange={(event) =>
+                              handleMaterialeChange(
+                                {
+                                  localId:
+                                    materiale.localId,
+                                  field:
+                                    "descrizione",
+                                  value:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.QUANTITA
+                            }
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={materiale.quantita}
+                            onChange={(event) =>
+                              handleMaterialeChange(
+                                {
+                                  localId:
+                                    materiale.localId,
+                                  field: "quantita",
+                                  value:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.UNITA_MISURA
+                            }
+                          </span>
+                          <input
+                            type="text"
+                            value={
+                              materiale.unita_misura
+                            }
+                            onChange={(event) =>
+                              handleMaterialeChange(
+                                {
+                                  localId:
+                                    materiale.localId,
+                                  field:
+                                    "unita_misura",
+                                  value:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                        </label>
+
+                        {!readonly && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              rimuoviMateriale(
+                                materiale.localId
+                              )
+                            }
+                            className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                          >
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
+                            }
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.FOTO
+                    }
+                  </h3>
+
+                  {!readonly && (
+                    <label className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange">
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
+                      }
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(event) =>
+                          void handleFotoChange(event)
+                        }
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {foto.length === 0 ? (
+                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO
+                    }
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {foto.map((immagine) => (
+                      <div
+                        key={immagine.localId}
+                        className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3"
+                      >
+                        <Image
+                          src={
+                            immagine.immagine_data_url
+                          }
+                          alt={
+                            immagine.descrizione ||
+                            RAPPORTI_INTERVENTO_TESTI.FOTO
+                          }
+                          width={640}
+                          height={480}
+                          unoptimized
+                          className="aspect-[4/3] w-full rounded-lg border border-industrial-border object-cover"
+                        />
+
+                        <label className="mt-3 block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE_FOTO
+                            }
+                          </span>
+                          <input
+                            type="text"
+                            value={
+                              immagine.descrizione
+                            }
+                            onChange={(event) =>
+                              handleDescrizioneFotoChange(
+                                {
+                                  localId:
+                                    immagine.localId,
+                                  descrizione:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                        </label>
+
+                        {!readonly && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              rimuoviFoto(
+                                immagine.localId
+                              )
+                            }
+                            className="mt-3 w-full rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                          >
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
+                            }
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
               <section className="grid gap-4 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 md:grid-cols-3">
                 <div>
                   <p className="text-sm font-medium text-industrial-muted">
@@ -1090,7 +1705,7 @@ export default function BackofficeRapportiInterventoPage() {
                     }
                   </p>
                   <p className="mt-2 text-2xl font-bold">
-                    {formattaOre(
+                    {formatMinutiOre(
                       oreUomoRealiMinuti
                     )}
                   </p>
@@ -1119,7 +1734,7 @@ export default function BackofficeRapportiInterventoPage() {
                     }
                   </p>
                   <p className="mt-2 text-2xl font-bold">
-                    {formattaOre(
+                    {formatMinutiOre(
                       calcolo.ore_fatturabili_minuti
                     )}
                   </p>
@@ -1288,7 +1903,7 @@ export default function BackofficeRapportiInterventoPage() {
                         }
                       </span>
                       <span className="text-right font-semibold text-industrial-text">
-                        {formattaOre(
+                        {formatMinutiOre(
                           rapporto.ore_uomo_reali_minuti
                         )}
                       </span>
@@ -1298,7 +1913,7 @@ export default function BackofficeRapportiInterventoPage() {
                         }
                       </span>
                       <span className="text-right font-semibold text-industrial-text">
-                        {formattaOre(
+                        {formatMinutiOre(
                           rapporto.ore_fatturabili_minuti
                         )}
                       </span>

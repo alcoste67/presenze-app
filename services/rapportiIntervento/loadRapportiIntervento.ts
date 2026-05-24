@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type { RapportoIntervento } from "@/types/rapportiIntervento";
 
 type SupabaseClient = typeof supabase;
@@ -20,7 +21,10 @@ export async function loadRapportiIntervento(
     });
 
   if (error) {
-    throw error;
+    throwErroreSupabase(
+      "Lettura rapporti intervento",
+      error
+    );
   }
 
   return (data || []) as RapportoIntervento[];

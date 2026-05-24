@@ -14,6 +14,7 @@ export const RAPPORTI_INTERVENTO_LIMITI = {
   MEZZA_GIORNATA_MINUTI: 4 * 60,
   GIORNATA_MINUTI: 8 * 60,
   FIRMA_MAX_DATA_URL_CARATTERI: 120000,
+  FOTO_MAX_DATA_URL_CARATTERI: 6000000,
 } as const;
 
 export const RAPPORTI_INTERVENTO_TIME_ZONE =
@@ -77,7 +78,7 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   LAVORAZIONI: "Lavorazioni svolte",
   DESCRIZIONE: "Descrizione",
   ORE_UOMO_MINUTI:
-    "Ore uomo minuti",
+    "Ore uomo",
   ORE_UOMO_REALI:
     "Ore uomo reali",
   ORE_FATTURABILI:
@@ -90,6 +91,15 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   FIRMA_RESPONSABILE:
     "Firma responsabile",
   FIRMA_CLIENTE: "Firma cliente",
+  FOTO: "Foto rapporto",
+  AGGIUNGI_FOTO: "Aggiungi foto",
+  DESCRIZIONE_FOTO:
+    "Descrizione foto",
+  MATERIALI: "Materiali utilizzati",
+  AGGIUNGI_MATERIALE:
+    "Aggiungi materiale",
+  QUANTITA: "Quantita",
+  UNITA_MISURA: "Unita",
   NOME_FIRMA_RESPONSABILE:
     "Nome firma responsabile",
   NOME_FIRMA_CLIENTE:
@@ -112,6 +122,10 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     "Nessun rapporto intervento",
   NESSUNA_LAVORAZIONE:
     "Nessuna lavorazione per questo rapporto",
+  NESSUNA_FOTO:
+    "Nessuna foto allegata",
+  NESSUN_MATERIALE:
+    "Nessun materiale inserito",
   PDF_NOME_DEFAULT:
     "rapporto-intervento.pdf",
   ERRORI: {
@@ -128,13 +142,25 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     VIAGGIO_NON_VALIDO:
       "Viaggio minuti uomo non valido",
     ORE_NON_VALIDE:
-      "Ore uomo minuti non valide",
+      "Ore uomo non valide",
+    FORMATO_ORE_NON_VALIDO:
+      "Formato ore non valido",
     LAVORAZIONE_OBBLIGATORIA:
       "Inserisci almeno una lavorazione",
     DESCRIZIONE_OBBLIGATORIA:
       "Inserisci la descrizione lavorazione",
     FIRMA_TROPPO_GRANDE:
       "Firma troppo grande",
+    FOTO_NON_VALIDA:
+      "Foto non valida",
+    FOTO_TROPPO_GRANDE:
+      "Foto troppo grande",
+    MATERIALE_DESCRIZIONE_OBBLIGATORIA:
+      "Inserisci la descrizione materiale",
+    MATERIALE_QUANTITA_NON_VALIDA:
+      "Quantita materiale non valida",
+    MATERIALE_UNITA_OBBLIGATORIA:
+      "Inserisci l'unita di misura",
     RAPPORTO_NON_TROVATO:
       "Rapporto intervento non trovato",
     RAPPORTO_FIRMATO:
@@ -173,6 +199,11 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     LAVORAZIONI: "Lavorazioni svolte",
     LAVORAZIONE: "Lavorazione",
     ORE_UOMO: "Ore uomo",
+    MATERIALI: "Materiali utilizzati",
+    MATERIALE: "Materiale",
+    QUANTITA: "Quantita",
+    FOTO: "Foto rapporto",
+    FOTO_DESCRIZIONE: "Foto",
     VIAGGIO: "Viaggio",
     DIRITTO_USCITA: "Diritto uscita",
     ORE_FATTURABILI:
