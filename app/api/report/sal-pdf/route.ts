@@ -17,8 +17,10 @@ import {
   SAL_STATI,
   SAL_TESTI,
 } from "@/constants/sal";
-import { supabase } from "@/lib/supabase";
+import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { loadCantiereBackoffice } from "@/services/cantieri/loadCantiereBackoffice";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
 import type {
   SalCantiere,
@@ -45,10 +47,6 @@ type SalPdfParams = {
   sal: SalCantiere;
 };
 
-type SupabaseConAccessToken = typeof supabase & {
-  accessToken?: () => Promise<string | null>;
-};
-
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 42;
@@ -73,11 +71,17 @@ const COLORS = {
   graySoft: rgb(0.969, 0.953, 0.925),
 };
 
-const SUPABASE_AUTH_COOKIE_PREFIX = "sb-";
-const SUPABASE_AUTH_COOKIE_SUFFIX =
-  "-auth-token";
-const SUPABASE_AUTH_COOKIE_BASE64_PREFIX =
-  "base64-";
+const HTTP_STATUS = {
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+} as const;
 
 function normalizzaTestoPdf(value: string) {
   return value
@@ -111,100 +115,6 @@ function estraiBearerToken(
   return token || null;
 }
 
-function parseAuthCookieValue(value: string) {
-  try {
-    const decodedValue = decodeURIComponent(value);
-    const jsonValue =
-      decodedValue.startsWith(
-        SUPABASE_AUTH_COOKIE_BASE64_PREFIX
-      )
-        ? Buffer.from(
-            decodedValue.slice(
-              SUPABASE_AUTH_COOKIE_BASE64_PREFIX.length
-            ),
-            "base64"
-          ).toString("utf8")
-        : decodedValue;
-    const payload = JSON.parse(jsonValue) as
-      | { access_token?: unknown }
-      | unknown[];
-
-    if (
-      !Array.isArray(payload) &&
-      typeof payload.access_token === "string"
-    ) {
-      return payload.access_token;
-    }
-
-    if (
-      Array.isArray(payload) &&
-      typeof payload[0] === "string"
-    ) {
-      return payload[0];
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function estraiSupabaseCookieToken(
-  request: NextRequest
-) {
-  const authCookie = request.cookies
-    .getAll()
-    .find(
-      (cookie) =>
-        cookie.name.startsWith(
-          SUPABASE_AUTH_COOKIE_PREFIX
-        ) &&
-        cookie.name.endsWith(
-          SUPABASE_AUTH_COOKIE_SUFFIX
-        )
-    );
-
-  return authCookie
-    ? parseAuthCookieValue(authCookie.value)
-    : null;
-}
-
-function getAccessTokenDatiSal(
-  request: NextRequest
-) {
-  return (
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    estraiBearerToken(request) ||
-    estraiSupabaseCookieToken(request)
-  );
-}
-
-async function withSupabaseAccessToken<T>(
-  accessToken: string | null,
-  callback: () => Promise<T>
-) {
-  const supabaseConAccessToken =
-    supabase as SupabaseConAccessToken;
-  const previousAccessToken =
-    supabaseConAccessToken.accessToken;
-
-  if (accessToken) {
-    supabaseConAccessToken.accessToken =
-      async () => accessToken;
-  }
-
-  try {
-    return await callback();
-  } finally {
-    if (previousAccessToken) {
-      supabaseConAccessToken.accessToken =
-        previousAccessToken;
-    } else {
-      delete supabaseConAccessToken.accessToken;
-    }
-  }
-}
-
 function drawText(
   page: PDFPage,
   text: string,
@@ -217,6 +127,42 @@ function drawText(
   }
 ) {
   page.drawText(normalizzaTestoPdf(text), options);
+}
+
+function jsonErrore(
+  error: string,
+  status: number
+) {
+  return Response.json(
+    {
+      error,
+    },
+    {
+      status,
+      headers: NO_STORE_HEADERS,
+    }
+  );
+}
+
+function logErroreSalPdf({
+  cantiereId,
+  error,
+}: {
+  cantiereId: string;
+  error: unknown;
+}) {
+  console.error("Errore generazione PDF SAL", {
+    cantiereId,
+    message:
+      error instanceof Error
+        ? error.message
+        : String(error),
+    stack:
+      error instanceof Error
+        ? error.stack
+        : undefined,
+    error,
+  });
 }
 
 function formattaOreUomo(minutiTotali: number) {
@@ -859,41 +805,70 @@ async function generaSalPdf({
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const cantiereId =
-      request.nextUrl.searchParams.get(
-        "cantiereId"
-      ) || "";
+  const cantiereId =
+    request.nextUrl.searchParams.get(
+      "cantiereId"
+    ) || "";
 
+  try {
     if (!cantiereId) {
-      return Response.json(
-        {
-          error:
-            SAL_PDF.ERRORI.CANTIERE_OBBLIGATORIO,
-        },
-        { status: 400 }
+      return jsonErrore(
+        SAL_PDF.ERRORI.CANTIERE_OBBLIGATORIO,
+        HTTP_STATUS.BAD_REQUEST
       );
     }
 
-    const accessTokenDatiSal =
-      getAccessTokenDatiSal(request);
-    const [cantiere, sal] =
-      await withSupabaseAccessToken(
-        accessTokenDatiSal,
-        () =>
-          Promise.all([
-            loadCantiereBackoffice(cantiereId),
-            loadSalCantiere(cantiereId),
-          ])
+    const accessToken =
+      estraiBearerToken(request);
+
+    if (!accessToken) {
+      return jsonErrore(
+        REPORT_PRESENZE_TESTI.ERRORI
+          .TOKEN_MANCANTE,
+        HTTP_STATUS.UNAUTHORIZED
       );
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(
+      accessToken
+    );
+
+    if (authError || !user?.email) {
+      return jsonErrore(
+        REPORT_PRESENZE_TESTI.ERRORI
+          .TOKEN_NON_VALIDO,
+        HTTP_STATUS.UNAUTHORIZED
+      );
+    }
+
+    const utenteAdmin = await isAdmin(
+      user.email,
+      supabaseAdmin
+    );
+
+    if (!utenteAdmin) {
+      return jsonErrore(
+        REPORT_PRESENZE_TESTI.ERRORI
+          .ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    const [cantiere, sal] = await Promise.all([
+      loadCantiereBackoffice(
+        cantiereId,
+        supabaseAdmin
+      ),
+      loadSalCantiere(cantiereId, supabaseAdmin),
+    ]);
 
     if (!cantiere) {
-      return Response.json(
-        {
-          error:
-            SAL_PDF.ERRORI.CANTIERE_NON_TROVATO,
-        },
-        { status: 404 }
+      return jsonErrore(
+        SAL_PDF.ERRORI.CANTIERE_NON_TROVATO,
+        HTTP_STATUS.NOT_FOUND
       );
     }
 
@@ -925,13 +900,14 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error: unknown) {
-    console.error(error);
+    logErroreSalPdf({
+      cantiereId,
+      error,
+    });
 
-    return Response.json(
-      {
-        error: SAL_PDF.ERRORI.GENERICO,
-      },
-      { status: 500 }
+    return jsonErrore(
+      SAL_PDF.ERRORI.GENERICO,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }
 }

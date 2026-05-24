@@ -12,6 +12,8 @@ import type {
   StatoSalLavorazione,
 } from "@/types/sal";
 
+type SupabaseClient = typeof supabase;
+
 const SELECT_LAVORAZIONE_SAL =
   "id, cantiere_id, nome, ordine, percentuale_completamento";
 const SELECT_TIMBRATURA_ORE_UOMO =
@@ -59,13 +61,14 @@ function getAvanzamentoTotale(
 }
 
 async function loadTimbratureLavorazioni(
-  lavorazioneIds: string[]
+  lavorazioneIds: string[],
+  supabaseClient: SupabaseClient
 ): Promise<TimbraturaLavorazioneOreUomo[]> {
   if (lavorazioneIds.length === 0) {
     return [];
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("timbrature_lavorazioni")
     .select(
       SELECT_TIMBRATURA_LAVORAZIONE_ORE_UOMO
@@ -82,9 +85,10 @@ async function loadTimbratureLavorazioni(
 }
 
 async function loadTimbratureCantiere(
-  cantiereId: string
+  cantiereId: string,
+  supabaseClient: SupabaseClient
 ): Promise<TimbraturaOreUomoLavorazione[]> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("timbrature")
     .select(SELECT_TIMBRATURA_ORE_UOMO)
     .eq("cantiere_id", cantiereId);
@@ -99,13 +103,14 @@ async function loadTimbratureCantiere(
 }
 
 async function loadTimbratureByUserIds(
-  userIds: string[]
+  userIds: string[],
+  supabaseClient: SupabaseClient
 ): Promise<TimbraturaOreUomoLavorazione[]> {
   if (userIds.length === 0) {
     return [];
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("timbrature")
     .select(SELECT_TIMBRATURA_ORE_UOMO)
     .in("user_id", userIds)
@@ -136,7 +141,8 @@ function unisciTimbrature(
 }
 
 export async function loadSalCantiere(
-  cantiereId: string
+  cantiereId: string,
+  supabaseClient: SupabaseClient = supabase
 ): Promise<SalCantiere> {
   if (!cantiereId) {
     return {
@@ -147,7 +153,7 @@ export async function loadSalCantiere(
     };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("lavorazioni_cantiere")
     .select(SELECT_LAVORAZIONE_SAL)
     .eq("cantiere_id", cantiereId)
@@ -170,10 +176,14 @@ export async function loadSalCantiere(
   );
   const timbratureLavorazioni =
     await loadTimbratureLavorazioni(
-      lavorazioneIds
+      lavorazioneIds,
+      supabaseClient
     );
   const timbratureCantiere =
-    await loadTimbratureCantiere(cantiereId);
+    await loadTimbratureCantiere(
+      cantiereId,
+      supabaseClient
+    );
   const userIdsCantiere =
     Array.from(
       new Set(
@@ -184,7 +194,8 @@ export async function loadSalCantiere(
     );
   const timbratureUtenti =
     await loadTimbratureByUserIds(
-      userIdsCantiere
+      userIdsCantiere,
+      supabaseClient
     );
   const oreUomo =
     calcolaOreUomoLavorazioni({
