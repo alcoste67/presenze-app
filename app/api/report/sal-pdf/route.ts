@@ -11,11 +11,13 @@ import {
   rgb,
 } from "pdf-lib";
 
+import { API_HEADERS } from "@/constants/api";
 import {
   SAL_PDF,
   SAL_STATI,
   SAL_TESTI,
 } from "@/constants/sal";
+import { supabase } from "@/lib/supabase";
 import { loadCantiereBackoffice } from "@/services/cantieri/loadCantiereBackoffice";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
 import type {
@@ -43,6 +45,10 @@ type SalPdfParams = {
   sal: SalCantiere;
 };
 
+type SupabaseConAccessToken = typeof supabase & {
+  accessToken?: () => Promise<string | null>;
+};
+
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 42;
@@ -67,6 +73,12 @@ const COLORS = {
   graySoft: rgb(0.969, 0.953, 0.925),
 };
 
+const SUPABASE_AUTH_COOKIE_PREFIX = "sb-";
+const SUPABASE_AUTH_COOKIE_SUFFIX =
+  "-auth-token";
+const SUPABASE_AUTH_COOKIE_BASE64_PREFIX =
+  "base64-";
+
 function normalizzaTestoPdf(value: string) {
   return value
     .replaceAll("–", "-")
@@ -75,6 +87,122 @@ function normalizzaTestoPdf(value: string) {
     .replaceAll("”", '"')
     .replaceAll("’", "'")
     .replace(/[^\x20-\x7e\xa0-\xff]/g, "");
+}
+
+function estraiBearerToken(
+  request: NextRequest
+) {
+  const authorization = request.headers.get(
+    API_HEADERS.AUTHORIZATION
+  );
+
+  if (
+    !authorization?.startsWith(
+      API_HEADERS.BEARER_PREFIX
+    )
+  ) {
+    return null;
+  }
+
+  const token = authorization
+    .slice(API_HEADERS.BEARER_PREFIX.length)
+    .trim();
+
+  return token || null;
+}
+
+function parseAuthCookieValue(value: string) {
+  try {
+    const decodedValue = decodeURIComponent(value);
+    const jsonValue =
+      decodedValue.startsWith(
+        SUPABASE_AUTH_COOKIE_BASE64_PREFIX
+      )
+        ? Buffer.from(
+            decodedValue.slice(
+              SUPABASE_AUTH_COOKIE_BASE64_PREFIX.length
+            ),
+            "base64"
+          ).toString("utf8")
+        : decodedValue;
+    const payload = JSON.parse(jsonValue) as
+      | { access_token?: unknown }
+      | unknown[];
+
+    if (
+      !Array.isArray(payload) &&
+      typeof payload.access_token === "string"
+    ) {
+      return payload.access_token;
+    }
+
+    if (
+      Array.isArray(payload) &&
+      typeof payload[0] === "string"
+    ) {
+      return payload[0];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function estraiSupabaseCookieToken(
+  request: NextRequest
+) {
+  const authCookie = request.cookies
+    .getAll()
+    .find(
+      (cookie) =>
+        cookie.name.startsWith(
+          SUPABASE_AUTH_COOKIE_PREFIX
+        ) &&
+        cookie.name.endsWith(
+          SUPABASE_AUTH_COOKIE_SUFFIX
+        )
+    );
+
+  return authCookie
+    ? parseAuthCookieValue(authCookie.value)
+    : null;
+}
+
+function getAccessTokenDatiSal(
+  request: NextRequest
+) {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    estraiBearerToken(request) ||
+    estraiSupabaseCookieToken(request)
+  );
+}
+
+async function withSupabaseAccessToken<T>(
+  accessToken: string | null,
+  callback: () => Promise<T>
+) {
+  const supabaseConAccessToken =
+    supabase as SupabaseConAccessToken;
+  const previousAccessToken =
+    supabaseConAccessToken.accessToken;
+
+  if (accessToken) {
+    supabaseConAccessToken.accessToken =
+      async () => accessToken;
+  }
+
+  try {
+    return await callback();
+  } finally {
+    if (previousAccessToken) {
+      supabaseConAccessToken.accessToken =
+        previousAccessToken;
+    } else {
+      delete supabaseConAccessToken.accessToken;
+    }
+  }
 }
 
 function drawText(
@@ -747,10 +875,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [cantiere, sal] = await Promise.all([
-      loadCantiereBackoffice(cantiereId),
-      loadSalCantiere(cantiereId),
-    ]);
+    const accessTokenDatiSal =
+      getAccessTokenDatiSal(request);
+    const [cantiere, sal] =
+      await withSupabaseAccessToken(
+        accessTokenDatiSal,
+        () =>
+          Promise.all([
+            loadCantiereBackoffice(cantiereId),
+            loadSalCantiere(cantiereId),
+          ])
+      );
 
     if (!cantiere) {
       return Response.json(
