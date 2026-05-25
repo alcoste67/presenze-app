@@ -26,6 +26,7 @@ import { APP_ROUTES } from "@/constants/routes";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { loadDipendentiAttivi } from "@/services/dipendenti/loadDipendentiAttivi";
 import { aggiornaRapportoIntervento } from "@/services/rapportiIntervento/aggiornaRapportoIntervento";
 import { calcolaOreFatturabili } from "@/services/rapportiIntervento/calcolaOreFatturabili";
 import { creaRapportoIntervento } from "@/services/rapportiIntervento/creaRapportoIntervento";
@@ -39,12 +40,14 @@ import {
   parseOreMinutiInput,
 } from "@/services/rapportiIntervento/oreMinuti";
 import type { CantiereBackoffice } from "@/types/cantieri";
+import type { Dipendente } from "@/types/dipendenti";
 import type {
   RapportoIntervento,
   RapportoInterventoFotoInput,
   RapportoInterventoInput,
   RapportoInterventoLavorazioneInput,
   RapportoInterventoMaterialeInput,
+  RapportoInterventoOperatoreInput,
 } from "@/types/rapportiIntervento";
 
 type LavorazioneForm =
@@ -55,6 +58,16 @@ type LavorazioneForm =
 
 type FotoForm = RapportoInterventoFotoInput & {
   localId: string;
+};
+
+type OperatoreForm = Omit<
+  RapportoInterventoOperatoreInput,
+  "ore_minuti"
+> & {
+  localId: string;
+  ricerca_operatore: string;
+  ore_input: string;
+  ore_minuti: number;
 };
 
 type MaterialeForm = Omit<
@@ -109,6 +122,18 @@ function getMessaggioErrore(error: unknown) {
     ? error.message
     : RAPPORTI_INTERVENTO_TESTI.ERRORI
         .GENERICO;
+}
+
+function getNomeDipendente(
+  dipendente: Dipendente
+) {
+  return `${dipendente.nome} ${dipendente.cognome}`.trim();
+}
+
+function getLabelDipendente(
+  dipendente: Dipendente
+) {
+  return `${getNomeDipendente(dipendente)} - ${dipendente.email}`;
 }
 
 function formattaData(data: string) {
@@ -311,6 +336,96 @@ function normalizzaFoto(
   };
 }
 
+function normalizzaOperatori(
+  operatori: OperatoreForm[]
+):
+  | {
+      operatori: RapportoInterventoOperatoreInput[];
+    }
+  | { errore: string } {
+  if (operatori.length === 0) {
+    return {
+      errore:
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .OPERATORE_OBBLIGATORIO,
+    };
+  }
+
+  const dipendentiIds = new Set<string>();
+  const operatoriNormalizzati: RapportoInterventoOperatoreInput[] =
+    [];
+
+  for (const [
+    index,
+    operatore,
+  ] of operatori.entries()) {
+    if (
+      !operatore.dipendente_id ||
+      !operatore.nome_snapshot.trim()
+    ) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .OPERATORE_NON_VALIDO,
+      };
+    }
+
+    if (
+      dipendentiIds.has(
+        operatore.dipendente_id
+      )
+    ) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .OPERATORE_DUPLICATO,
+      };
+    }
+
+    dipendentiIds.add(
+      operatore.dipendente_id
+    );
+
+    if (!operatore.ore_input.trim()) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .ORE_OPERATORE_NON_VALIDE,
+      };
+    }
+
+    const oreMinuti =
+      parseOreMinutiInput(
+        operatore.ore_input
+      );
+
+    if (oreMinuti === null) {
+      return {
+        errore:
+          RAPPORTI_INTERVENTO_TESTI.ERRORI
+            .FORMATO_ORE_NON_VALIDO,
+      };
+    }
+
+    operatoriNormalizzati.push({
+      dipendente_id:
+        operatore.dipendente_id,
+      nome_snapshot:
+        operatore.nome_snapshot
+          .trim()
+          .replace(/\s+/g, " "),
+      email_snapshot:
+        operatore.email_snapshot,
+      ore_minuti: oreMinuti,
+      ordine: index + 1,
+    });
+  }
+
+  return {
+    operatori: operatoriNormalizzati,
+  };
+}
+
 function normalizzaMateriali(
   materiali: MaterialeForm[]
 ):
@@ -379,11 +494,13 @@ function normalizzaMateriali(
 function preparaPayload({
   form,
   lavorazioni,
+  operatori,
   foto,
   materiali,
 }: {
   form: RapportoForm;
   lavorazioni: LavorazioneForm[];
+  operatori: OperatoreForm[];
   foto: FotoForm[];
   materiali: MaterialeForm[];
 }):
@@ -461,6 +578,13 @@ function preparaPayload({
     return lavorazioniNormalizzate;
   }
 
+  const operatoriNormalizzati =
+    normalizzaOperatori(operatori);
+
+  if ("errore" in operatoriNormalizzati) {
+    return operatoriNormalizzati;
+  }
+
   const fotoNormalizzate =
     normalizzaFoto(foto);
 
@@ -502,6 +626,8 @@ function preparaPayload({
           : null,
       lavorazioni:
         lavorazioniNormalizzate.lavorazioni,
+      operatori:
+        operatoriNormalizzati.operatori,
       foto: fotoNormalizzate.foto,
       materiali:
         materialiNormalizzati.materiali,
@@ -513,6 +639,8 @@ export default function BackofficeRapportiInterventoPage() {
   const [cantieri, setCantieri] = useState<
     CantiereBackoffice[]
   >([]);
+  const [dipendenti, setDipendenti] =
+    useState<Dipendente[]>([]);
   const [rapporti, setRapporti] = useState<
     RapportoIntervento[]
   >([]);
@@ -520,6 +648,8 @@ export default function BackofficeRapportiInterventoPage() {
     useState<RapportoForm>(FORM_INIZIALE);
   const [lavorazioni, setLavorazioni] =
     useState<LavorazioneForm[]>([]);
+  const [operatori, setOperatori] =
+    useState<OperatoreForm[]>([]);
   const [foto, setFoto] = useState<
     FotoForm[]
   >([]);
@@ -550,15 +680,15 @@ export default function BackofficeRapportiInterventoPage() {
 
   const oreUomoRealiMinuti = useMemo(
     () =>
-      lavorazioni.reduce(
-        (totale, lavorazione) =>
+      operatori.reduce(
+        (totale, operatore) =>
           totale +
           (parseOreMinutiInput(
-            lavorazione.ore_uomo_input
+            operatore.ore_input
           ) || 0),
         0
       ),
-    [lavorazioni]
+    [operatori]
   );
 
   const viaggioMinuti =
@@ -573,13 +703,19 @@ export default function BackofficeRapportiInterventoPage() {
       setLoading(true);
       setErrore(null);
 
-      const [cantieriData, rapportiData] =
+      const [
+        cantieriData,
+        dipendentiData,
+        rapportiData,
+      ] =
         await Promise.all([
           loadCantieriBackoffice(),
+          loadDipendentiAttivi(),
           loadRapportiIntervento(),
         ]);
 
       setCantieri(cantieriData);
+      setDipendenti(dipendentiData);
       setRapporti(rapportiData);
     } catch (error: unknown) {
       setErrore(getMessaggioErrore(error));
@@ -628,9 +764,11 @@ export default function BackofficeRapportiInterventoPage() {
         try {
           const [
             cantieriData,
+            dipendentiData,
             rapportiData,
           ] = await Promise.all([
             loadCantieriBackoffice(),
+            loadDipendentiAttivi(),
             loadRapportiIntervento(),
           ]);
 
@@ -639,6 +777,7 @@ export default function BackofficeRapportiInterventoPage() {
           }
 
           setCantieri(cantieriData);
+          setDipendenti(dipendentiData);
           setRapporti(rapportiData);
         } catch (error: unknown) {
           if (attivo) {
@@ -667,6 +806,7 @@ export default function BackofficeRapportiInterventoPage() {
   } = {}) => {
     setForm(FORM_INIZIALE);
     setLavorazioni([]);
+    setOperatori([]);
     setFoto([]);
     setMateriali([]);
     setRapportoInModificaId(null);
@@ -745,6 +885,99 @@ export default function BackofficeRapportiInterventoPage() {
       lavorazioniCorrenti.filter(
         (lavorazione) =>
           lavorazione.localId !== localId
+      )
+    );
+  };
+
+  const getDipendenteDaRicerca = (
+    ricerca: string
+  ) =>
+    dipendenti.find(
+      (dipendente) =>
+        getLabelDipendente(dipendente) ===
+          ricerca ||
+        dipendente.email === ricerca
+    ) || null;
+
+  const aggiungiOperatore = () => {
+    setOperatori((operatoriCorrenti) => [
+      ...operatoriCorrenti,
+      {
+        localId: getLocalId(),
+        dipendente_id: null,
+        nome_snapshot: "",
+        email_snapshot: null,
+        ricerca_operatore: "",
+        ore_input: "",
+        ore_minuti: 0,
+        ordine: operatoriCorrenti.length + 1,
+      },
+    ]);
+  };
+
+  const handleOperatoreChange = ({
+    localId,
+    ricerca,
+  }: {
+    localId: string;
+    ricerca: string;
+  }) => {
+    const dipendente =
+      getDipendenteDaRicerca(ricerca);
+
+    setOperatori((operatoriCorrenti) =>
+      operatoriCorrenti.map((operatore) =>
+        operatore.localId === localId
+          ? {
+              ...operatore,
+              dipendente_id:
+                dipendente?.id || null,
+              nome_snapshot: dipendente
+                ? getNomeDipendente(
+                    dipendente
+                  )
+                : "",
+              email_snapshot:
+                dipendente?.email || null,
+              ricerca_operatore: ricerca,
+            }
+          : operatore
+      )
+    );
+  };
+
+  const handleOreOperatoreChange = ({
+    localId,
+    value,
+  }: {
+    localId: string;
+    value: string;
+  }) => {
+    setOperatori((operatoriCorrenti) =>
+      operatoriCorrenti.map((operatore) => {
+        if (operatore.localId !== localId) {
+          return operatore;
+        }
+
+        const minuti =
+          parseOreMinutiInput(value);
+
+        return {
+          ...operatore,
+          ore_input: value,
+          ore_minuti: minuti || 0,
+        };
+      })
+    );
+  };
+
+  const rimuoviOperatore = (
+    localId: string
+  ) => {
+    setOperatori((operatoriCorrenti) =>
+      operatoriCorrenti.filter(
+        (operatore) =>
+          operatore.localId !== localId
       )
     );
   };
@@ -1022,6 +1255,30 @@ export default function BackofficeRapportiInterventoPage() {
           })
         )
       );
+      setOperatori(
+        rapportoCompleto.operatori.map(
+          (operatore) => ({
+            localId: getLocalId(),
+            dipendente_id:
+              operatore.dipendente_id,
+            nome_snapshot:
+              operatore.nome_snapshot,
+            email_snapshot:
+              operatore.email_snapshot,
+            ricerca_operatore:
+              operatore.email_snapshot
+                ? `${operatore.nome_snapshot} - ${operatore.email_snapshot}`
+                : operatore.nome_snapshot,
+            ore_minuti:
+              operatore.ore_minuti,
+            ore_input:
+              formatMinutiOreInput(
+                operatore.ore_minuti
+              ),
+            ordine: operatore.ordine,
+          })
+        )
+      );
       setFoto(
         rapportoCompleto.foto.map(
           (immagine) => ({
@@ -1066,6 +1323,7 @@ export default function BackofficeRapportiInterventoPage() {
     const preparazione = preparaPayload({
       form,
       lavorazioni,
+      operatori,
       foto,
       materiali,
     });
@@ -1355,6 +1613,154 @@ export default function BackofficeRapportiInterventoPage() {
                   className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                 />
               </label>
+
+              <section>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.OPERATORI
+                    }
+                  </h3>
+
+                  {!readonly && (
+                    <button
+                      type="button"
+                      onClick={aggiungiOperatore}
+                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                    >
+                      {
+                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE
+                      }
+                    </button>
+                  )}
+                </div>
+
+                <datalist id="operatori-rapporto-list">
+                  {dipendenti.map((dipendente) => (
+                    <option
+                      key={dipendente.id}
+                      value={getLabelDipendente(
+                        dipendente
+                      )}
+                    />
+                  ))}
+                </datalist>
+
+                {operatori.length === 0 ? (
+                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE
+                    }
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {operatori.map((operatore) => (
+                      <div
+                        key={operatore.localId}
+                        className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_140px_auto]"
+                      >
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.OPERATORE
+                            }
+                          </span>
+                          <input
+                            type="text"
+                            list="operatori-rapporto-list"
+                            value={
+                              operatore.ricerca_operatore
+                            }
+                            onChange={(event) =>
+                              handleOperatoreChange(
+                                {
+                                  localId:
+                                    operatore.localId,
+                                  ricerca:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            placeholder={
+                              RAPPORTI_INTERVENTO_TESTI.SELEZIONA_OPERATORE
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.ORE_OPERATORE
+                            }
+                          </span>
+                          <input
+                            type="text"
+                            value={
+                              operatore.ore_input
+                            }
+                            onChange={(event) =>
+                              handleOreOperatoreChange(
+                                {
+                                  localId:
+                                    operatore.localId,
+                                  value:
+                                    event.target.value,
+                                }
+                              )
+                            }
+                            disabled={readonly}
+                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                          />
+                          <span className="mt-1 block text-xs text-industrial-muted">
+                            {parseOreMinutiInput(
+                              operatore.ore_input
+                            ) === null
+                              ? RAPPORTI_INTERVENTO_TESTI
+                                  .ERRORI
+                                  .FORMATO_ORE_NON_VALIDO
+                              : formatMinutiOre(
+                                  parseOreMinutiInput(
+                                    operatore.ore_input
+                                  ) || 0
+                                )}
+                          </span>
+                        </label>
+
+                        {!readonly && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              rimuoviOperatore(
+                                operatore.localId
+                              )
+                            }
+                            className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                          >
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
+                            }
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4">
+                  <p className="text-sm font-medium text-industrial-muted">
+                    {
+                      RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
+                    }
+                  </p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {formatMinutiOre(
+                      oreUomoRealiMinuti
+                    )}
+                  </p>
+                </div>
+              </section>
 
               <section>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

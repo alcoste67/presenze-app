@@ -75,6 +75,15 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     "Viaggio minuti uomo",
   DIRITTO_USCITA: "Diritto uscita",
   NOTE: "Note",
+  OPERATORI: "Operatori presenti",
+  AGGIUNGI_OPERATORE:
+    "Aggiungi operatore",
+  OPERATORE: "Operatore",
+  SELEZIONA_OPERATORE:
+    "Cerca e seleziona operatore",
+  NESSUN_OPERATORE:
+    "Nessun operatore inserito",
+  ORE_OPERATORE: "Ore",
   LAVORAZIONI: "Lavorazioni svolte",
   DESCRIZIONE: "Descrizione",
   ORE_UOMO_MINUTI:
@@ -147,6 +156,14 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Formato ore non valido",
     LAVORAZIONE_OBBLIGATORIA:
       "Inserisci almeno una lavorazione",
+    OPERATORE_OBBLIGATORIO:
+      "Inserisci almeno un operatore presente",
+    OPERATORE_NON_VALIDO:
+      "Seleziona un operatore valido",
+    OPERATORE_DUPLICATO:
+      "Operatore gia inserito",
+    ORE_OPERATORE_NON_VALIDE:
+      "Ore operatore non valide",
     DESCRIZIONE_OBBLIGATORIA:
       "Inserisci la descrizione lavorazione",
     FIRMA_TROPPO_GRANDE:
@@ -196,9 +213,13 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     CLIENTE_COMMITTENTE:
       "Cliente / committente",
     RESPONSABILE: "Responsabile lavori",
+    OPERATORI: "Operatori presenti",
+    OPERATORE: "Nome",
     LAVORAZIONI: "Lavorazioni svolte",
     LAVORAZIONE: "Lavorazione",
     ORE_UOMO: "Ore uomo",
+    TOTALE_ORE_UOMO:
+      "Totale ore uomo",
     MATERIALI: "Materiali utilizzati",
     MATERIALE: "Materiale",
     QUANTITA: "Quantita",

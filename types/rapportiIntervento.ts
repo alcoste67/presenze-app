@@ -45,6 +45,17 @@ export type RapportoInterventoLavorazione = {
   created_at: string;
 };
 
+export type RapportoInterventoOperatore = {
+  id: string;
+  rapporto_intervento_id: string;
+  dipendente_id: string | null;
+  nome_snapshot: string;
+  email_snapshot: string | null;
+  ore_minuti: number;
+  ordine: number;
+  created_at: string;
+};
+
 export type RapportoInterventoFoto = {
   id: string;
   rapporto_intervento_id: string;
@@ -67,6 +78,7 @@ export type RapportoInterventoMateriale = {
 export type RapportoInterventoCompleto =
   RapportoIntervento & {
     lavorazioni: RapportoInterventoLavorazione[];
+    operatori: RapportoInterventoOperatore[];
     foto: RapportoInterventoFoto[];
     materiali: RapportoInterventoMateriale[];
   };
@@ -81,6 +93,14 @@ export type RapportoInterventoLavorazioneInput = {
 export type RapportoInterventoFotoInput = {
   immagine_data_url: string;
   descrizione: string;
+  ordine: number;
+};
+
+export type RapportoInterventoOperatoreInput = {
+  dipendente_id: string | null;
+  nome_snapshot: string;
+  email_snapshot: string | null;
+  ore_minuti: number;
   ordine: number;
 };
 
@@ -104,6 +124,7 @@ export type RapportoInterventoInput = {
   firma_cliente_data_url: string | null;
   firma_cliente_nome: string | null;
   lavorazioni: RapportoInterventoLavorazioneInput[];
+  operatori: RapportoInterventoOperatoreInput[];
   foto: RapportoInterventoFotoInput[];
   materiali: RapportoInterventoMaterialeInput[];
 };

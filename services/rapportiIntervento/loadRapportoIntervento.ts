@@ -6,6 +6,7 @@ import type {
   RapportoIntervento,
   RapportoInterventoCompleto,
   RapportoInterventoLavorazione,
+  RapportoInterventoOperatore,
 } from "@/types/rapportiIntervento";
 
 type SupabaseClient = typeof supabase;
@@ -15,6 +16,8 @@ const SELECT_RAPPORTO_INTERVENTO =
 
 const SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE =
   "id, rapporto_intervento_id, lavorazione_id, descrizione_snapshot, ore_uomo_minuti, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_OPERATORE =
+  "id, rapporto_intervento_id, dipendente_id, nome_snapshot, email_snapshot, ore_minuti, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_FOTO =
   "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
@@ -48,12 +51,26 @@ export async function loadRapportoIntervento(
 
   const [
     lavorazioniResult,
+    operatoriResult,
     fotoResult,
     materialiResult,
   ] = await Promise.all([
     supabaseClient
       .from("rapporti_intervento_lavorazioni")
       .select(SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE)
+      .eq(
+        "rapporto_intervento_id",
+        rapportoInterventoId
+      )
+      .order("ordine", {
+        ascending: true,
+      })
+      .order("created_at", {
+        ascending: true,
+      }),
+    supabaseClient
+      .from("rapporti_intervento_operatori")
+      .select(SELECT_RAPPORTO_INTERVENTO_OPERATORE)
       .eq(
         "rapporto_intervento_id",
         rapportoInterventoId
@@ -106,6 +123,13 @@ export async function loadRapportoIntervento(
     );
   }
 
+  if (operatoriResult.error) {
+    throwErroreSupabase(
+      "Lettura operatori rapporto intervento",
+      operatoriResult.error
+    );
+  }
+
   if (materialiResult.error) {
     throwErroreSupabase(
       "Lettura materiali rapporto intervento",
@@ -118,6 +142,9 @@ export async function loadRapportoIntervento(
     lavorazioni:
       (lavorazioniResult.data ||
         []) as RapportoInterventoLavorazione[],
+    operatori:
+      (operatoriResult.data ||
+        []) as RapportoInterventoOperatore[],
     foto:
       (fotoResult.data ||
         []) as RapportoInterventoFoto[],

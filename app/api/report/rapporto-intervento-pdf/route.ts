@@ -27,6 +27,7 @@ import type {
   RapportoInterventoCompleto,
   RapportoInterventoLavorazione,
   RapportoInterventoMateriale,
+  RapportoInterventoOperatore,
 } from "@/types/rapportiIntervento";
 
 export const runtime = "nodejs";
@@ -748,6 +749,141 @@ function drawLavorazioneRow({
   );
 }
 
+function drawOperatoriHeader({
+  page,
+  fonts,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - HEADER_ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: HEADER_ROW_HEIGHT,
+    color: COLORS.dark,
+  });
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.OPERATORE,
+    {
+      x: MARGIN_X + 12,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.ORE_UOMO,
+    {
+      x: PAGE_WIDTH - MARGIN_X - 98,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+}
+
+function drawOperatoreRow({
+  page,
+  fonts,
+  operatore,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  operatore: RapportoInterventoOperatore;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: ROW_HEIGHT,
+    color: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 0.6,
+  });
+
+  drawWrappedText({
+    page,
+    text: operatore.nome_snapshot,
+    x: MARGIN_X + 12,
+    y: y - 14,
+    maxWidth: 360,
+    size: 9,
+    font: fonts.bold,
+    color: COLORS.text,
+    maxLines: 2,
+    lineHeight: 10,
+  });
+
+  drawText(
+    page,
+    formatMinutiOre(operatore.ore_minuti),
+    {
+      x: PAGE_WIDTH - MARGIN_X - 98,
+      y: y - 22,
+      size: 10,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+}
+
+function drawTotaleOperatori({
+  page,
+  fonts,
+  totaleMinuti,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  totaleMinuti: number;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: ROW_HEIGHT,
+    color: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 0.8,
+  });
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.TOTALE_ORE_UOMO,
+    {
+      x: MARGIN_X + 12,
+      y: y - 22,
+      size: 10,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+
+  drawText(
+    page,
+    formatMinutiOre(totaleMinuti),
+    {
+      x: PAGE_WIDTH - MARGIN_X - 98,
+      y: y - 22,
+      size: 10,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+}
+
 function drawMaterialiHeader({
   page,
   fonts,
@@ -1122,9 +1258,10 @@ async function generaRapportoInterventoPdf(
     mostraFatturazione,
   });
 
+  let tableY = 476;
   drawText(
     page,
-    RAPPORTI_INTERVENTO_TESTI.PDF.LAVORAZIONI,
+    RAPPORTI_INTERVENTO_TESTI.PDF.OPERATORI,
     {
       x: MARGIN_X,
       y: 490,
@@ -1134,7 +1271,77 @@ async function generaRapportoInterventoPdf(
     }
   );
 
-  let tableY = 476;
+  drawOperatoriHeader({
+    page,
+    fonts,
+    y: tableY,
+  });
+  tableY -= HEADER_ROW_HEIGHT;
+
+  rapporto.operatori.forEach((operatore) => {
+    if (tableY - ROW_HEIGHT < TABLE_BOTTOM_Y) {
+      page = pdfDoc.addPage([
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+      ]);
+      tableY = PAGE_HEIGHT - 80;
+      drawOperatoriHeader({
+        page,
+        fonts,
+        y: tableY,
+      });
+      tableY -= HEADER_ROW_HEIGHT;
+    }
+
+    drawOperatoreRow({
+      page,
+      fonts,
+      operatore,
+      y: tableY,
+    });
+    tableY -= ROW_HEIGHT;
+  });
+
+  if (tableY - ROW_HEIGHT < TABLE_BOTTOM_Y) {
+    page = pdfDoc.addPage([
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
+    ]);
+    tableY = PAGE_HEIGHT - 80;
+  }
+
+  drawTotaleOperatori({
+    page,
+    fonts,
+    totaleMinuti:
+      rapporto.ore_uomo_reali_minuti,
+    y: tableY,
+  });
+  tableY -= ROW_HEIGHT;
+
+  if (tableY - 58 < TABLE_BOTTOM_Y) {
+    page = pdfDoc.addPage([
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
+    ]);
+    tableY = PAGE_HEIGHT - 80;
+  } else {
+    tableY -= 26;
+  }
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.LAVORAZIONI,
+    {
+      x: MARGIN_X,
+      y: tableY,
+      size: 13,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+
+  tableY -= 14;
   drawTableHeader({
     page,
     fonts,

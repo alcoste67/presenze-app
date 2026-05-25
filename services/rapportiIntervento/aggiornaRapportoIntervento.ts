@@ -16,6 +16,8 @@ import type {
   RapportoInterventoLavorazioneInput,
   RapportoInterventoMateriale,
   RapportoInterventoMaterialeInput,
+  RapportoInterventoOperatore,
+  RapportoInterventoOperatoreInput,
   StatoRapportoIntervento,
 } from "@/types/rapportiIntervento";
 
@@ -32,12 +34,21 @@ type CantiereSnapshot = {
   indirizzo: string;
 };
 
+type DipendenteSnapshot = {
+  id: string;
+  nome: string;
+  cognome: string;
+  email: string;
+};
+
 const SELECT_CANTIERE =
   "id, nome, indirizzo";
 const SELECT_RAPPORTO_INTERVENTO =
   "id, cantiere_id, cantiere_nome_snapshot, cantiere_indirizzo_snapshot, data_intervento, cliente_committente, responsabile_nome, ore_uomo_reali_minuti, viaggio_minuti, diritto_uscita, regola_fatturazione, ore_fatturabili_minuti, note, firma_responsabile_data_url, firma_responsabile_nome, firma_responsabile_at, firma_cliente_data_url, firma_cliente_nome, firma_cliente_at, stato, created_by, created_at, updated_at";
 const SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE =
   "id, rapporto_intervento_id, lavorazione_id, descrizione_snapshot, ore_uomo_minuti, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_OPERATORE =
+  "id, rapporto_intervento_id, dipendente_id, nome_snapshot, email_snapshot, ore_minuti, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_FOTO =
   "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
@@ -71,12 +82,56 @@ async function loadCantiereSnapshot(
 }
 
 function getOreUomoRealiMinuti(
-  lavorazioni: RapportoInterventoLavorazioneInput[]
+  operatori: RapportoInterventoOperatoreInput[]
 ) {
-  return lavorazioni.reduce(
-    (totale, lavorazione) =>
-      totale + lavorazione.ore_uomo_minuti,
+  return operatori.reduce(
+    (totale, operatore) =>
+      totale + operatore.ore_minuti,
     0
+  );
+}
+
+async function loadDipendentiSnapshot(
+  operatori: RapportoInterventoOperatoreInput[],
+  supabaseClient: SupabaseClient
+) {
+  const dipendenteIds = Array.from(
+    new Set(
+      operatori
+        .map(
+          (operatore) =>
+            operatore.dipendente_id
+        )
+        .filter(
+          (dipendenteId): dipendenteId is string =>
+            Boolean(dipendenteId)
+        )
+    )
+  );
+
+  if (dipendenteIds.length === 0) {
+    return new Map<string, DipendenteSnapshot>();
+  }
+
+  const { data, error } = await supabaseClient
+    .from("dipendenti")
+    .select("id, nome, cognome, email")
+    .in("id", dipendenteIds);
+
+  if (error) {
+    throwErroreSupabase(
+      "Lettura operatori rapporto intervento",
+      error
+    );
+  }
+
+  return new Map(
+    ((data || []) as DipendenteSnapshot[]).map(
+      (dipendente) => [
+        dipendente.id,
+        dipendente,
+      ]
+    )
   );
 }
 
@@ -154,6 +209,69 @@ async function insertLavorazioni({
   return (
     data || []
   ) as RapportoInterventoLavorazione[];
+}
+
+async function insertOperatori({
+  rapportoInterventoId,
+  operatori,
+  supabaseClient,
+}: {
+  rapportoInterventoId: string;
+  operatori: RapportoInterventoOperatoreInput[];
+  supabaseClient: SupabaseClient;
+}) {
+  if (operatori.length === 0) {
+    return [];
+  }
+
+  const dipendenti =
+    await loadDipendentiSnapshot(
+      operatori,
+      supabaseClient
+    );
+
+  const righe = operatori.map((operatore) => {
+    const dipendente =
+      operatore.dipendente_id
+        ? dipendenti.get(
+            operatore.dipendente_id
+          )
+        : null;
+    const nomeSnapshot = dipendente
+      ? `${dipendente.nome} ${dipendente.cognome}`.trim()
+      : operatore.nome_snapshot;
+
+    return {
+      rapporto_intervento_id:
+        rapportoInterventoId,
+      dipendente_id:
+        operatore.dipendente_id,
+      nome_snapshot: nomeSnapshot,
+      email_snapshot:
+        dipendente?.email ||
+        operatore.email_snapshot,
+      ore_minuti: operatore.ore_minuti,
+      ordine: operatore.ordine,
+    };
+  });
+
+  const { data, error } = await supabaseClient
+    .from("rapporti_intervento_operatori")
+    .insert(righe)
+    .select(
+      SELECT_RAPPORTO_INTERVENTO_OPERATORE
+    );
+
+  if (error) {
+    throwErroreSupabase(
+      "Salvataggio operatori rapporto intervento",
+      error
+    );
+  }
+
+  return (
+    data || []
+  ) as RapportoInterventoOperatore[];
 }
 
 async function insertFoto({
@@ -275,7 +393,7 @@ export async function aggiornaRapportoIntervento(
   );
   const oreUomoRealiMinuti =
     getOreUomoRealiMinuti(
-      rapportoInput.lavorazioni
+      rapportoInput.operatori
     );
   const calcolo = calcolaOreFatturabili({
     oreUomoRealiMinuti,
@@ -343,12 +461,22 @@ export async function aggiornaRapportoIntervento(
     );
   }
 
-  const [nuoveLavorazioni, nuoveFoto, nuoviMateriali] =
+  const [
+    nuoveLavorazioni,
+    nuoviOperatori,
+    nuoveFoto,
+    nuoviMateriali,
+  ] =
     await Promise.all([
       insertLavorazioni({
         rapportoInterventoId,
         lavorazioni:
           rapportoInput.lavorazioni,
+        supabaseClient,
+      }),
+      insertOperatori({
+        rapportoInterventoId,
+        operatori: rapportoInput.operatori,
         supabaseClient,
       }),
       insertFoto({
@@ -367,6 +495,10 @@ export async function aggiornaRapportoIntervento(
     rapportoCorrente.lavorazioni.map(
       (lavorazione) => lavorazione.id
     );
+  const operatoreIdsDaEliminare =
+    rapportoCorrente.operatori.map(
+      (operatore) => operatore.id
+    );
   const fotoIdsDaEliminare =
     rapportoCorrente.foto.map(
       (foto) => foto.id
@@ -378,6 +510,7 @@ export async function aggiornaRapportoIntervento(
 
   if (
     lavorazioneIdsDaEliminare.length > 0 ||
+    operatoreIdsDaEliminare.length > 0 ||
     fotoIdsDaEliminare.length > 0 ||
     materialeIdsDaEliminare.length > 0
   ) {
@@ -396,6 +529,26 @@ export async function aggiornaRapportoIntervento(
       if (deleteError) {
         throwErroreSupabase(
           "Pulizia lavorazioni precedenti rapporto intervento",
+          deleteError
+        );
+      }
+    }
+
+    if (operatoreIdsDaEliminare.length > 0) {
+      const { error: deleteError } =
+        await supabaseClient
+          .from(
+            "rapporti_intervento_operatori"
+          )
+          .delete()
+          .in(
+            "id",
+            operatoreIdsDaEliminare
+          );
+
+      if (deleteError) {
+        throwErroreSupabase(
+          "Pulizia operatori precedenti rapporto intervento",
           deleteError
         );
       }
@@ -437,6 +590,7 @@ export async function aggiornaRapportoIntervento(
   return {
     ...(data as RapportoIntervento),
     lavorazioni: nuoveLavorazioni,
+    operatori: nuoviOperatori,
     foto: nuoveFoto,
     materiali: nuoviMateriali,
   };
