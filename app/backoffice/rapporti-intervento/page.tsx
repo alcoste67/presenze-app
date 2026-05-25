@@ -49,6 +49,7 @@ import type {
   RapportoInterventoMaterialeInput,
   RapportoInterventoOperatoreInput,
 } from "@/types/rapportiIntervento";
+import { SelectOperatore } from "./SelectOperatore";
 
 type LavorazioneForm =
   RapportoInterventoLavorazioneInput & {
@@ -697,10 +698,16 @@ export default function BackofficeRapportiInterventoPage() {
     oreUomoRealiMinuti,
     viaggioMinuti,
   });
-  const caricaDati = useCallback(async () => {
+  const caricaDati = useCallback(async ({
+    attivo = true,
+  }: {
+    attivo?: boolean;
+  } = {}) => {
     try {
-      setLoading(true);
-      setErrore(null);
+      if (attivo) {
+        setLoading(true);
+        setErrore(null);
+      }
 
       const [
         cantieriData,
@@ -712,33 +719,23 @@ export default function BackofficeRapportiInterventoPage() {
         loadRapportiIntervento(),
       ]);
 
+      if (!attivo) {
+        return;
+      }
+
       setCantieri(cantieriData);
       setDipendenti(dipendentiData);
       setRapporti(rapportiData);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      if (attivo) {
+        setErrore(getMessaggioErrore(error));
+      }
     } finally {
-      setLoading(false);
+      if (attivo) {
+        setLoading(false);
+      }
     }
   }, []);
-  const dipendentiPerRicerca = useMemo(() => {
-    const dipendentiMap =
-      new Map<string, Dipendente>();
-
-    for (const dipendente of dipendenti) {
-      dipendentiMap.set(
-        getLabelDipendente(dipendente),
-        dipendente
-      );
-      dipendentiMap.set(
-        dipendente.email,
-        dipendente
-      );
-    }
-
-    return dipendentiMap;
-  }, [dipendenti]);
-
   useEffect(() => {
     let attivo = true;
 
@@ -776,35 +773,9 @@ export default function BackofficeRapportiInterventoPage() {
 
     const caricaDatiIniziali =
       async () => {
-        try {
-          const [
-            cantieriData,
-            dipendentiData,
-            rapportiData,
-          ] = await Promise.all([
-            loadCantieriBackoffice(),
-            loadDipendentiAttivi(),
-            loadRapportiIntervento(),
-          ]);
-
-          if (!attivo) {
-            return;
-          }
-
-          setCantieri(cantieriData);
-          setDipendenti(dipendentiData);
-          setRapporti(rapportiData);
-        } catch (error: unknown) {
-          if (attivo) {
-            setErrore(
-              getMessaggioErrore(error)
-            );
-          }
-        } finally {
-          if (attivo) {
-            setLoading(false);
-          }
-        }
+        await caricaDati({
+          attivo,
+        });
       };
 
     void caricaDatiIniziali();
@@ -812,7 +783,7 @@ export default function BackofficeRapportiInterventoPage() {
     return () => {
       attivo = false;
     };
-  }, []);
+  }, [caricaDati]);
 
   const resetForm = ({
     mantieniMessaggio = false,
@@ -904,11 +875,6 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
-  const getDipendenteDaRicerca = (
-    ricerca: string
-  ) =>
-    dipendentiPerRicerca.get(ricerca) || null;
-
   const aggiungiOperatore = () => {
     setOperatori((operatoriCorrenti) => [
       ...operatoriCorrenti,
@@ -925,15 +891,44 @@ export default function BackofficeRapportiInterventoPage() {
     ]);
   };
 
-  const handleOperatoreChange = ({
+  const handleOperatoreSearchChange = ({
     localId,
     ricerca,
   }: {
     localId: string;
     ricerca: string;
   }) => {
-    const dipendente =
-      getDipendenteDaRicerca(ricerca);
+    setOperatori((operatoriCorrenti) =>
+      operatoriCorrenti.map((operatore) => {
+        if (operatore.localId !== localId) {
+          return operatore;
+        }
+
+        if (operatore.ricerca_operatore === ricerca) {
+          return operatore;
+        }
+
+        return {
+          ...operatore,
+          ricerca_operatore: ricerca,
+          dipendente_id: null,
+          nome_snapshot: "",
+          email_snapshot: null,
+        };
+      })
+    );
+  };
+
+  const handleOperatoreSelect = ({
+    localId,
+    dipendente,
+  }: {
+    localId: string;
+    dipendente: Dipendente;
+  }) => {
+    const ricerca = getLabelDipendente(
+      dipendente
+    );
 
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
@@ -941,32 +936,61 @@ export default function BackofficeRapportiInterventoPage() {
           return operatore;
         }
 
-        const nextDipendenteId =
-          dipendente?.id || null;
-        const nextNomeSnapshot = dipendente
-          ? getNomeDipendente(dipendente)
-          : "";
-        const nextEmailSnapshot =
-          dipendente?.email || null;
-
         if (
-          operatore.ricerca_operatore === ricerca &&
           operatore.dipendente_id ===
-            nextDipendenteId &&
+            dipendente.id &&
+          operatore.ricerca_operatore ===
+            ricerca &&
           operatore.nome_snapshot ===
-            nextNomeSnapshot &&
+            getNomeDipendente(dipendente) &&
           operatore.email_snapshot ===
-            nextEmailSnapshot
+            dipendente.email
         ) {
           return operatore;
         }
 
         return {
           ...operatore,
-          dipendente_id: nextDipendenteId,
-          nome_snapshot: nextNomeSnapshot,
-          email_snapshot: nextEmailSnapshot,
+          dipendente_id: dipendente.id,
+          nome_snapshot: getNomeDipendente(
+            dipendente
+          ),
+          email_snapshot: dipendente.email,
           ricerca_operatore: ricerca,
+        };
+      })
+    );
+  };
+
+  const handleOperatoreBlur = ({
+    localId,
+  }: {
+    localId: string;
+  }) => {
+    setOperatori((operatoriCorrenti) =>
+      operatoriCorrenti.map((operatore) => {
+        if (operatore.localId !== localId) {
+          return operatore;
+        }
+
+        if (operatore.dipendente_id) {
+          return {
+            ...operatore,
+            ricerca_operatore:
+              operatore.nome_snapshot &&
+              operatore.email_snapshot
+                ? `${operatore.nome_snapshot} - ${operatore.email_snapshot}`
+                : operatore.nome_snapshot,
+          };
+        }
+
+        if (operatore.ricerca_operatore === "") {
+          return operatore;
+        }
+
+        return {
+          ...operatore,
+          ricerca_operatore: "",
         };
       })
     );
@@ -1661,17 +1685,6 @@ export default function BackofficeRapportiInterventoPage() {
                   )}
                 </div>
 
-                <datalist id="operatori-rapporto-list">
-                  {dipendenti.map((dipendente) => (
-                    <option
-                      key={dipendente.id}
-                      value={getLabelDipendente(
-                        dipendente
-                      )}
-                    />
-                  ))}
-                </datalist>
-
                 {operatori.length === 0 ? (
                   <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
                     {
@@ -1685,35 +1698,47 @@ export default function BackofficeRapportiInterventoPage() {
                         key={operatore.localId}
                         className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_140px_auto]"
                       >
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.OPERATORE
-                            }
-                          </span>
-                          <input
-                            type="text"
-                            list="operatori-rapporto-list"
-                            value={
-                              operatore.ricerca_operatore
-                            }
-                            onChange={(event) =>
-                              handleOperatoreChange(
-                                {
-                                  localId:
-                                    operatore.localId,
-                                  ricerca:
-                                    event.target.value,
-                                }
-                              )
-                            }
-                            placeholder={
-                              RAPPORTI_INTERVENTO_TESTI.SELEZIONA_OPERATORE
-                            }
-                            disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                          />
-                        </label>
+                        <SelectOperatore
+                          label={
+                            RAPPORTI_INTERVENTO_TESTI.OPERATORE
+                          }
+                          placeholder={
+                            RAPPORTI_INTERVENTO_TESTI.SELEZIONA_OPERATORE
+                          }
+                          noResultsLabel={
+                            RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE_TROVATO
+                          }
+                          value={
+                            operatore.ricerca_operatore
+                          }
+                          selectedId={
+                            operatore.dipendente_id
+                          }
+                          options={dipendenti}
+                          disabled={readonly}
+                          onSearchChange={(ricerca) =>
+                            handleOperatoreSearchChange(
+                              {
+                                localId:
+                                  operatore.localId,
+                                ricerca,
+                              }
+                            )
+                          }
+                          onSelect={(dipendente) =>
+                            handleOperatoreSelect({
+                              localId:
+                                operatore.localId,
+                              dipendente,
+                            })
+                          }
+                          onBlurInvalid={() =>
+                            handleOperatoreBlur({
+                              localId:
+                                operatore.localId,
+                            })
+                          }
+                        />
 
                         <label className="block">
                           <span className="mb-1 block text-xs font-medium text-industrial-muted">

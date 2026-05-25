@@ -81,6 +81,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   OPERATORE: "Operatore",
   SELEZIONA_OPERATORE:
     "Cerca e seleziona operatore",
+  NESSUN_OPERATORE_TROVATO:
+    "Nessun operatore trovato",
   NESSUN_OPERATORE:
     "Nessun operatore inserito",
   ORE_OPERATORE: "Ore",
