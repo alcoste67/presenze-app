@@ -114,6 +114,13 @@ export function SelectCantiere({
           value={inputValue}
           onChange={(e) => {
             const nextQuery = e.target.value;
+            const queryCorrente =
+              cantiereSelezionato?.nome ||
+              query;
+
+            if (nextQuery === queryCorrente) {
+              return;
+            }
 
             setQuery(nextQuery);
             setAperto(true);

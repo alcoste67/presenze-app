@@ -697,7 +697,6 @@ export default function BackofficeRapportiInterventoPage() {
     oreUomoRealiMinuti,
     viaggioMinuti,
   });
-
   const caricaDati = useCallback(async () => {
     try {
       setLoading(true);
@@ -707,12 +706,11 @@ export default function BackofficeRapportiInterventoPage() {
         cantieriData,
         dipendentiData,
         rapportiData,
-      ] =
-        await Promise.all([
-          loadCantieriBackoffice(),
-          loadDipendentiAttivi(),
-          loadRapportiIntervento(),
-        ]);
+      ] = await Promise.all([
+        loadCantieriBackoffice(),
+        loadDipendentiAttivi(),
+        loadRapportiIntervento(),
+      ]);
 
       setCantieri(cantieriData);
       setDipendenti(dipendentiData);
@@ -723,6 +721,23 @@ export default function BackofficeRapportiInterventoPage() {
       setLoading(false);
     }
   }, []);
+  const dipendentiPerRicerca = useMemo(() => {
+    const dipendentiMap =
+      new Map<string, Dipendente>();
+
+    for (const dipendente of dipendenti) {
+      dipendentiMap.set(
+        getLabelDipendente(dipendente),
+        dipendente
+      );
+      dipendentiMap.set(
+        dipendente.email,
+        dipendente
+      );
+    }
+
+    return dipendentiMap;
+  }, [dipendenti]);
 
   useEffect(() => {
     let attivo = true;
@@ -892,12 +907,7 @@ export default function BackofficeRapportiInterventoPage() {
   const getDipendenteDaRicerca = (
     ricerca: string
   ) =>
-    dipendenti.find(
-      (dipendente) =>
-        getLabelDipendente(dipendente) ===
-          ricerca ||
-        dipendente.email === ricerca
-    ) || null;
+    dipendentiPerRicerca.get(ricerca) || null;
 
   const aggiungiOperatore = () => {
     setOperatori((operatoriCorrenti) => [
@@ -926,23 +936,39 @@ export default function BackofficeRapportiInterventoPage() {
       getDipendenteDaRicerca(ricerca);
 
     setOperatori((operatoriCorrenti) =>
-      operatoriCorrenti.map((operatore) =>
-        operatore.localId === localId
-          ? {
-              ...operatore,
-              dipendente_id:
-                dipendente?.id || null,
-              nome_snapshot: dipendente
-                ? getNomeDipendente(
-                    dipendente
-                  )
-                : "",
-              email_snapshot:
-                dipendente?.email || null,
-              ricerca_operatore: ricerca,
-            }
-          : operatore
-      )
+      operatoriCorrenti.map((operatore) => {
+        if (operatore.localId !== localId) {
+          return operatore;
+        }
+
+        const nextDipendenteId =
+          dipendente?.id || null;
+        const nextNomeSnapshot = dipendente
+          ? getNomeDipendente(dipendente)
+          : "";
+        const nextEmailSnapshot =
+          dipendente?.email || null;
+
+        if (
+          operatore.ricerca_operatore === ricerca &&
+          operatore.dipendente_id ===
+            nextDipendenteId &&
+          operatore.nome_snapshot ===
+            nextNomeSnapshot &&
+          operatore.email_snapshot ===
+            nextEmailSnapshot
+        ) {
+          return operatore;
+        }
+
+        return {
+          ...operatore,
+          dipendente_id: nextDipendenteId,
+          nome_snapshot: nextNomeSnapshot,
+          email_snapshot: nextEmailSnapshot,
+          ricerca_operatore: ricerca,
+        };
+      })
     );
   };
 

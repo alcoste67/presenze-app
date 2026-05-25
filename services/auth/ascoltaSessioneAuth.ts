@@ -1,8 +1,12 @@
-import type { Session } from "@supabase/supabase-js";
+import type {
+  AuthChangeEvent,
+  Session,
+} from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
 
 type AuthSessioneHandler = (
+  event: AuthChangeEvent,
   session: Session | null
 ) => void | Promise<void>;
 
@@ -16,8 +20,8 @@ export function ascoltaSessioneAuth(
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      void onChange(session);
+    (event, session) => {
+      void onChange(event, session);
     }
   );
 

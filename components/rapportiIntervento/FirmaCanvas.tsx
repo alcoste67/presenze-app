@@ -108,8 +108,13 @@ export function FirmaCanvas({
     }
 
     const image = new Image();
+    let annullato = false;
 
     image.onload = () => {
+      if (annullato) {
+        return;
+      }
+
       const context = preparaCanvas(canvas);
 
       if (!context) {
@@ -126,6 +131,11 @@ export function FirmaCanvas({
     };
 
     image.src = value;
+
+    return () => {
+      annullato = true;
+      image.onload = null;
+    };
   }, [value]);
 
   const esportaFirma = () => {

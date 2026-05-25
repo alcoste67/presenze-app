@@ -4,10 +4,15 @@ import {
   type ChangeEvent,
   type FormEvent,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import Link from "next/link";
-import { isAuthError, type User } from "@supabase/supabase-js";
+import {
+  isAuthError,
+  type AuthChangeEvent,
+  type User,
+} from "@supabase/supabase-js";
 
 import {
   AUTH_ERROR_CODES,
@@ -241,6 +246,10 @@ export default function HomePage() {
     cooldownOtp,
     setCooldownOtp,
   ] = useState(0);
+  const authUserIdRef =
+    useRef<string | null>(null);
+  const authSyncInCorsoRef =
+    useRef(false);
 
   const loadingAuth =
     loadingInvioCodice ||
@@ -307,40 +316,61 @@ export default function HomePage() {
       async (
         currentUser: User | null
       ): Promise<User | null> => {
-        if (!currentUser) {
-          setUser(null);
-          setMostraBackoffice(false);
-          await refreshUltimaTimbratura(null);
-
-          return null;
+        if (authSyncInCorsoRef.current) {
+          return currentUser;
         }
 
-        if (!currentUser.email) {
-          await disconnettiUtenteNonAttivo();
+        const nextUserId =
+          currentUser?.id || null;
 
-          return null;
+        if (
+          authUserIdRef.current ===
+          nextUserId
+        ) {
+          return currentUser;
         }
 
-        const dipendenteAttivo =
-          await isDipendenteAttivo(
-            currentUser.email
+        authSyncInCorsoRef.current = true;
+        authUserIdRef.current = nextUserId;
+
+        try {
+          if (!currentUser) {
+            setUser(null);
+            setMostraBackoffice(false);
+            await refreshUltimaTimbratura(null);
+
+            return null;
+          }
+
+          if (!currentUser.email) {
+            await disconnettiUtenteNonAttivo();
+
+            return null;
+          }
+
+          const dipendenteAttivo =
+            await isDipendenteAttivo(
+              currentUser.email
+            );
+
+          if (!dipendenteAttivo) {
+            await disconnettiUtenteNonAttivo();
+
+            return null;
+          }
+
+          setUser(currentUser);
+          await refreshMostraBackoffice(
+            currentUser
+          );
+          await refreshUltimaTimbratura(
+            currentUser.id
           );
 
-        if (!dipendenteAttivo) {
-          await disconnettiUtenteNonAttivo();
-
-          return null;
+          return currentUser;
+        } finally {
+          authSyncInCorsoRef.current = false;
         }
-
-        setUser(currentUser);
-        await refreshMostraBackoffice(
-          currentUser
-        );
-        await refreshUltimaTimbratura(
-          currentUser.id
-        );
-
-        return currentUser;
       };
 
     const init = async () => {
@@ -378,9 +408,30 @@ export default function HomePage() {
 
     const subscription =
       ascoltaSessioneAuth(
-        async (session) => {
+        async (
+          event: AuthChangeEvent,
+          session
+        ) => {
           const currentUser =
             session?.user || null;
+
+          if (
+            event === "TOKEN_REFRESHED" &&
+            currentUser?.id &&
+            currentUser.id ===
+              authUserIdRef.current
+          ) {
+            return;
+          }
+
+          if (
+            event === "INITIAL_SESSION" &&
+            currentUser?.id &&
+            currentUser.id ===
+              authUserIdRef.current
+          ) {
+            return;
+          }
 
           await sincronizzaUtenteAutenticato(
             currentUser
@@ -1049,6 +1100,10 @@ export default function HomePage() {
   const handleCantiereChange = (
     nextCantiereId: string
   ) => {
+    if (nextCantiereId === cantiereId) {
+      return;
+    }
+
     setCantiereId(nextCantiereId);
 
     if (nextCantiereId) {
@@ -1059,6 +1114,10 @@ export default function HomePage() {
   const handleAttivitaChange = (
     nextAttivitaTipo: TipoAttivita | ""
   ) => {
+    if (nextAttivitaTipo === attivitaTipo) {
+      return;
+    }
+
     setAttivitaTipo(nextAttivitaTipo);
 
     if (nextAttivitaTipo) {
