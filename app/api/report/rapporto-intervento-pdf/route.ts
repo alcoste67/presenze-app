@@ -20,6 +20,7 @@ import {
 } from "@/constants/rapportiIntervento";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { isDipendenteAttivoSupabase } from "@/services/dipendenti/isDipendenteAttivoSupabase";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
 import { formatMinutiOre } from "@/services/rapportiIntervento/oreMinuti";
 import type {
@@ -44,6 +45,10 @@ type FirmaPdf = {
 type FotoPdf = {
   image: PDFImage | null;
   descrizione: string;
+};
+
+type OpzioniPdf = {
+  mostraFatturazione: boolean;
 };
 
 const PAGE_WIDTH = 595.28;
@@ -567,14 +572,22 @@ function drawKpis({
   page,
   fonts,
   rapporto,
+  mostraFatturazione,
 }: {
   page: PDFPage;
   fonts: FontSet;
   rapporto: RapportoInterventoCompleto;
+  mostraFatturazione: boolean;
 }) {
   const gap = 10;
+  const numeroKpi = mostraFatturazione
+    ? 4
+    : 3;
   const width =
-    (PAGE_WIDTH - MARGIN_X * 2 - gap * 3) / 4;
+    (PAGE_WIDTH -
+      MARGIN_X * 2 -
+      gap * (numeroKpi - 1)) /
+    numeroKpi;
   const y = 536;
 
   drawKpi({
@@ -616,32 +629,34 @@ function drawKpis({
       : RAPPORTI_INTERVENTO_TESTI.NO,
   });
 
-  drawKpi({
-    page,
-    fonts,
-    x: MARGIN_X + (width + gap) * 3,
-    y,
-    width,
-    label:
-      RAPPORTI_INTERVENTO_TESTI.PDF.ORE_FATTURABILI,
-    value: formatMinutiOre(
-      rapporto.ore_fatturabili_minuti
-    ),
-  });
+  if (mostraFatturazione) {
+    drawKpi({
+      page,
+      fonts,
+      x: MARGIN_X + (width + gap) * 3,
+      y,
+      width,
+      label:
+        RAPPORTI_INTERVENTO_TESTI.PDF.ORE_FATTURABILI,
+      value: formatMinutiOre(
+        rapporto.ore_fatturabili_minuti
+      ),
+    });
 
-  drawText(
-    page,
-    LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
-      rapporto.regola_fatturazione
-    ],
-    {
-      x: MARGIN_X,
-      y: 520,
-      size: 9,
-      font: fonts.regular,
-      color: COLORS.muted,
-    }
-  );
+    drawText(
+      page,
+      LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
+        rapporto.regola_fatturazione
+      ],
+      {
+        x: MARGIN_X,
+        y: 520,
+        size: 9,
+        font: fonts.regular,
+        color: COLORS.muted,
+      }
+    );
+  }
 }
 
 function drawTableHeader({
@@ -1042,7 +1057,8 @@ function drawFooter({
 }
 
 async function generaRapportoInterventoPdf(
-  rapporto: RapportoInterventoCompleto
+  rapporto: RapportoInterventoCompleto,
+  { mostraFatturazione }: OpzioniPdf
 ) {
   const pdfDoc = await PDFDocument.create();
   const fonts = {
@@ -1103,6 +1119,7 @@ async function generaRapportoInterventoPdf(
     page,
     fonts,
     rapporto,
+    mostraFatturazione,
   });
 
   drawText(
@@ -1379,7 +1396,14 @@ export async function GET(request: NextRequest) {
       supabaseAdmin
     );
 
-    if (!utenteAdmin) {
+    const dipendenteAttivo = utenteAdmin
+      ? true
+      : await isDipendenteAttivoSupabase(
+          user.email,
+          supabaseAdmin
+        );
+
+    if (!utenteAdmin && !dipendenteAttivo) {
       return jsonErrore(
         RAPPORTI_INTERVENTO_TESTI.ERRORI
           .ACCESSO_NEGATO,
@@ -1403,7 +1427,10 @@ export async function GET(request: NextRequest) {
 
     const pdfBytes =
       await generaRapportoInterventoPdf(
-        rapporto
+        rapporto,
+        {
+          mostraFatturazione: utenteAdmin,
+        }
       );
     const fileName = getNomeFile(rapporto);
     const pdfBuffer = new ArrayBuffer(

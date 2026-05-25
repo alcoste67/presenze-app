@@ -22,7 +22,10 @@ import {
   RAPPORTI_INTERVENTO_STATI,
   RAPPORTI_INTERVENTO_TESTI,
 } from "@/constants/rapportiIntervento";
+import { APP_ROUTES } from "@/constants/routes";
+import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { aggiornaRapportoIntervento } from "@/services/rapportiIntervento/aggiornaRapportoIntervento";
 import { calcolaOreFatturabili } from "@/services/rapportiIntervento/calcolaOreFatturabili";
 import { creaRapportoIntervento } from "@/services/rapportiIntervento/creaRapportoIntervento";
@@ -530,6 +533,8 @@ export default function BackofficeRapportiInterventoPage() {
     useState(false);
   const [loading, setLoading] =
     useState(true);
+  const [utenteAdmin, setUtenteAdmin] =
+    useState(false);
   const [loadingSnapshot, setLoadingSnapshot] =
     useState(false);
   const [salvataggio, setSalvataggio] =
@@ -581,6 +586,38 @@ export default function BackofficeRapportiInterventoPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    let attivo = true;
+
+    const verificaRuolo = async () => {
+      try {
+        const user = await loadUtenteAuth();
+        const adminCorrente = user?.email
+          ? await isAdmin(user.email)
+          : false;
+
+        if (attivo) {
+          setUtenteAdmin(adminCorrente);
+        }
+      } catch (error: unknown) {
+        console.error(
+          "Errore verifica ruolo rapporti intervento",
+          error
+        );
+
+        if (attivo) {
+          setUtenteAdmin(false);
+        }
+      }
+    };
+
+    void verificaRuolo();
+
+    return () => {
+      attivo = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1105,14 +1142,16 @@ export default function BackofficeRapportiInterventoPage() {
           </div>
 
           <div className="flex gap-4 text-sm font-semibold">
+            {utenteAdmin && (
+              <Link
+                href={APP_ROUTES.BACKOFFICE}
+                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              >
+                {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
+              </Link>
+            )}
             <Link
-              href="/backoffice"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
-            </Link>
-            <Link
-              href="/"
+              href={APP_ROUTES.HOME}
               className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
             >
               {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
@@ -1697,7 +1736,9 @@ export default function BackofficeRapportiInterventoPage() {
                 )}
               </section>
 
-              <section className="grid gap-4 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 md:grid-cols-3">
+              <section
+                className={`grid gap-4 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 ${utenteAdmin ? "md:grid-cols-3" : ""}`}
+              >
                 <div>
                   <p className="text-sm font-medium text-industrial-muted">
                     {
@@ -1711,34 +1752,38 @@ export default function BackofficeRapportiInterventoPage() {
                   </p>
                 </div>
 
-                <div>
-                  <p className="text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.REGOLA_FATTURAZIONE
-                    }
-                  </p>
-                  <p className="mt-2 text-lg font-semibold">
-                    {
-                      LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
-                        calcolo
-                          .regola_fatturazione
-                      ]
-                    }
-                  </p>
-                </div>
+                {utenteAdmin && (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-industrial-muted">
+                        {
+                          RAPPORTI_INTERVENTO_TESTI.REGOLA_FATTURAZIONE
+                        }
+                      </p>
+                      <p className="mt-2 text-lg font-semibold">
+                        {
+                          LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
+                            calcolo
+                              .regola_fatturazione
+                          ]
+                        }
+                      </p>
+                    </div>
 
-                <div>
-                  <p className="text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
-                    }
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {formatMinutiOre(
-                      calcolo.ore_fatturabili_minuti
-                    )}
-                  </p>
-                </div>
+                    <div>
+                      <p className="text-sm font-medium text-industrial-muted">
+                        {
+                          RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
+                        }
+                      </p>
+                      <p className="mt-2 text-2xl font-bold">
+                        {formatMinutiOre(
+                          calcolo.ore_fatturabili_minuti
+                        )}
+                      </p>
+                    </div>
+                  </>
+                )}
               </section>
 
               <section className="grid gap-5 md:grid-cols-2">
@@ -1907,16 +1952,20 @@ export default function BackofficeRapportiInterventoPage() {
                           rapporto.ore_uomo_reali_minuti
                         )}
                       </span>
-                      <span>
-                        {
-                          RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
-                        }
-                      </span>
-                      <span className="text-right font-semibold text-industrial-text">
-                        {formatMinutiOre(
-                          rapporto.ore_fatturabili_minuti
-                        )}
-                      </span>
+                      {utenteAdmin && (
+                        <>
+                          <span>
+                            {
+                              RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
+                            }
+                          </span>
+                          <span className="text-right font-semibold text-industrial-text">
+                            {formatMinutiOre(
+                              rapporto.ore_fatturabili_minuti
+                            )}
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">

@@ -1,14 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 import type { ReactNode } from "react";
 import {
   useEffect,
   useState,
 } from "react";
 
+import { APP_ROUTES } from "@/constants/routes";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
 
 type Props = {
   children: ReactNode;
@@ -18,14 +23,20 @@ export function ProtezioneBackoffice({
   children,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [autorizzato, setAutorizzato] =
     useState(false);
 
   useEffect(() => {
     let attivo = true;
+    const accessoOperativoRapporti =
+      pathname ===
+      APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO;
 
     const verificaAccesso = async () => {
+      setAutorizzato(false);
+
       try {
         const user = await loadUtenteAuth();
 
@@ -34,7 +45,7 @@ export function ProtezioneBackoffice({
         }
 
         if (!user?.email) {
-          router.replace("/");
+          router.replace(APP_ROUTES.HOME);
 
           return;
         }
@@ -47,8 +58,27 @@ export function ProtezioneBackoffice({
           return;
         }
 
-        if (!utenteAdmin) {
-          router.replace("/");
+        if (utenteAdmin) {
+          setAutorizzato(true);
+
+          return;
+        }
+
+        if (!accessoOperativoRapporti) {
+          router.replace(APP_ROUTES.HOME);
+
+          return;
+        }
+
+        const dipendenteAttivo =
+          await isDipendenteAttivo(user.email);
+
+        if (!attivo) {
+          return;
+        }
+
+        if (!dipendenteAttivo) {
+          router.replace(APP_ROUTES.HOME);
 
           return;
         }
@@ -61,7 +91,7 @@ export function ProtezioneBackoffice({
         );
 
         if (attivo) {
-          router.replace("/");
+          router.replace(APP_ROUTES.HOME);
         }
       }
     };
@@ -71,7 +101,7 @@ export function ProtezioneBackoffice({
     return () => {
       attivo = false;
     };
-  }, [router]);
+  }, [pathname, router]);
 
   if (!autorizzato) {
     return (

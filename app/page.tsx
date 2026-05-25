@@ -16,6 +16,8 @@ import {
   AUTH_TESTI,
 } from "@/constants/auth";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
+import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
+import { APP_ROUTES } from "@/constants/routes";
 import {
   TIMBRATURE,
   TIMBRATURE_TESTI,
@@ -1258,15 +1260,24 @@ export default function HomePage() {
 
           <nav className="mt-4 flex flex-wrap gap-2">
             <Link
-              href="/storico"
+              href={APP_ROUTES.STORICO}
               className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
             >
               {TIMBRATURE_TESTI.UI.STORICO}
             </Link>
 
+            <Link
+              href={
+                APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO
+              }
+              className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
+            >
+              {RAPPORTI_INTERVENTO_TESTI.TITOLO}
+            </Link>
+
             {mostraBackoffice && (
               <Link
-                href="/backoffice"
+                href={APP_ROUTES.BACKOFFICE}
                 className={`${STILI_UI.button} inline-flex h-10 items-center gap-2 px-3 text-[10px] font-medium uppercase tracking-[0.24em]`}
               >
                 {TIMBRATURE_TESTI.UI.BACKOFFICE}
