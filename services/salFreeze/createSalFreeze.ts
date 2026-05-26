@@ -21,7 +21,8 @@ export type SalFreezeDiagnosticStep =
   | "copy_photos"
   | "insert_photos"
   | "insert_macchinari"
-  | "cleanup";
+  | "cleanup"
+  | "unexpected";
 
 export const SAL_FREEZE_ERRORI = {
   INPUT_NON_VALIDO: "INPUT_NON_VALIDO",
@@ -826,12 +827,12 @@ export async function createSalFreeze({
             SAL_FREEZE_ERRORI.ERRORE_GENERICO,
             error instanceof Error
               ? error.message
-              : "Errore freeze SAL",
-            undefined
+              : "Errore imprevisto durante la creazione SAL periodo",
+            "unexpected"
           );
 
     console.error("[SAL_FREEZE] errore originale freeze SAL", {
-      step: originalError.step || "unknown",
+      step: originalError.step || "unexpected",
       errorCode: originalError.code,
       errorMessage: originalError.message,
     });

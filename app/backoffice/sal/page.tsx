@@ -280,11 +280,7 @@ export default function BackofficeSalPage() {
           return;
         }
 
-        const primoCantiereId =
-          dati[0]?.id || "";
-
         setCantieri(dati);
-        setCantiereId(primoCantiereId);
       } catch (error: unknown) {
         if (attivo) {
           setErrore(
@@ -639,6 +635,35 @@ export default function BackofficeSalPage() {
         </section>
 
         <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold">
+                {SAL_FREEZE_TESTI.TITOLO}
+              </h2>
+              <p className="mt-1 text-sm text-industrial-muted">
+                {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
+              >
+                {SAL_FREEZE_TESTI.CREA_FREEZE}
+              </Link>
+
+              <Link
+                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+                className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              >
+                {SAL_FREEZE_TESTI.LISTA_FREEZE}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">
@@ -927,34 +952,6 @@ export default function BackofficeSalPage() {
           </div>
         )}
 
-        <section className="mt-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl font-semibold">
-                {SAL_FREEZE_TESTI.TITOLO}
-              </h2>
-              <p className="mt-1 text-sm text-industrial-muted">
-                {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
-              >
-                {SAL_FREEZE_TESTI.CREA_FREEZE}
-              </Link>
-
-              <Link
-                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-              >
-                {SAL_FREEZE_TESTI.LISTA_FREEZE}
-              </Link>
-            </div>
-          </div>
-        </section>
       </div>
     </main>
   );

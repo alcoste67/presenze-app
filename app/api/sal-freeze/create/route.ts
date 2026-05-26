@@ -23,7 +23,9 @@ const ERRORI_API = {
   NESSUNA_LAVORAZIONE: "Nessuna lavorazione SAL trovata per il cantiere selezionato",
   FOTO_NON_TROVATA: "Una o piu foto selezionate non sono valide",
   COPIA_FOTO_FALLITA: "Copia foto fallita",
-  ERRORE_GENERICO: "Creazione freeze SAL fallita",
+  ERRORE_GENERICO: "Creazione SAL periodo fallita",
+  ERRORE_IMPREVISTO:
+    "Errore imprevisto durante la creazione SAL periodo",
 } as const;
 
 const NO_STORE_HEADERS = {
@@ -44,13 +46,24 @@ function jsonErrore(
       success: false,
       errorCode: details?.errorCode || errore,
       errorMessage: details?.errorMessage || errore,
-      step: details?.step || "unknown",
+      step: details?.step || "unexpected",
     },
     {
       status,
       headers: NO_STORE_HEADERS,
     }
   );
+}
+
+function getErroreImprevisto(errorMessage?: string) {
+  return {
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    errorCode: "UNEXPECTED_ERROR",
+    errorMessage:
+      errorMessage?.trim() ||
+      ERRORI_API.ERRORE_IMPREVISTO,
+    step: "unexpected",
+  };
 }
 
 function logSalFreezeCreateError(details: {
@@ -239,28 +252,39 @@ function getErroreHttp(
           step: error.step || "copy_photos",
         };
       case SAL_FREEZE_ERRORI.ERRORE_GENERICO:
+        if (
+          error.step === "unexpected" ||
+          !error.step
+        ) {
+          return getErroreImprevisto(error.message);
+        }
+
         return {
           status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
           errorCode: error.code,
           errorMessage: ERRORI_API.ERRORE_GENERICO,
-          step: error.step || "unknown",
+          step: error.step,
         };
       default:
+        if (
+          error.step === "unexpected" ||
+          !error.step
+        ) {
+          return getErroreImprevisto(error.message);
+        }
+
         return {
           status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
           errorCode: error.code,
           errorMessage: ERRORI_API.ERRORE_GENERICO,
-          step: error.step || "unknown",
+          step: error.step,
         };
     }
   }
 
-  return {
-    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    errorCode: SAL_FREEZE_ERRORI.ERRORE_GENERICO,
-    errorMessage: ERRORI_API.ERRORE_GENERICO,
-    step: "unknown",
-  };
+  return getErroreImprevisto(
+    error instanceof Error ? error.message : undefined
+  );
 }
 
 export const dynamic = "force-dynamic";
