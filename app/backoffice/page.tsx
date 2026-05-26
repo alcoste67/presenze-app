@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
+import { COMMESSA_TESTI } from "@/constants/commessa";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
@@ -49,6 +50,18 @@ export default function BackofficePage() {
             </h2>
             <p className="mt-2 text-sm text-industrial-muted">
               Gestione anagrafica cantieri
+            </p>
+          </Link>
+
+          <Link
+            href="/backoffice/commessa"
+            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+          >
+            <h2 className="text-xl font-semibold">
+              {COMMESSA_TESTI.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-industrial-muted">
+              {COMMESSA_TESTI.CARD_DESCRIZIONE}
             </p>
           </Link>
 

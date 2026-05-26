@@ -11,6 +11,10 @@ export const API_ROUTES = {
     "/api/report/libro-presenze",
   REPORT_PRESENZE:
     "/api/report/presenze",
+  REPORT_COMMESSA_PDF:
+    "/api/report/commessa-pdf",
+  REPORT_COMMESSA_EXCEL:
+    "/api/report/commessa-excel",
   REPORT_RAPPORTO_INTERVENTO_PDF:
     "/api/report/rapporto-intervento-pdf",
   VERIFICA_DIPENDENTE_ATTIVO:

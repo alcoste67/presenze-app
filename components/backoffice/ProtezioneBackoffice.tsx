@@ -37,6 +37,9 @@ export function ProtezioneBackoffice({
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;
+    const accessoCommessa =
+      pathname ===
+      APP_ROUTES.BACKOFFICE_COMMESSA;
     const accessoMacchinariAdmin =
       pathname ===
       APP_ROUTES.BACKOFFICE_MACCHINARI;
@@ -81,7 +84,8 @@ export function ProtezioneBackoffice({
 
         if (
           accessoHubBackoffice ||
-          accessoCostiMacchinari
+          accessoCostiMacchinari ||
+          accessoCommessa
         ) {
           const utenteResponsabile =
             await isResponsabile(user.email);

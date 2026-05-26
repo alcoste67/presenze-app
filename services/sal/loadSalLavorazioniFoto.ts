@@ -14,11 +14,11 @@ export async function loadSalLavorazioniFoto({
   supabaseClient = supabase,
 }: {
   cantiereId: string;
-  dataRiferimento: string;
+  dataRiferimento?: string;
   limit?: number;
   supabaseClient?: SupabaseClient;
 }): Promise<SalLavorazioneFoto[]> {
-  if (!cantiereId || !dataRiferimento) {
+  if (!cantiereId) {
     return [];
   }
 
@@ -26,10 +26,16 @@ export async function loadSalLavorazioniFoto({
     .from("sal_lavorazioni_foto")
     .select(SELECT_SAL_LAVORAZIONI_FOTO)
     .eq("cantiere_id", cantiereId)
-    .eq("data_riferimento", dataRiferimento)
     .order("created_at", {
       ascending: false,
     });
+
+  if (dataRiferimento) {
+    query = query.eq(
+      "data_riferimento",
+      dataRiferimento
+    );
+  }
 
   if (typeof limit === "number") {
     query = query.limit(limit);
