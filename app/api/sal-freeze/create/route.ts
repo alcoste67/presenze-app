@@ -42,7 +42,6 @@ function jsonErrore(
   return Response.json(
     {
       success: false,
-      errore,
       errorCode: details?.errorCode || errore,
       errorMessage: details?.errorMessage || errore,
       step: details?.step || "unknown",
@@ -52,6 +51,14 @@ function jsonErrore(
       headers: NO_STORE_HEADERS,
     }
   );
+}
+
+function logSalFreezeCreateError(details: {
+  step: string;
+  errorCode: string;
+  errorMessage: string;
+}) {
+  console.error("[sal-freeze-create-error]", details);
 }
 
 function jsonOk(payload: unknown) {
@@ -264,8 +271,10 @@ export async function POST(
   const accessToken = estraiAccessToken(request);
 
   if (!accessToken) {
-    console.error("[SAL_FREEZE] auth bearer mancante/non valido", {
+    logSalFreezeCreateError({
       step: "auth",
+      errorCode: "TOKEN_MANCANTE",
+      errorMessage: ERRORI_API.TOKEN_MANCANTE,
     });
 
     return jsonErrore(
@@ -285,8 +294,10 @@ export async function POST(
   } = await supabaseAdmin.auth.getUser(accessToken);
 
   if (authError || !user?.email) {
-    console.error("[SAL_FREEZE] auth bearer mancante/non valido", {
+    logSalFreezeCreateError({
       step: "auth",
+      errorCode: "TOKEN_NON_VALIDO",
+      errorMessage: ERRORI_API.TOKEN_NON_VALIDO,
     });
 
     return jsonErrore(
@@ -317,6 +328,12 @@ export async function POST(
   });
 
   if (!utenteAdmin) {
+    logSalFreezeCreateError({
+      step: "admin_check",
+      errorCode: SAL_FREEZE_ERRORI.ACCESSO_NEGATO,
+      errorMessage: ERRORI_API.ACCESSO_NEGATO,
+    });
+
     return jsonErrore(
       ERRORI_API.ACCESSO_NEGATO,
       HTTP_STATUS.FORBIDDEN,
@@ -331,8 +348,10 @@ export async function POST(
   const payload = await leggiPayload(request);
 
   if (!payload) {
-    console.error("[SAL_FREEZE] validazione input fallita", {
+    logSalFreezeCreateError({
       step: "input_validation",
+      errorCode: SAL_FREEZE_ERRORI.INPUT_NON_VALIDO,
+      errorMessage: ERRORI_API.INPUT_NON_VALIDO,
     });
 
     return jsonErrore(
@@ -347,7 +366,7 @@ export async function POST(
   }
 
   console.error("[SAL_FREEZE] inizio createSalFreeze", {
-    step: "existing_freeze_check",
+    step: "create",
     cantiereId: payload.cantiereId,
     periodStart: payload.periodStart,
     periodEnd: payload.periodEnd,
@@ -369,11 +388,7 @@ export async function POST(
   } catch (error: unknown) {
     const httpErrore = getErroreHttp(error);
 
-    console.error("[SAL_FREEZE] createSalFreeze fallita", {
-      step: httpErrore.step,
-      errorCode: httpErrore.errorCode,
-      errorMessage: httpErrore.errorMessage,
-    });
+    logSalFreezeCreateError(httpErrore);
 
     return jsonErrore(
       httpErrore.errorMessage,

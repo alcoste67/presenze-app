@@ -90,12 +90,26 @@ function getMessaggioApi(
     return null;
   }
 
-  if (typeof payload.errore === "string") {
-    return payload.errore;
+  const errorMessage =
+    typeof payload.errorMessage === "string"
+      ? payload.errorMessage
+      : typeof payload.errore === "string"
+        ? payload.errore
+        : typeof payload.error === "string"
+          ? payload.error
+          : null;
+
+  const step =
+    typeof payload.step === "string"
+      ? payload.step
+      : null;
+
+  if (errorMessage && step) {
+    return `${errorMessage}. Step: ${step}`;
   }
 
-  if (typeof payload.error === "string") {
-    return payload.error;
+  if (errorMessage) {
+    return errorMessage;
   }
 
   return null;
