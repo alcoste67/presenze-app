@@ -97,6 +97,45 @@ function formattaDelta(value: number) {
   return `${sign}${value.toFixed(0)}%`;
 }
 
+function sanitizeExcelText(value: unknown) {
+  const testo =
+    typeof value === "string"
+      ? value
+      : value == null
+        ? ""
+        : String(value);
+
+  return testo
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32767);
+}
+
+function sanitizeFotoValue(value: unknown) {
+  const testo = sanitizeExcelText(value);
+
+  if (!testo) {
+    return "Foto non disponibile";
+  }
+
+  if (/^data:image\/(png|jpe?g|webp);base64,/i.test(testo)) {
+    return "Foto incorporata / data URL";
+  }
+
+  if (/^https?:\/\//i.test(testo)) {
+    return testo;
+  }
+
+  if (/^sal-freeze\//i.test(testo)) {
+    const segmenti = testo.split("/");
+    return segmenti.slice(-3).join("/");
+  }
+
+  return testo;
+}
+
 function getNomeFile({
   cantiereNome,
   freeze,
@@ -122,12 +161,12 @@ function buildSalSheet({
   cantiereNome: string;
 }) {
   const rows: Array<Array<string | number>> = [
-    ["Cantiere", cantiereNome],
+    ["Cantiere", sanitizeExcelText(cantiereNome)],
     [
       "Periodo",
-      `${formattaData(freezeExport.freeze.period_start)} - ${formattaData(freezeExport.freeze.period_end)}`,
+      sanitizeExcelText(`${formattaData(freezeExport.freeze.period_start)} - ${formattaData(freezeExport.freeze.period_end)}`),
     ],
-    ["Data freeze", formattaDataOra(freezeExport.freeze.freeze_at)],
+    ["Data freeze", sanitizeExcelText(formattaDataOra(freezeExport.freeze.freeze_at))],
     [],
     [
       SAL_FREEZE_PDF.LAVORAZIONE,
@@ -139,10 +178,10 @@ function buildSalSheet({
 
   freezeExport.lavorazioni.forEach((lavorazione) => {
     rows.push([
-      lavorazione.lavorazione_nome_snapshot,
+      sanitizeExcelText(lavorazione.lavorazione_nome_snapshot),
       lavorazione.percentuale_precedente,
       lavorazione.percentuale_attuale,
-      formattaDelta(lavorazione.delta_percentuale),
+      sanitizeExcelText(formattaDelta(lavorazione.delta_percentuale)),
     ]);
   });
 
@@ -160,10 +199,10 @@ function buildFotoSheet({
 
   freezeExport.foto.slice(0, 6).forEach((foto) => {
     rows.push([
-      foto.sal_foto_id || foto.id,
-      foto.descrizione,
-      formattaData(foto.data_riferimento),
-      foto.storage_path_snapshot,
+      sanitizeExcelText(foto.sal_foto_id || foto.id),
+      sanitizeExcelText(foto.descrizione) || "Foto non disponibile",
+      sanitizeExcelText(formattaData(foto.data_riferimento)),
+      sanitizeFotoValue(foto.storage_path_snapshot),
     ]);
   });
 
