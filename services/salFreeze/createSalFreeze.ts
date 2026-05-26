@@ -819,39 +819,45 @@ export async function createSalFreeze({
       macchinari: macchinariFreeze,
     };
   } catch (error: unknown) {
-    console.error("[SAL_FREEZE] cleanup eventuale", {
-      step: "cleanup",
-      freezeId,
-      uploadedCount: uploadedPaths.length,
+    const originalError =
+      error instanceof SalFreezeError
+        ? error
+        : new SalFreezeError(
+            SAL_FREEZE_ERRORI.ERRORE_GENERICO,
+            error instanceof Error
+              ? error.message
+              : "Errore freeze SAL",
+            undefined
+          );
+
+    console.error("[SAL_FREEZE] errore originale freeze SAL", {
+      step: originalError.step || "unknown",
+      errorCode: originalError.code,
+      errorMessage: originalError.message,
     });
 
     try {
-      await runSalFreezeStep("cleanup", "cleanup", () =>
-        cleanupFreeze({
-          freezeId,
-          uploadedPaths,
-          supabaseClient,
-        })
-      );
-    } catch (cleanupError: unknown) {
-      console.error("[SAL_FREEZE] cleanup fallito", {
+      console.error("[SAL_FREEZE] cleanup eventuale", {
         step: "cleanup",
         freezeId,
-        error:
+        uploadedCount: uploadedPaths.length,
+      });
+
+      await cleanupFreeze({
+        freezeId,
+        uploadedPaths,
+        supabaseClient,
+      });
+    } catch (cleanupError: unknown) {
+      console.error("[sal-freeze-cleanup-error]", {
+        step: "cleanup",
+        errorMessage:
           cleanupError instanceof Error
             ? cleanupError.message
             : "Errore cleanup",
       });
     }
 
-    if (error instanceof SalFreezeError) {
-      throw error;
-    }
-
-    throw new SalFreezeError(
-      SAL_FREEZE_ERRORI.ERRORE_GENERICO,
-      error instanceof Error ? error.message : "Errore freeze SAL",
-      "cleanup"
-    );
+    throw originalError;
   }
 }
