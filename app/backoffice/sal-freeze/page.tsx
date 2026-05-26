@@ -115,6 +115,18 @@ function getMessaggioApi(
   return null;
 }
 
+function getMessaggioErroreExport(
+  payload: unknown
+) {
+  const messaggioApi = getMessaggioApi(payload);
+
+  if (messaggioApi) {
+    return messaggioApi;
+  }
+
+  return SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_FALLITA;
+}
+
 function getNomeFilePdf(response: Response) {
   const contentDisposition =
     response.headers.get("Content-Disposition") || "";
@@ -298,6 +310,9 @@ export default function BackofficeSalFreezePage() {
   const [loadingExcel, setLoadingExcel] =
     useState(false);
   const [errore, setErrore] = useState<
+    string | null
+  >(null);
+  const [erroreExport, setErroreExport] = useState<
     string | null
   >(null);
   const [messaggio, setMessaggio] = useState<
@@ -689,7 +704,7 @@ export default function BackofficeSalFreezePage() {
 
     try {
       setLoadingPdf(true);
-      setErrore(null);
+      setErroreExport(null);
 
       const { data, error } = await supabase.auth.getSession();
 
@@ -717,12 +732,18 @@ export default function BackofficeSalFreezePage() {
 
       if (!response.ok) {
         const payload = await response
-          .json()
+          .text()
+          .then((text) => {
+            try {
+              return JSON.parse(text);
+            } catch {
+              return text;
+            }
+          })
           .catch(() => null);
 
         throw new Error(
-          getMessaggioApi(payload) ||
-            SAL_FREEZE_TESTI.ERRORI.GENERICO
+          getMessaggioErroreExport(payload)
         );
       }
 
@@ -731,7 +752,17 @@ export default function BackofficeSalFreezePage() {
         nomeFile: getNomeFilePdf(response),
       });
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      const freezeId =
+        freezeDettaglioDaMostrare?.freeze.id || null;
+      const errorMessage = getMessaggioErrore(error);
+
+      console.error("[sal-period-export-error]", {
+        freezeId,
+        type: "pdf",
+        errorMessage,
+      });
+
+      setErroreExport(errorMessage);
     } finally {
       setLoadingPdf(false);
     }
@@ -744,7 +775,7 @@ export default function BackofficeSalFreezePage() {
 
     try {
       setLoadingExcel(true);
-      setErrore(null);
+      setErroreExport(null);
 
       const { data, error } = await supabase.auth.getSession();
 
@@ -772,12 +803,18 @@ export default function BackofficeSalFreezePage() {
 
       if (!response.ok) {
         const payload = await response
-          .json()
+          .text()
+          .then((text) => {
+            try {
+              return JSON.parse(text);
+            } catch {
+              return text;
+            }
+          })
           .catch(() => null);
 
         throw new Error(
-          getMessaggioApi(payload) ||
-            SAL_FREEZE_TESTI.ERRORI.GENERICO
+          getMessaggioErroreExport(payload)
         );
       }
 
@@ -798,7 +835,17 @@ export default function BackofficeSalFreezePage() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      const freezeId =
+        freezeDettaglioDaMostrare?.freeze.id || null;
+      const errorMessage = getMessaggioErrore(error);
+
+      console.error("[sal-period-export-error]", {
+        freezeId,
+        type: "excel",
+        errorMessage,
+      });
+
+      setErroreExport(errorMessage);
     } finally {
       setLoadingExcel(false);
     }
@@ -938,6 +985,12 @@ export default function BackofficeSalFreezePage() {
         {messaggio ? (
           <div className="mb-4 rounded-xl border border-industrial-success-bg bg-industrial-success-bg px-4 py-3 text-sm text-industrial-success-text">
             {messaggio}
+          </div>
+        ) : null}
+
+        {erroreExport ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {erroreExport}
           </div>
         ) : null}
 
