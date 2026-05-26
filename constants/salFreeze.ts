@@ -18,6 +18,12 @@ export const SAL_FREEZE_EXPORT = {
     DEFAULT_FILENAME: `${SAL_FREEZE_EXPORT_FILE_PREFIX}.xlsx`,
     MAX_FOTO: 6,
   },
+  EXCEL_MULTIPLO: {
+    FILE_PREFIX: `${SAL_FREEZE_EXPORT_FILE_PREFIX}-mensile`,
+    MIME_TYPE:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    DEFAULT_FILENAME: `${SAL_FREEZE_EXPORT_FILE_PREFIX}-mensile.xlsx`,
+  },
   QUERY: {
     FREEZE_ID: "freezeId",
     CANTIERE_NOME: "cantiereNome",
@@ -45,6 +51,18 @@ export const SAL_FREEZE_TESTI = {
   ANNULLA_FREEZE: "Annulla SAL periodo",
   ESPORTA_PDF: "Esporta PDF",
   ESPORTA_EXCEL: "Esporta Excel",
+  ESPORTA_EXCEL_MENSILE:
+    "Esporta Excel mensile",
+  ESPORTA_EXCEL_MENSILE_TITOLO:
+    "Export Excel mensile multi-cantiere",
+  ESPORTA_EXCEL_MENSILE_SOTTOTITOLO:
+    "Scarica un foglio per ogni cantiere nel periodo selezionato",
+  SELEZIONA_CANTIERI_EXPORT:
+    "Seleziona cantieri",
+  PERIODO_EXPORT:
+    "Periodo export",
+  NESSUN_CANTIERE_SELEZIONATO:
+    "Seleziona almeno un cantiere",
   ESPORTA: "Esporta",
   CREA_FREEZE_CTA: "Crea SAL periodo mensile",
   LISTA_FREEZE: "Storico SAL periodo",
@@ -105,6 +123,8 @@ export const SAL_FREEZE_TESTI = {
     ACCESSO_NEGATO: "Accesso non autorizzato",
     ESPORTAZIONE_PDF_FALLITA: "Errore export PDF",
     ESPORTAZIONE_EXCEL_FALLITA: "Errore export Excel",
+    ESPORTAZIONE_EXCEL_MENSILE_FALLITA:
+      "Errore export Excel mensile",
     FREEZE_NON_TROVATO: "SAL periodo non trovato",
     FREEZE_ESISTENTE:
       "SAL periodo gia esistente per il periodo selezionato",

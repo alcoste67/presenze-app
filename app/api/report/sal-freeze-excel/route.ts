@@ -113,29 +113,6 @@ function sanitizeExcelText(value: unknown) {
     .slice(0, 32767);
 }
 
-function sanitizeFotoValue(value: unknown) {
-  const testo = sanitizeExcelText(value);
-
-  if (!testo) {
-    return "Foto non disponibile";
-  }
-
-  if (/^data:image\/(png|jpe?g|webp);base64,/i.test(testo)) {
-    return "Foto incorporata / data URL";
-  }
-
-  if (/^https?:\/\//i.test(testo)) {
-    return testo;
-  }
-
-  if (/^sal-freeze\//i.test(testo)) {
-    const segmenti = testo.split("/");
-    return segmenti.slice(-3).join("/");
-  }
-
-  return testo;
-}
-
 function getNomeFile({
   cantiereNome,
   freeze,
@@ -182,27 +159,6 @@ function buildSalSheet({
       lavorazione.percentuale_precedente,
       lavorazione.percentuale_attuale,
       sanitizeExcelText(formattaDelta(lavorazione.delta_percentuale)),
-    ]);
-  });
-
-  return rows;
-}
-
-function buildFotoSheet({
-  freezeExport,
-}: {
-  freezeExport: SalFreezeExportCommittente;
-}) {
-  const rows: Array<Array<string | number>> = [
-    ["ID foto SAL", "Descrizione", "Data riferimento", "Storage path"],
-  ];
-
-  freezeExport.foto.slice(0, 6).forEach((foto) => {
-    rows.push([
-      sanitizeExcelText(foto.sal_foto_id || foto.id),
-      sanitizeExcelText(foto.descrizione) || "Foto non disponibile",
-      sanitizeExcelText(formattaData(foto.data_riferimento)),
-      sanitizeFotoValue(foto.storage_path_snapshot),
     ]);
   });
 
@@ -270,6 +226,7 @@ export async function GET(
     const freezeExport =
       await loadSalFreezeExportCommittente({
         freezeId,
+        includeFoto: false,
       });
 
     if (!freezeExport) {
@@ -287,12 +244,6 @@ export async function GET(
           freezeExport,
           cantiereNome:
             cantiereNome || freezeExport.freeze.cantiere_id,
-        }),
-      },
-      {
-        name: SAL_FREEZE_TESTI.EXCEL.FOGLIO_FOTO,
-        rows: buildFotoSheet({
-          freezeExport,
         }),
       },
     ]);

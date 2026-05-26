@@ -19,6 +19,8 @@ export const API_ROUTES = {
     "/api/report/sal-freeze-pdf",
   REPORT_SAL_FREEZE_EXCEL:
     "/api/report/sal-freeze-excel",
+  REPORT_SAL_FREEZE_EXCEL_MULTIPLO:
+    "/api/report/sal-freeze-excel-multiplo",
   SAL_FREEZE_MENSILI:
     "/api/sal-freeze/mensili",
   SAL_FREEZE_DETTAGLIO:

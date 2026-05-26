@@ -122,39 +122,44 @@ async function aggiungiPreviewFoto({
 
 export async function loadSalFreezeExportCommittente({
   freezeId,
+  includeFoto = true,
   supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
+  includeFoto?: boolean;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeExportCommittente | null> {
   if (!freezeId) {
     return null;
   }
 
-  const [
-    freezeResult,
-    lavorazioniResult,
-    fotoResult,
-  ] = await Promise.all([
-    supabaseClient
-      .from("sal_freeze_mensili")
-      .select(SELECT_SAL_FREEZE_MENSILE)
-      .eq("id", freezeId)
-      .is("annullato_at", null)
-      .maybeSingle(),
-    supabaseClient
-      .from("sal_freeze_lavorazioni")
-      .select(SELECT_SAL_FREEZE_LAVORAZIONI)
-      .eq("freeze_id", freezeId)
-      .order("ordine", { ascending: true }),
-    supabaseClient
-      .from("sal_freeze_foto")
-      .select(SELECT_SAL_FREEZE_FOTO)
-      .eq("freeze_id", freezeId)
-      .order("ordine", { ascending: true })
-      .order("selected_at", { ascending: true })
-      .limit(6),
-  ]);
+  const freezeQuery = supabaseClient
+    .from("sal_freeze_mensili")
+    .select(SELECT_SAL_FREEZE_MENSILE)
+    .eq("id", freezeId)
+    .is("annullato_at", null)
+    .maybeSingle();
+  const lavorazioniQuery = supabaseClient
+    .from("sal_freeze_lavorazioni")
+    .select(SELECT_SAL_FREEZE_LAVORAZIONI)
+    .eq("freeze_id", freezeId)
+    .order("ordine", { ascending: true });
+  const fotoQuery = includeFoto
+    ? supabaseClient
+        .from("sal_freeze_foto")
+        .select(SELECT_SAL_FREEZE_FOTO)
+        .eq("freeze_id", freezeId)
+        .order("ordine", { ascending: true })
+        .order("selected_at", { ascending: true })
+        .limit(6)
+    : null;
+
+  const [freezeResult, lavorazioniResult, fotoResult] =
+    await Promise.all([
+      freezeQuery,
+      lavorazioniQuery,
+      fotoQuery,
+    ]);
 
   if (freezeResult.error) {
     throwErroreSupabase(
@@ -170,7 +175,7 @@ export async function loadSalFreezeExportCommittente({
     );
   }
 
-  if (fotoResult.error) {
+  if (includeFoto && fotoResult?.error) {
     throwErroreSupabase(
       "Lettura foto freeze SAL export committente",
       fotoResult.error
@@ -185,10 +190,13 @@ export async function loadSalFreezeExportCommittente({
     return null;
   }
 
-  const foto = await aggiungiPreviewFoto({
-    foto: (fotoResult.data || []) as SalFreezeFotoExportRow[],
-    supabaseClient,
-  });
+  const foto = includeFoto
+    ? await aggiungiPreviewFoto({
+        foto:
+          (fotoResult?.data || []) as SalFreezeFotoExportRow[],
+        supabaseClient,
+      })
+    : [];
 
   return {
     freeze,

@@ -124,7 +124,7 @@ async function getMessaggioErroreExportDaResponse({
   tipo,
 }: {
   response: Response;
-  tipo: "pdf" | "excel";
+  tipo: "pdf" | "excel" | "excel-mensile";
 }) {
   const contentType =
     response.headers.get("content-type") || "";
@@ -151,7 +151,9 @@ async function getMessaggioErroreExportDaResponse({
     const messaggio =
       tipo === "pdf"
         ? "Errore export PDF"
-        : "Errore export Excel";
+        : tipo === "excel"
+          ? "Errore export Excel"
+          : "Errore export Excel mensile";
 
     return {
       contentType,
@@ -170,7 +172,7 @@ async function getMessaggioErroreExportDaResponse({
     contentType,
     step: null,
     errorMessage: testo || SAL_FREEZE_TESTI.ERRORI.GENERICO,
-    message: `${tipo === "pdf" ? "Errore export PDF" : "Errore export Excel"}. Status: ${response.status}. Risposta: ${testo || "nessun dettaglio"}`,
+    message: `${tipo === "pdf" ? "Errore export PDF" : tipo === "excel" ? "Errore export Excel" : "Errore export Excel mensile"}. Status: ${response.status}. Risposta: ${testo || "nessun dettaglio"}`,
   };
 }
 
@@ -331,6 +333,12 @@ export default function BackofficeSalFreezePage() {
   const [periodEnd, setPeriodEnd] = useState(
     getUltimoGiornoMese()
   );
+  const [periodStartExportMensile, setPeriodStartExportMensile] =
+    useState(getPrimoGiornoMese());
+  const [periodEndExportMensile, setPeriodEndExportMensile] =
+    useState(getUltimoGiornoMese());
+  const [cantiereIdsExportMensile, setCantiereIdsExportMensile] =
+    useState<string[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<
     SalLavorazioneFoto[]
   >([]);
@@ -356,12 +364,16 @@ export default function BackofficeSalFreezePage() {
     useState(false);
   const [loadingExcel, setLoadingExcel] =
     useState(false);
+  const [loadingExcelMensile, setLoadingExcelMensile] =
+    useState(false);
   const [errore, setErrore] = useState<
     string | null
   >(null);
   const [erroreExport, setErroreExport] = useState<
     string | null
   >(null);
+  const [erroreExportMensile, setErroreExportMensile] =
+    useState<string | null>(null);
   const [messaggio, setMessaggio] = useState<
     string | null
   >(null);
@@ -371,6 +383,9 @@ export default function BackofficeSalFreezePage() {
     useState(true);
 
   const puoCreareFreeze = ruoloUtente === "ADMIN";
+  const puoEsportareMensile =
+    ruoloUtente === "ADMIN" ||
+    ruoloUtente === "RESPONSABILE";
 
   const fotoById = useMemo(
     () =>
@@ -956,6 +971,149 @@ export default function BackofficeSalFreezePage() {
     }
   };
 
+  const handleToggleCantiereExportMensile = (
+    cantiereIdDaToccare: string
+  ) => {
+    setCantiereIdsExportMensile((correnti) =>
+      correnti.includes(cantiereIdDaToccare)
+        ? correnti.filter((id) => id !== cantiereIdDaToccare)
+        : [...correnti, cantiereIdDaToccare]
+    );
+    setErroreExportMensile(null);
+  };
+
+  const handleEsportaExcelMensile = async () => {
+    if (
+      !periodStartExportMensile ||
+      !periodEndExportMensile ||
+      cantiereIdsExportMensile.length === 0
+    ) {
+      setErroreExportMensile(
+        SAL_FREEZE_TESTI.NESSUN_CANTIERE_SELEZIONATO
+      );
+      return;
+    }
+
+    try {
+      setLoadingExcelMensile(true);
+      setErroreExportMensile(null);
+
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        throw error;
+      }
+
+      const accessToken = data.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(
+          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
+        );
+      }
+
+      const response = await fetch(
+        API_ROUTES.REPORT_SAL_FREEZE_EXCEL_MULTIPLO,
+        {
+          method: "POST",
+          headers: {
+            [API_HEADERS.CONTENT_TYPE]:
+              API_HEADERS.APPLICATION_JSON,
+            [API_HEADERS.AUTHORIZATION]:
+              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+          },
+          body: JSON.stringify({
+            periodStart: periodStartExportMensile,
+            periodEnd: periodEndExportMensile,
+            cantiereIds: cantiereIdsExportMensile,
+          }),
+        }
+      );
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      if (
+        response.redirected ||
+        !contentType.includes(
+          SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.MIME_TYPE
+        )
+      ) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "excel-mensile",
+          });
+
+        console.error("[sal-period-export-error]", {
+          freezeId: null,
+          type: "excel-mensile",
+          status: response.status,
+          contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
+        });
+
+        setErroreExportMensile(erroreExport.message);
+        return;
+      }
+
+      if (!response.ok) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "excel-mensile",
+          });
+
+        console.error("[sal-period-export-error]", {
+          freezeId: null,
+          type: "excel-mensile",
+          status: response.status,
+          contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
+        });
+
+        setErroreExportMensile(erroreExport.message);
+        return;
+      }
+
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      const contentDisposition =
+        response.headers.get("Content-Disposition") || "";
+      const match = /filename="([^"]+)"/.exec(
+        contentDisposition
+      );
+
+      link.href = url;
+      link.download =
+        match?.[1] ||
+        SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.DEFAULT_FILENAME;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      const errorMessage = getMessaggioErrore(error);
+
+      console.error("[sal-period-export-error]", {
+        freezeId: null,
+        type: "excel-mensile",
+        status: null,
+        contentType: null,
+        step: "unexpected",
+        errorMessage,
+      });
+
+      setErroreExportMensile(
+        SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_EXCEL_MENSILE_FALLITA
+      );
+    } finally {
+      setLoadingExcelMensile(false);
+    }
+  };
+
   const handleAnnullaFreeze = async () => {
     if (
       !puoCreareFreeze ||
@@ -1302,6 +1460,143 @@ export default function BackofficeSalFreezePage() {
                 </p>
               </SectionCard>
             )}
+
+            {puoEsportareMensile ? (
+              <SectionCard
+                title={
+                  SAL_FREEZE_TESTI
+                    .ESPORTA_EXCEL_MENSILE_TITOLO
+                }
+                subtitle={
+                  SAL_FREEZE_TESTI
+                    .ESPORTA_EXCEL_MENSILE_SOTTOTITOLO
+                }
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
+                        {SAL_FREEZE_TESTI.PERIODO_EXPORT}
+                      </span>
+                      <input
+                        type="date"
+                        value={periodStartExportMensile}
+                        onChange={(event) =>
+                          setPeriodStartExportMensile(
+                            event.target.value
+                          )
+                        }
+                        className="form-field"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
+                        {SAL_FREEZE_TESTI.DATA_FINE}
+                      </span>
+                      <input
+                        type="date"
+                        value={periodEndExportMensile}
+                        onChange={(event) =>
+                          setPeriodEndExportMensile(
+                            event.target.value
+                          )
+                        }
+                        className="form-field"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
+                        {SAL_FREEZE_TESTI
+                          .SELEZIONA_CANTIERI_EXPORT}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCantiereIdsExportMensile(
+                            cantiereIdsExportMensile.length ===
+                              cantieri.length
+                              ? []
+                              : cantieri.map((cantiere) => cantiere.id)
+                          )
+                        }
+                        className="text-xs font-semibold text-industrial-orange transition-colors duration-200 ease-out hover:text-industrial-orange-hover"
+                      >
+                        {cantiereIdsExportMensile.length ===
+                        cantieri.length
+                          ? "Deseleziona tutti"
+                          : "Seleziona tutti"}
+                      </button>
+                    </div>
+
+                    <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {cantieri.map((cantiere) => {
+                        const selezionato =
+                          cantiereIdsExportMensile.includes(
+                            cantiere.id
+                          );
+
+                        return (
+                          <label
+                            key={cantiere.id}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors duration-200 ease-out ${selezionato ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong hover:border-industrial-orange"}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selezionato}
+                              onChange={() =>
+                                handleToggleCantiereExportMensile(
+                                  cantiere.id
+                                )
+                              }
+                              className="mt-1 h-4 w-4 rounded border-industrial-border text-industrial-orange"
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-industrial-text">
+                                {cantiere.nome}
+                              </p>
+                              {cantiere.indirizzo ? (
+                                <p className="mt-1 text-xs text-industrial-muted">
+                                  {cantiere.indirizzo}
+                                </p>
+                              ) : null}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {erroreExportMensile ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      {erroreExportMensile}
+                    </div>
+                  ) : null}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleEsportaExcelMensile()
+                      }
+                      disabled={
+                        loadingExcelMensile ||
+                        cantiereIdsExportMensile.length === 0
+                      }
+                      className="inline-flex h-12 items-center justify-center rounded-xl border border-industrial-orange bg-industrial-orange px-5 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                    >
+                      {loadingExcelMensile
+                        ? SAL_TESTI.CARICAMENTO
+                        : SAL_FREEZE_TESTI.ESPORTA_EXCEL_MENSILE}
+                    </button>
+                  </div>
+                </div>
+              </SectionCard>
+            ) : null}
 
             <SectionCard
               title={SAL_FREEZE_TESTI.LISTA_FREEZE}
