@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
+import { getErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   SalFreezeExportCommittente,
   SalFreezeFotoPreview,
@@ -19,12 +19,49 @@ type SalFreezeFotoExportRow = {
   ordine: number;
 };
 
+type SalFreezeExportStep =
+  | "freeze"
+  | "cantiere"
+  | "lavorazioni"
+  | "foto";
+
+type SupabaseErrorLike = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+export class SalFreezeExportError extends Error {
+  readonly step: SalFreezeExportStep;
+  readonly code: string | null;
+
+  constructor(
+    step: SalFreezeExportStep,
+    error: unknown
+  ) {
+    const errorMessage = getErroreSupabase(error);
+    super(errorMessage);
+    this.name = "SalFreezeExportError";
+    this.step = step;
+    this.code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as SupabaseErrorLike).code === "string"
+        ? (error as SupabaseErrorLike).code || null
+        : null;
+  }
+}
+
 const SELECT_SAL_FREEZE_MENSILE =
   "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
 const SELECT_SAL_FREEZE_LAVORAZIONI =
   "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at";
 const SELECT_SAL_FREEZE_FOTO =
   "id, freeze_id, storage_path_snapshot, descrizione, data_riferimento, selected_at, ordine";
+const SELECT_CANTIERE =
+  "id, nome";
 
 function estraiStoragePath(
   storagePathSnapshot: string
@@ -120,6 +157,13 @@ async function aggiungiPreviewFoto({
   );
 }
 
+function throwExportStepError(
+  step: SalFreezeExportStep,
+  error: unknown
+): never {
+  throw new SalFreezeExportError(step, error);
+}
+
 export async function loadSalFreezeExportCommittente({
   freezeId,
   includeFoto = true,
@@ -133,11 +177,29 @@ export async function loadSalFreezeExportCommittente({
     return null;
   }
 
-  const freezeQuery = supabaseClient
+  const freezeResult = await supabaseClient
     .from("sal_freeze_mensili")
     .select(SELECT_SAL_FREEZE_MENSILE)
     .eq("id", freezeId)
     .is("annullato_at", null)
+    .maybeSingle();
+
+  if (freezeResult.error) {
+    throwExportStepError("freeze", freezeResult.error);
+  }
+
+  const freeze = freezeResult.data as
+    | SalFreezeMensile
+    | null;
+
+  if (!freeze) {
+    return null;
+  }
+
+  const cantiereQuery = supabaseClient
+    .from("cantieri")
+    .select(SELECT_CANTIERE)
+    .eq("id", freeze.cantiere_id)
     .maybeSingle();
   const lavorazioniQuery = supabaseClient
     .from("sal_freeze_lavorazioni")
@@ -154,40 +216,26 @@ export async function loadSalFreezeExportCommittente({
         .limit(6)
     : null;
 
-  const [freezeResult, lavorazioniResult, fotoResult] =
+  const [cantiereResult, lavorazioniResult, fotoResult] =
     await Promise.all([
-      freezeQuery,
+      cantiereQuery,
       lavorazioniQuery,
       fotoQuery,
     ]);
 
-  if (freezeResult.error) {
-    throwErroreSupabase(
-      "Lettura freeze SAL export committente",
-      freezeResult.error
-    );
+  if (cantiereResult.error) {
+    throwExportStepError("cantiere", cantiereResult.error);
   }
 
   if (lavorazioniResult.error) {
-    throwErroreSupabase(
-      "Lettura lavorazioni freeze SAL export committente",
+    throwExportStepError(
+      "lavorazioni",
       lavorazioniResult.error
     );
   }
 
   if (includeFoto && fotoResult?.error) {
-    throwErroreSupabase(
-      "Lettura foto freeze SAL export committente",
-      fotoResult.error
-    );
-  }
-
-  const freeze = freezeResult.data as
-    | SalFreezeMensile
-    | null;
-
-  if (!freeze) {
-    return null;
+    throwExportStepError("foto", fotoResult.error);
   }
 
   const foto = includeFoto
@@ -200,6 +248,9 @@ export async function loadSalFreezeExportCommittente({
 
   return {
     freeze,
+    cantiere:
+      (cantiereResult.data as { id: string; nome: string } | null) ||
+      null,
     lavorazioni: (lavorazioniResult.data ||
       []) as SalFreezeLavorazione[],
     foto,

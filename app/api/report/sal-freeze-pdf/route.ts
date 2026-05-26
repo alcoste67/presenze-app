@@ -19,6 +19,7 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
+import { SalFreezeExportError } from "@/services/salFreeze/loadSalFreezeExportCommittente";
 import { loadSalFreezeExportCommittente } from "@/services/salFreeze/loadSalFreezeExportCommittente";
 import type { SalFreezeExportCommittente } from "@/types/salFreeze";
 
@@ -486,6 +487,30 @@ function drawInfoBox({
   });
 }
 
+function getErroreExportPdf(error: unknown) {
+  if (error instanceof SalFreezeExportError) {
+    return {
+      step: error.step,
+      errorMessage: error.message,
+      code: error.code,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      step: "unexpected",
+      errorMessage: error.message,
+      code: null,
+    };
+  }
+
+  return {
+    step: "unexpected",
+    errorMessage: SAL_FREEZE_TESTI.ERRORI.GENERICO,
+    code: null,
+  };
+}
+
 function getDeltaColor(delta: number) {
   if (delta > 0) {
     return {
@@ -684,7 +709,9 @@ export async function GET(
     }
 
     const cantiereNome =
-      cantiereNomeQuery || freezeExport.freeze.cantiere_id;
+      cantiereNomeQuery ||
+      freezeExport.cantiere?.nome ||
+      freezeExport.freeze.cantiere_id;
 
     const pdfDoc = await PDFDocument.create();
     const fonts = {
@@ -1018,19 +1045,18 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : SAL_FREEZE_TESTI.ERRORI.GENERICO;
+    const errore = getErroreExportPdf(error);
 
-    console.error("[sal-period-pdf-export-error]", {
+    console.error("[sal-period-export-loader-error]", {
+      step: errore.step,
+      errorMessage: errore.errorMessage,
+      code: errore.code,
       freezeId,
-      errorMessage,
     });
 
     return jsonErrore(
-      "unexpected",
-      errorMessage,
+      errore.step,
+      errore.errorMessage,
       HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }

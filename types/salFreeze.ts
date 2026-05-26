@@ -63,6 +63,10 @@ export type SalFreezeDettaglio = {
 
 export type SalFreezeExportCommittente = {
   freeze: SalFreezeMensile;
+  cantiere: {
+    id: string;
+    nome: string;
+  } | null;
   lavorazioni: SalFreezeLavorazione[];
   foto: SalFreezeFotoPreview[];
 };
