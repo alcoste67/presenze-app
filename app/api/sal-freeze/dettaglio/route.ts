@@ -43,7 +43,7 @@ const SELECT_SAL_FREEZE_MENSILE =
 const SELECT_SAL_FREEZE_LAVORAZIONI =
   "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at";
 const SELECT_SAL_FREEZE_FOTO =
-  "id, freeze_id, cantiere_id, sal_foto_id, lavorazione_id, data_riferimento, storage_path_snapshot, descrizione, ordine, created_at";
+  "id, freeze_id, storage_path_snapshot, descrizione, data_riferimento, ordine";
 const SELECT_SAL_FREEZE_MACCHINARI =
   "id, freeze_id, macchinario_id, tipo_macchinario_snapshot, descrizione_snapshot, ore_utilizzo, note, ordine, created_at";
 
@@ -132,36 +132,69 @@ async function aggiungiPreviewFoto({
 }: {
   foto: SalFreezeFoto[];
 }): Promise<SalFreezeFotoPreview[]> {
-  return Promise.all(
-    foto.map(async (item) => {
-      const storage = estraiStoragePath(
-        item.storage_path_snapshot
-      );
+  try {
+    return await Promise.all(
+      foto.map(async (item) => {
+        try {
+          const storage = estraiStoragePath(
+            item.storage_path_snapshot
+          );
 
-      if (!storage) {
-        return {
-          ...item,
-          preview_url: null,
-        };
-      }
+          if (!storage) {
+            return {
+              ...item,
+              preview_url: null,
+            };
+          }
 
-      const { data, error } = await supabaseAdmin.storage
-        .from(storage.bucket)
-        .createSignedUrl(storage.path, 60 * 15);
+          const { data, error } =
+            await supabaseAdmin.storage
+              .from(storage.bucket)
+              .createSignedUrl(storage.path, 60 * 15);
 
-      if (error) {
-        return {
-          ...item,
-          preview_url: null,
-        };
-      }
+          if (error) {
+            return {
+              ...item,
+              preview_url: null,
+            };
+          }
 
-      return {
-        ...item,
-        preview_url: data?.signedUrl || null,
-      };
-    })
-  );
+          return {
+            ...item,
+            preview_url: data?.signedUrl || null,
+          };
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Errore preview foto";
+
+          console.warn("[sal-freeze-detail-photo-warning]", {
+            storagePathSnapshot:
+              item.storage_path_snapshot,
+            errorMessage,
+          });
+
+          return {
+            ...item,
+            preview_url: null,
+          };
+        }
+      })
+    );
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Errore preview foto";
+
+    console.warn("[sal-freeze-detail-photo-warning]", {
+      freezeId: null,
+      errorMessage,
+    });
+
+    return [];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -271,20 +304,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (fotoResult.error) {
-      console.error("[sal-freeze-detail-error]", {
-        freezeId,
-        step: "foto",
-        errorMessage: fotoResult.error.message,
-      });
-
-      return jsonErrore(
-        ERRORI.LETTURA_DETTAGLIO,
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        { freezeId, step: "foto" }
-      );
-    }
-
     if (macchinariResult.error) {
       console.error("[sal-freeze-detail-error]", {
         freezeId,
@@ -311,9 +330,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const foto = await aggiungiPreviewFoto({
-      foto: (fotoResult.data || []) as SalFreezeFoto[],
-    });
+    const fotoRaw = (fotoResult.data || []) as SalFreezeFoto[];
+    let foto: SalFreezeFotoPreview[] = [];
+
+    try {
+      foto = await aggiungiPreviewFoto({
+        foto: fotoRaw,
+      });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Errore preview foto";
+
+      console.warn("[sal-freeze-detail-photo-warning]", {
+        freezeId,
+        errorMessage,
+      });
+      foto = [];
+    }
 
     const dettaglio: SalFreezeDettaglio = {
       freeze,
