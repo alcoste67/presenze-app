@@ -727,7 +727,6 @@ export default function BackofficeSalPage() {
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 multiple
                 onChange={handleFotoInputChange}
                 className="block w-full rounded-lg border border-dashed border-industrial-border bg-industrial-control p-3 text-sm text-industrial-muted file:mr-3 file:rounded-md file:border-0 file:bg-industrial-orange file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-industrial-orange-hover"
