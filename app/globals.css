@@ -65,6 +65,52 @@
     box-sizing: border-box;
   }
 
+  .backoffice-ui .form-field {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3rem;
+    padding: 0.75rem;
+    border: 1px solid var(--color-industrial-border);
+    border-radius: 0.5rem;
+    background: var(--color-industrial-control);
+    color: var(--color-industrial-text);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    outline: none;
+    transition:
+      border-color 200ms ease-out,
+      color 200ms ease-out,
+      background-color 200ms ease-out;
+  }
+
+  .backoffice-ui .form-field::placeholder {
+    color: var(--color-industrial-muted-strong);
+  }
+
+  .backoffice-ui .form-field:focus {
+    border-color: var(--color-industrial-orange);
+  }
+
+  .backoffice-ui .form-field:disabled {
+    border-color: var(--color-industrial-border-soft);
+    background: var(--color-industrial-surface-strong);
+    color: var(--color-industrial-muted-strong);
+  }
+
+  .backoffice-ui input[type="date"].form-field {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .backoffice-ui input[type="date"].form-field::-webkit-calendar-picker-indicator {
+    margin: 0;
+    opacity: 0.8;
+  }
+
   .backoffice-ui :where(button) {
     min-height: 2.75rem;
     border-radius: 0.75rem;

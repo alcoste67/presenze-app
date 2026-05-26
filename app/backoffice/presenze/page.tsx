@@ -332,7 +332,7 @@ export default function BackofficePresenzePage() {
                     })
                   )
                 }
-                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                className="form-field"
               />
             </label>
 
@@ -354,7 +354,7 @@ export default function BackofficePresenzePage() {
                     })
                   )
                 }
-                className="rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                className="form-field"
               />
             </label>
 

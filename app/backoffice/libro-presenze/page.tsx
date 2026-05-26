@@ -333,15 +333,12 @@ export default function BackofficeLibroPresenzePage() {
                 type="date"
                 value={filtri.dataInizio}
                 onChange={(event) =>
-                  setFiltri(
-                    (filtriCorrenti) => ({
-                      ...filtriCorrenti,
-                      dataInizio:
-                        event.target.value,
-                    })
-                  )
+                  setFiltri((filtriCorrenti) => ({
+                    ...filtriCorrenti,
+                    dataInizio: event.target.value,
+                  }))
                 }
-                className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                className="form-field"
               />
             </label>
 
@@ -355,15 +352,12 @@ export default function BackofficeLibroPresenzePage() {
                 type="date"
                 value={filtri.dataFine}
                 onChange={(event) =>
-                  setFiltri(
-                    (filtriCorrenti) => ({
-                      ...filtriCorrenti,
-                      dataFine:
-                        event.target.value,
-                    })
-                  )
+                  setFiltri((filtriCorrenti) => ({
+                    ...filtriCorrenti,
+                    dataFine: event.target.value,
+                  }))
                 }
-                className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                className="form-field"
               />
             </label>
 
