@@ -1357,7 +1357,7 @@ export default function BackofficeSalFreezePage() {
                       return (
                         <label
                           key={foto.id}
-                          className={`overflow-hidden rounded-xl border transition-colors duration-200 ease-out ${selezionata ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong"}`}
+                          className={`w-full max-w-full overflow-hidden rounded-xl border transition-colors duration-200 ease-out ${selezionata ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong"}`}
                         >
                           <div className="flex gap-3 p-3">
                             <input
@@ -1370,7 +1370,13 @@ export default function BackofficeSalFreezePage() {
                             />
 
                             <div className="min-w-0 flex-1">
-                              <div className="aspect-[4/3] overflow-hidden rounded-lg bg-industrial-bg-soft">
+                              <div
+                                className="overflow-hidden rounded-lg bg-industrial-bg-soft"
+                                style={{
+                                  maxWidth: "100%",
+                                  height: "200px",
+                                }}
+                              >
                                 {previewUrl ? (
                                   <img
                                     src={previewUrl}
@@ -1378,7 +1384,7 @@ export default function BackofficeSalFreezePage() {
                                       foto.descrizione ||
                                       SAL_FREEZE_TESTI.FOTO_RECENTI
                                     }
-                                    className="h-full w-full object-cover"
+                                    className="block h-full w-full object-cover"
                                   />
                                 ) : (
                                   <div className="flex h-full items-center justify-center rounded-lg bg-industrial-bg-soft px-3 text-center text-xs text-industrial-muted">
@@ -1427,9 +1433,15 @@ export default function BackofficeSalFreezePage() {
                       return (
                         <figure
                           key={foto.id}
-                          className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
+                          className="w-full max-w-full overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
                         >
-                          <div className="aspect-[4/3] max-h-[210px] overflow-hidden bg-industrial-bg-soft">
+                          <div
+                            className="overflow-hidden bg-industrial-bg-soft"
+                            style={{
+                              maxWidth: "100%",
+                              height: "200px",
+                            }}
+                          >
                             {previewUrl ? (
                               <img
                                 src={previewUrl}
@@ -1438,7 +1450,7 @@ export default function BackofficeSalFreezePage() {
                                   SAL_FREEZE_TESTI
                                     .ANTEPRIMA_FOTO_SELEZIONATE
                                 }
-                                className="h-full w-full object-cover"
+                                className="block h-full w-full object-cover"
                               />
                             ) : (
                               <div className="flex h-full items-center justify-center px-3 text-center text-xs text-industrial-muted">
@@ -1910,19 +1922,25 @@ export default function BackofficeSalFreezePage() {
                             );
 
                           return (
-                            <figure
-                              key={foto.id}
-                              className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
+                          <figure
+                            key={foto.id}
+                            className="w-full max-w-full overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
+                          >
+                            <div
+                              className="overflow-hidden bg-industrial-bg-soft"
+                              style={{
+                                maxWidth: "100%",
+                                height: "200px",
+                              }}
                             >
-                              <div className="aspect-[4/3] max-h-[210px] overflow-hidden bg-industrial-bg-soft">
-                                {previewUrl ? (
-                                  <img
-                                    src={previewUrl}
-                                    alt={foto.descrizione}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center px-3 text-center text-sm text-industrial-muted">
+                              {previewUrl ? (
+                                <img
+                                  src={previewUrl}
+                                  alt={foto.descrizione}
+                                  className="block h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center px-3 text-center text-sm text-industrial-muted">
                                     Preview non disponibile
                                   </div>
                                 )}
