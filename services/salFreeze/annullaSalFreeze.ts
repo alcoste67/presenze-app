@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import {
   SAL_FREEZE_ERRORI,
@@ -7,7 +7,7 @@ import {
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type { SalFreezeMensile } from "@/types/salFreeze";
 
-type SupabaseClient = typeof supabase;
+type SupabaseClient = typeof supabaseAdmin;
 
 type FreezeAnnullabileRow = Pick<
   SalFreezeMensile,
@@ -38,11 +38,13 @@ function throwSalFreezeError(
 
 export async function annullaSalFreeze({
   freezeId,
-  accessToken,
-  supabaseClient = supabase,
+  userEmail,
+  userId,
+  supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
-  accessToken?: string;
+  userEmail: string;
+  userId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<FreezeAnnullabileRow> {
   if (!freezeId) {
@@ -52,28 +54,9 @@ export async function annullaSalFreeze({
     );
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseClient.auth.getUser(accessToken);
-
-  if (authError) {
-    throwErroreSupabase(
-      "Lettura utente annullamento freeze SAL",
-      authError
-    );
-  }
-
-  if (!user?.email) {
-    throwSalFreezeError(
-      "ACCESSO_NEGATO",
-      "Accesso non autorizzato"
-    );
-  }
-
   const utenteAdmin = await isAdmin(
-    user.email,
-    supabaseClient
+    userEmail,
+    supabaseAdmin
   );
 
   if (!utenteAdmin) {
@@ -118,7 +101,7 @@ export async function annullaSalFreeze({
       .from("sal_freeze_mensili")
       .update({
         annullato_at: annullatoAt,
-        annullato_by: user.id,
+        annullato_by: userId,
       })
       .eq("id", freezeId)
       .is("annullato_at", null)

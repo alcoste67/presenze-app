@@ -1,5 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
 import { API_HEADERS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
@@ -206,39 +204,12 @@ export async function POST(
     );
   }
 
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return jsonErrore(
-      ERRORI_API.ERRORE_GENERICO,
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
-    );
-  }
-
-  const supabaseUser = createClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
-        },
-      },
-    }
-  );
-
   try {
     const freezeAnnullato = await annullaSalFreeze({
       freezeId,
-      accessToken,
-      supabaseClient: supabaseUser,
+      userEmail: user.email,
+      userId: user.id,
+      supabaseClient: supabaseAdmin,
     });
 
     return jsonOk({

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { SAL_FREEZE_STORAGE_BUCKET } from "@/constants/salFreeze";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
@@ -9,7 +9,7 @@ import {
 import type { CostoMacchinarioCommessa } from "@/types/costiMacchinari";
 import type { SalLavorazioneFoto } from "@/types/sal";
 
-type SupabaseClient = typeof supabase;
+type SupabaseClient = typeof supabaseAdmin;
 
 export const SAL_FREEZE_ERRORI = {
   INPUT_NON_VALIDO: "INPUT_NON_VALIDO",
@@ -478,15 +478,17 @@ export async function createSalFreeze({
   periodEnd,
   selectedPhotoIds,
   note,
-  accessToken,
-  supabaseClient = supabase,
+  userEmail,
+  userId,
+  supabaseClient = supabaseAdmin,
 }: {
   cantiereId: string;
   periodStart: string;
   periodEnd: string;
   selectedPhotoIds: string[];
   note?: string;
-  accessToken?: string;
+  userEmail: string;
+  userId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeCreato> {
   if (!cantiereId) {
@@ -513,28 +515,9 @@ export async function createSalFreeze({
     );
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseClient.auth.getUser(accessToken);
-
-  if (authError) {
-    throwErroreSupabase(
-      "Lettura utente freeze SAL",
-      authError
-    );
-  }
-
-  if (!user?.email) {
-    throwSalFreezeError(
-      SAL_FREEZE_ERRORI.ACCESSO_NEGATO,
-      "Accesso non autorizzato"
-    );
-  }
-
   const utenteAdmin = await isAdmin(
-    user.email,
-    supabaseClient
+    userEmail,
+    supabaseAdmin
   );
 
   if (!utenteAdmin) {
@@ -676,7 +659,7 @@ export async function createSalFreeze({
       cantiereId,
       periodStart,
       periodEnd,
-      createdBy: user.id,
+      createdBy: userId,
       note: note?.trim() || "",
       supabaseClient,
     });
