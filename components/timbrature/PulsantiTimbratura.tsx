@@ -24,13 +24,13 @@ type PulsanteAzioneProps = {
 
 const STILI_PULSANTE = {
   primario:
-    "rounded-lg border-industrial-orange bg-industrial-orange text-white hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active",
+    "rounded-xl border-industrial-orange bg-industrial-orange text-white hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active",
   avviso:
-    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
+    "rounded-xl border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
   neutro:
-    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
+    "rounded-xl border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
   pericolo:
-    "rounded-lg border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
+    "rounded-xl border-industrial-border bg-industrial-control text-industrial-text hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white",
 } as const;
 
 function PulsanteAzione({

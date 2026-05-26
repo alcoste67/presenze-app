@@ -142,13 +142,15 @@ export function ProtezioneBackoffice({
 
   if (!autorizzato) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-        <div className="text-industrial-muted">
-          Caricamento...
-        </div>
-      </main>
+      <div className="backoffice-ui">
+        <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
+          <div className="text-industrial-muted">
+            Caricamento...
+          </div>
+        </main>
+      </div>
     );
   }
 
-  return children;
+  return <div className="backoffice-ui">{children}</div>;
 }

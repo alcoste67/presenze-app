@@ -253,7 +253,7 @@ export function FirmaCanvas({
           type="button"
           onClick={handleClear}
           disabled={disabled || !value}
-          className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-xs font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange disabled:cursor-not-allowed disabled:text-industrial-muted-strong"
+          className="rounded-xl border border-industrial-border bg-industrial-control px-3 py-2 text-xs font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange disabled:cursor-not-allowed disabled:text-industrial-muted-strong"
         >
           {clearLabel}
         </button>
@@ -268,7 +268,7 @@ export function FirmaCanvas({
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         onPointerLeave={handlePointerEnd}
-        className="h-[180px] w-full touch-none rounded-lg border border-industrial-border bg-industrial-surface shadow-inner"
+        className="h-[180px] w-full touch-none rounded-xl border border-industrial-border bg-industrial-surface shadow-inner"
       />
     </div>
   );

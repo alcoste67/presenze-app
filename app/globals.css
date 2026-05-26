@@ -40,6 +40,78 @@
   }
 }
 
+@layer base {
+  .backoffice-ui {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .backoffice-ui,
+  .backoffice-ui *,
+  .backoffice-ui *::before,
+  .backoffice-ui *::after {
+    box-sizing: border-box;
+  }
+
+  .backoffice-ui :where(input, select, textarea, button) {
+    min-width: 0;
+    font: inherit;
+  }
+
+  .backoffice-ui :where(input[type="date"], input[type="file"], input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="search"], select, textarea) {
+    width: 100%;
+  }
+
+  .backoffice-ui :where(input[type="date"], input[type="file"], select, textarea) {
+    box-sizing: border-box;
+  }
+
+  .backoffice-ui :where(button) {
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    line-height: 1.1;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .backoffice-ui button.rounded-lg,
+  .backoffice-ui button.rounded-xl,
+  .backoffice-ui label.rounded-lg,
+  .backoffice-ui label.rounded-xl {
+    border-radius: 0.75rem;
+  }
+
+  .backoffice-ui :where(button:not(:disabled)):active {
+    transform: translateY(1px);
+  }
+
+  .backoffice-ui :where(button:disabled),
+  .backoffice-ui :where(input:disabled),
+  .backoffice-ui :where(select:disabled),
+  .backoffice-ui :where(textarea:disabled) {
+    cursor: not-allowed;
+  }
+
+  .backoffice-ui :where(table) {
+    width: 100%;
+    min-width: max-content;
+    border-collapse: collapse;
+  }
+
+  .backoffice-ui :where(th, td) {
+    white-space: nowrap;
+  }
+
+  @media print {
+    .backoffice-ui :where(table) {
+      min-width: 0;
+    }
+
+    .backoffice-ui :where(th, td) {
+      white-space: normal;
+    }
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

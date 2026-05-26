@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 
+import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 import {
   LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
@@ -59,6 +60,7 @@ type LavorazioneForm =
 
 type FotoForm = RapportoInterventoFotoInput & {
   localId: string;
+  fileName: string;
 };
 
 type OperatoreForm = Omit<
@@ -1095,6 +1097,7 @@ export default function BackofficeRapportiInterventoPage() {
           immagine_data_url: immagineDataUrl,
           descrizione: "",
           ordine: foto.length + index + 1,
+          fileName: files[index]?.name || "",
         })
       );
 
@@ -1338,6 +1341,7 @@ export default function BackofficeRapportiInterventoPage() {
             descrizione:
               immagine.descrizione,
             ordine: immagine.ordine,
+            fileName: "",
           })
         )
       );
@@ -1521,7 +1525,7 @@ export default function BackofficeRapportiInterventoPage() {
                       )
                     }
                     disabled={readonly}
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   >
                     <option value="">
                       {
@@ -1555,7 +1559,7 @@ export default function BackofficeRapportiInterventoPage() {
                       )
                     }
                     disabled={readonly}
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
                 </label>
 
@@ -1577,7 +1581,7 @@ export default function BackofficeRapportiInterventoPage() {
                       )
                     }
                     disabled={readonly}
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
                 </label>
 
@@ -1597,7 +1601,7 @@ export default function BackofficeRapportiInterventoPage() {
                       )
                     }
                     disabled={readonly}
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
                 </label>
 
@@ -1619,7 +1623,7 @@ export default function BackofficeRapportiInterventoPage() {
                       )
                     }
                     disabled={readonly}
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
                 </label>
 
@@ -1660,7 +1664,7 @@ export default function BackofficeRapportiInterventoPage() {
                   }
                   disabled={readonly}
                   rows={4}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                 />
               </label>
 
@@ -1762,7 +1766,7 @@ export default function BackofficeRapportiInterventoPage() {
                               )
                             }
                             disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
                           <span className="mt-1 block text-xs text-industrial-muted">
                             {parseOreMinutiInput(
@@ -1886,7 +1890,7 @@ export default function BackofficeRapportiInterventoPage() {
                                 )
                               }
                               disabled={readonly}
-                              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                             />
                           </label>
 
@@ -1916,7 +1920,7 @@ export default function BackofficeRapportiInterventoPage() {
                                 )
                               }
                               disabled={readonly}
-                              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                             />
                             <span className="mt-1 block text-xs text-industrial-muted">
                               {parseOreMinutiInput(
@@ -2013,7 +2017,7 @@ export default function BackofficeRapportiInterventoPage() {
                               )
                             }
                             disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
                         </label>
 
@@ -2040,7 +2044,7 @@ export default function BackofficeRapportiInterventoPage() {
                               )
                             }
                             disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
                         </label>
 
@@ -2068,7 +2072,7 @@ export default function BackofficeRapportiInterventoPage() {
                               )
                             }
                             disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
                         </label>
 
@@ -2102,20 +2106,29 @@ export default function BackofficeRapportiInterventoPage() {
                   </h3>
 
                   {!readonly && (
-                    <label className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange">
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
-                      }
-                      <input
-                        type="file"
+                    <div className="min-w-0 w-full sm:w-auto sm:min-w-[280px]">
+                      <FileInputPicker
+                        label={
+                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
+                        }
+                        buttonLabel={
+                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
+                        }
+                        emptyLabel={
+                          RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO_SELEZIONATA
+                        }
+                        selectedFileNames={foto
+                          .map((immagine) => immagine.fileName)
+                          .filter((fileName) =>
+                            fileName.trim().length > 0
+                          )}
                         accept="image/*"
                         multiple
                         onChange={(event) =>
                           void handleFotoChange(event)
                         }
-                        className="hidden"
                       />
-                    </label>
+                    </div>
                   )}
                 </div>
 
@@ -2168,7 +2181,7 @@ export default function BackofficeRapportiInterventoPage() {
                               )
                             }
                             disabled={readonly}
-                            className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
                         </label>
 
@@ -2263,7 +2276,7 @@ export default function BackofficeRapportiInterventoPage() {
                         )
                       }
                       disabled={readonly}
-                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                      className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                     />
                   </label>
                   <FirmaCanvas
@@ -2305,7 +2318,7 @@ export default function BackofficeRapportiInterventoPage() {
                         )
                       }
                       disabled={readonly}
-                      className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                      className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                     />
                   </label>
                   <FirmaCanvas

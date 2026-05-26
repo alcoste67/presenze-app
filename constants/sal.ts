@@ -24,6 +24,8 @@ export const SAL_TESTI = {
     "Nessuna foto disponibile",
   AGGIUNGI_FOTO: "Aggiungi foto",
   CARICA_FOTO: "Carica foto",
+  NESSUNA_FOTO_SELEZIONATA:
+    "Nessuna foto selezionata",
   DESCRIZIONE_FOTO: "Descrizione foto",
   GALLERIA_RECENTE: "Galleria recente",
   FOTO_CARICATE: "Foto caricate",

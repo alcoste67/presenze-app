@@ -2,7 +2,7 @@ import { ATTIVITA } from "@/constants/attivita";
 import { TipoAttivita } from "@/types/attivita";
 
 const SELECT_CLASS_NAME =
-  "h-12 w-full appearance-none rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong";
+  "h-12 w-full appearance-none rounded-xl border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong min-w-0 box-border";
 
 type Props = {
   attivitaTipo: TipoAttivita | "";

@@ -11,7 +11,7 @@ type Cantiere = {
 };
 
 const INPUT_CLASS_NAME =
-  "h-12 w-full rounded-lg border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong";
+  "h-12 w-full rounded-xl border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong min-w-0 box-border";
 
 type Props = {
   cantieri: Cantiere[];
@@ -141,7 +141,7 @@ export function SelectCantiere({
       </div>
 
       {aperto && !disabled && (
-        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           {cantieriFiltrati.map((cantiere) => (
             <button
               key={cantiere.id}

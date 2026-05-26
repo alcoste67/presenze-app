@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import {
   LAVORAZIONI_IMPORT,
   LAVORAZIONI_LIMITI,
@@ -920,26 +921,34 @@ export default function BackofficeLavorazioniPage() {
               </div>
 
               <div className="flex flex-col gap-4 md:flex-row md:items-end">
-                <label className="block flex-1">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
+                <div className="min-w-0 flex-1">
+                  <FileInputPicker
+                    label={
                       LAVORAZIONI_TESTI.FILE_COMPUTO
                     }
-                  </span>
-                  <input
-                    type="file"
+                    buttonLabel={
+                      LAVORAZIONI_TESTI.CARICA_FILE
+                    }
+                    emptyLabel={
+                      LAVORAZIONI_TESTI
+                        .NESSUN_FILE_SELEZIONATO
+                    }
+                    selectedFileNames={
+                      fileComputo
+                        ? [fileComputo.name]
+                        : []
+                    }
                     accept={
                       LAVORAZIONI_IMPORT.FILE_ACCEPT
-                    }
-                    onChange={
-                      handleFileComputoChange
                     }
                     disabled={
                       !cantiereId || bloccoImport
                     }
-                    className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                    onChange={
+                      handleFileComputoChange
+                    }
                   />
-                </label>
+                </div>
 
                 <button
                   type="button"

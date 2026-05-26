@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { API_HEADERS } from "@/constants/api";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 import {
@@ -621,7 +622,7 @@ export default function BackofficeSalPage() {
                 )
               }
               disabled={loadingCantieri}
-              className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
             >
               <option value="">
                 {SAL_TESTI.SELEZIONA_CANTIERE}
@@ -663,7 +664,7 @@ export default function BackofficeSalPage() {
                     event.target.value
                   )
                 }
-                className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
               />
             </label>
 
@@ -683,7 +684,7 @@ export default function BackofficeSalPage() {
                     loadingSal ||
                     sal?.lavorazioni.length === 0
                   }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                  className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                 >
                   <option value="">
                     {SAL_TESTI.SELEZIONA_LAVORAZIONE}
@@ -720,18 +721,21 @@ export default function BackofficeSalPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <label className="block flex-1 min-w-[220px]">
-              <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                {SAL_TESTI.CARICA_FOTO}
-              </span>
-              <input
-                type="file"
+            <div className="min-w-0 flex-1">
+              <FileInputPicker
+                label={SAL_TESTI.CARICA_FOTO}
+                buttonLabel={SAL_TESTI.AGGIUNGI_FOTO}
+                emptyLabel={
+                  SAL_TESTI.NESSUNA_FOTO_SELEZIONATA
+                }
+                selectedFileNames={fotoDaCaricare.map(
+                  (foto) => foto.fileName
+                )}
                 accept="image/*"
                 multiple
                 onChange={handleFotoInputChange}
-                className="block w-full rounded-lg border border-dashed border-industrial-border bg-industrial-control p-3 text-sm text-industrial-muted file:mr-3 file:rounded-md file:border-0 file:bg-industrial-orange file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-industrial-orange-hover"
               />
-            </label>
+            </div>
 
             <button
               type="button"

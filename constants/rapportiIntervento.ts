@@ -104,6 +104,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   FIRMA_CLIENTE: "Firma cliente",
   FOTO: "Foto rapporto",
   AGGIUNGI_FOTO: "Aggiungi foto",
+  NESSUNA_FOTO_SELEZIONATA:
+    "Nessuna foto selezionata",
   DESCRIZIONE_FOTO:
     "Descrizione foto",
   MATERIALI: "Materiali utilizzati",

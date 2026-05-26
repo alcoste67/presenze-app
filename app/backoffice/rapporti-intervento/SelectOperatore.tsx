@@ -139,7 +139,7 @@ export function SelectOperatore({
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
-          className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+          className="w-full rounded-xl border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:bg-industrial-surface-strong"
         />
 
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-industrial-muted-strong">
@@ -148,7 +148,7 @@ export function SelectOperatore({
       </div>
 
       {aperto && !disabled && (
-        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
           {opzioniFiltrate.map((dipendente) => {
             return (
               <button
