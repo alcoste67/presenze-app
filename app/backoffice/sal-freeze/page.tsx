@@ -115,12 +115,63 @@ function getMessaggioApi(
   return null;
 }
 
-function getMessaggioErroreExportFallback(
-  tipo: "pdf" | "excel"
-) {
-  return tipo === "pdf"
-    ? SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_PDF_FALLITA
-    : SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_EXCEL_FALLITA;
+function getTestoBreve(value: string) {
+  return value.replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
+async function getMessaggioErroreExportDaResponse({
+  response,
+  tipo,
+}: {
+  response: Response;
+  tipo: "pdf" | "excel";
+}) {
+  const contentType =
+    response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+
+  if (isJson) {
+    const payload = await response
+      .json()
+      .catch(() => null);
+
+    const step =
+      isRecord(payload) && typeof payload.step === "string"
+        ? payload.step
+        : null;
+    const errorMessage =
+      isRecord(payload) &&
+      typeof payload.errorMessage === "string"
+        ? payload.errorMessage
+        : isRecord(payload) &&
+            typeof payload.error === "string"
+          ? payload.error
+          : null;
+
+    const messaggio =
+      tipo === "pdf"
+        ? "Errore export PDF"
+        : "Errore export Excel";
+
+    return {
+      contentType,
+      step,
+      errorMessage,
+      message:
+        step && errorMessage
+          ? `${messaggio}. Step: ${step}. Errore: ${errorMessage}`
+          : `${messaggio}. Errore: ${errorMessage || SAL_FREEZE_TESTI.ERRORI.GENERICO}`,
+    };
+  }
+
+  const testo = getTestoBreve(await response.text().catch(() => ""));
+
+  return {
+    contentType,
+    step: null,
+    errorMessage: testo || SAL_FREEZE_TESTI.ERRORI.GENERICO,
+    message: `${tipo === "pdf" ? "Errore export PDF" : "Errore export Excel"}. Status: ${response.status}. Risposta: ${testo || "nessun dettaglio"}`,
+  };
 }
 
 function getNomeFilePdf(response: Response) {
@@ -732,30 +783,42 @@ export default function BackofficeSalFreezePage() {
         response.redirected ||
         !contentType.includes("application/pdf")
       ) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "pdf",
+          });
+
         console.error("[sal-period-export-error]", {
           freezeId: freezeDettaglioDaMostrare.freeze.id,
           type: "pdf",
           status: response.status,
           contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
         });
 
-        setErroreExport(
-          getMessaggioErroreExportFallback("pdf")
-        );
+        setErroreExport(erroreExport.message);
         return;
       }
 
       if (!response.ok) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "pdf",
+          });
+
         console.error("[sal-period-export-error]", {
           freezeId: freezeDettaglioDaMostrare.freeze.id,
           type: "pdf",
           status: response.status,
           contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
         });
 
-        setErroreExport(
-          getMessaggioErroreExportFallback("pdf")
-        );
+        setErroreExport(erroreExport.message);
         return;
       }
 
@@ -821,30 +884,42 @@ export default function BackofficeSalFreezePage() {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
       ) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "excel",
+          });
+
         console.error("[sal-period-export-error]", {
           freezeId: freezeDettaglioDaMostrare.freeze.id,
           type: "excel",
           status: response.status,
           contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
         });
 
-        setErroreExport(
-          getMessaggioErroreExportFallback("excel")
-        );
+        setErroreExport(erroreExport.message);
         return;
       }
 
       if (!response.ok) {
+        const erroreExport =
+          await getMessaggioErroreExportDaResponse({
+            response,
+            tipo: "excel",
+          });
+
         console.error("[sal-period-export-error]", {
           freezeId: freezeDettaglioDaMostrare.freeze.id,
           type: "excel",
           status: response.status,
           contentType,
+          step: erroreExport.step,
+          errorMessage: erroreExport.errorMessage,
         });
 
-        setErroreExport(
-          getMessaggioErroreExportFallback("excel")
-        );
+        setErroreExport(erroreExport.message);
         return;
       }
 
