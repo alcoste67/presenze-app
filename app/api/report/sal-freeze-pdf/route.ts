@@ -714,32 +714,131 @@ export async function GET(
     );
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAdmin.auth.getUser(accessToken);
+  console.log("[sal-period-pdf-before-get-user]", {
+    freezeId,
+  });
 
-  if (authError || !user?.email) {
+  let userEmail: string | null = null;
+
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
+    console.log("[sal-period-pdf-after-get-user]", {
+      freezeId,
+      hasUser: !!user,
+      email: user?.email || null,
+    });
+
+    if (authError || !user?.email) {
+      return jsonErrore(
+        "auth_get_user",
+        SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.UNAUTHORIZED
+      );
+    }
+
+    userEmail = user.email;
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    console.error("[sal-period-pdf-catch]", {
+      freezeId,
+      message,
+      name:
+        error instanceof Error ? error.name : undefined,
+    });
+
     return jsonErrore(
-      "auth",
-      SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+      "auth_get_user",
+      message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
       HTTP_STATUS.UNAUTHORIZED
     );
   }
 
   console.log("[sal-period-pdf-auth-ok]", {
     freezeId,
-    email: user.email,
+    email: userEmail,
   });
 
-  const utenteAdmin = await isAdmin(
-    user.email,
-    supabaseAdmin
-  );
+  console.log("[sal-period-pdf-before-is-admin]", {
+    freezeId,
+  });
 
-  const utenteResponsabile = utenteAdmin
-    ? false
-    : await isResponsabile(user.email, supabaseAdmin);
+  let utenteAdmin = false;
+
+  try {
+    utenteAdmin = await isAdmin(
+      userEmail as string,
+      supabaseAdmin
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    console.error("[sal-period-pdf-catch]", {
+      freezeId,
+      message,
+      name:
+        error instanceof Error ? error.name : undefined,
+    });
+
+    return jsonErrore(
+      "role_check",
+      message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+      HTTP_STATUS.FORBIDDEN
+    );
+  }
+
+  console.log("[sal-period-pdf-after-is-admin]", {
+    freezeId,
+    isAdmin: utenteAdmin,
+  });
+
+  let utenteResponsabile = false;
+
+  if (!utenteAdmin) {
+    console.log("[sal-period-pdf-before-is-responsabile]", {
+      freezeId,
+    });
+
+    try {
+      utenteResponsabile = await isResponsabile(
+        userEmail as string,
+        supabaseAdmin
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      console.error("[sal-period-pdf-catch]", {
+        freezeId,
+        message,
+        name:
+          error instanceof Error ? error.name : undefined,
+      });
+
+      return jsonErrore(
+        "role_check",
+        message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    console.log("[sal-period-pdf-after-is-responsabile]", {
+      freezeId,
+      isResponsabile: utenteResponsabile,
+    });
+  }
 
   if (!utenteAdmin && !utenteResponsabile) {
     return jsonErrore(
@@ -752,11 +851,21 @@ export async function GET(
   const cantiereNomeQuery =
     getQueryValue(request, SAL_FREEZE_QUERY.CANTIERE_NOME) || "";
 
+  console.log("[sal-period-pdf-before-freezeid-check]", {
+    freezeId,
+  });
+
   if (!freezeId) {
-    return jsonErrore(
-      "input",
-      SAL_FREEZE_TESTI.ERRORI.INPUT_NON_VALIDO,
-      HTTP_STATUS.BAD_REQUEST
+    return Response.json(
+      {
+        success: false,
+        step: "input",
+        errorMessage: "freezeId mancante",
+      },
+      {
+        status: HTTP_STATUS.BAD_REQUEST,
+        headers: NO_STORE_HEADERS,
+      }
     );
   }
 
