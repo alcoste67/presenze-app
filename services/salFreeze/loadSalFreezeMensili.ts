@@ -15,6 +15,28 @@ function isRecord(
   );
 }
 
+function getErrorMessage(payload: unknown) {
+  if (!isRecord(payload)) {
+    return SAL_FREEZE_TESTI.ERRORI.GENERICO;
+  }
+
+  if (
+    typeof payload.errorMessage === "string" &&
+    payload.errorMessage.trim()
+  ) {
+    return payload.errorMessage.trim();
+  }
+
+  if (
+    typeof payload.error === "string" &&
+    payload.error.trim()
+  ) {
+    return payload.error.trim();
+  }
+
+  return SAL_FREEZE_TESTI.ERRORI.GENERICO;
+}
+
 export async function loadSalFreezeMensili({
   cantiereId,
   supabaseClient = supabase,
@@ -59,23 +81,20 @@ export async function loadSalFreezeMensili({
     .catch(() => null);
 
   if (!response.ok) {
-    const errorMessage =
-      isRecord(payload) &&
-      typeof payload.error === "string"
-        ? payload.error
-        : SAL_FREEZE_TESTI.ERRORI.GENERICO;
-
-    throw new Error(errorMessage);
+    throw new Error(getErrorMessage(payload));
   }
 
   const freezeList =
     isRecord(payload) &&
-    Array.isArray(payload.freezeList)
-      ? (payload.freezeList as SalFreezeMensile[])
+    Array.isArray(payload.freeze)
+      ? (payload.freeze as SalFreezeMensile[])
       : isRecord(payload) &&
-          Array.isArray(payload.data)
-        ? (payload.data as SalFreezeMensile[])
-        : [];
+          Array.isArray(payload.freezeList)
+        ? (payload.freezeList as SalFreezeMensile[])
+        : isRecord(payload) &&
+            Array.isArray(payload.data)
+          ? (payload.data as SalFreezeMensile[])
+          : [];
 
   console.log("[sal-freeze-mensili-loader]", {
     cantiereId,

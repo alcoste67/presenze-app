@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { SAL_FREEZE_STORAGE_BUCKET } from "@/constants/salFreeze";
+import {
+  INCLUDI_LAVORAZIONI_A_ZERO_NEL_SAL_PERIODO,
+} from "@/constants/salFreeze";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
 import {
@@ -692,8 +695,8 @@ export async function createSalFreeze({
     (foto) => foto.object_path
   );
 
-  const lavorazioniFreeze: SalFreezeLavorazioneInsert[] = salLive.lavorazioni.map(
-    (lavorazione) => {
+  const lavorazioniFreeze: SalFreezeLavorazioneInsert[] = salLive.lavorazioni
+    .map((lavorazione) => {
       const percentualePrecedente = getPercentualePrecedente({
         lavorazioneId: lavorazione.id,
         lavorazioneNome: lavorazione.nome,
@@ -701,21 +704,34 @@ export async function createSalFreeze({
         freezePrecedenteByNome,
       });
 
+      const percentualeAttuale =
+        lavorazione.percentuale_completamento;
+      const deltaPercentuale =
+        percentualeAttuale - percentualePrecedente;
+      const oreUomoMinuti = lavorazione.oreUomoMinuti;
+
       return {
         freeze_id: freezeId,
         lavorazione_id: lavorazione.id,
         lavorazione_nome_snapshot: lavorazione.nome,
         percentuale_precedente: percentualePrecedente,
-        percentuale_attuale:
-          lavorazione.percentuale_completamento,
-        delta_percentuale:
-          lavorazione.percentuale_completamento -
-          percentualePrecedente,
-        ore_uomo_minuti: lavorazione.oreUomoMinuti,
+        percentuale_attuale: percentualeAttuale,
+        delta_percentuale: deltaPercentuale,
+        ore_uomo_minuti: oreUomoMinuti,
         ordine: lavorazione.ordine,
       };
-    }
-  );
+    })
+    .filter((lavorazione) => {
+      if (INCLUDI_LAVORAZIONI_A_ZERO_NEL_SAL_PERIODO) {
+        return true;
+      }
+
+      return (
+        lavorazione.percentuale_attuale > 0 ||
+        lavorazione.delta_percentuale !== 0 ||
+        lavorazione.ore_uomo_minuti > 0
+      );
+    });
 
   const fotoFreeze: SalFreezeFotoInsert[] = uploadedPhotos.map(
     (foto, index) => ({

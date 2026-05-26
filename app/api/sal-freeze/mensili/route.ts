@@ -22,9 +22,9 @@ const NO_STORE_HEADERS = {
 const SELECT_SAL_FREEZE_MENSILI =
   "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
 
-function jsonErrore(error: string, status: number) {
+function jsonErrore(errorMessage: string, status: number) {
   return Response.json(
-    { success: false, error },
+    { success: false, errorMessage },
     { status, headers: NO_STORE_HEADERS }
   );
 }
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
   return Response.json(
     {
       success: true,
-      freezeList,
+      freeze: freezeList,
     },
     {
       status: 200,

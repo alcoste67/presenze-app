@@ -24,6 +24,9 @@ export const SAL_FREEZE_EXPORT = {
   },
 } as const;
 
+export const INCLUDI_LAVORAZIONI_A_ZERO_NEL_SAL_PERIODO =
+  false;
+
 export const SAL_FREEZE_TESTI = {
   TITOLO: "SAL periodo",
   CARD_DESCRIZIONE:
