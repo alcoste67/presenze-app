@@ -111,11 +111,23 @@ export const SAL_FREEZE_TESTI = {
     DI: "di",
     PREVIEW_NON_DISPONIBILE:
       "Preview non disponibile",
+    FOTO_NON_DISPONIBILE:
+      "Foto non disponibile",
   },
   EXCEL: {
     FOGLIO_SAL: "SAL",
     FOGLIO_FOTO: "Foto selezionate",
     MASSIMO_FOTO: `Nel foglio foto sono incluse al massimo ${SAL_FREEZE_EXPORT.EXCEL.MAX_FOTO} foto selezionate`,
+  },
+  EXPORT_MENSILE: {
+    AUTO_CREATE_NOTE:
+      "Creato automaticamente da export mensile",
+    SAL_PERIODO_MANCANTE:
+      "SAL periodo non disponibile",
+    NESSUN_AVANZAMENTO:
+      "Nessun avanzamento disponibile",
+    ERRORE_CANTIERE:
+      "Errore export cantiere",
   },
   ERRORI: {
     GENERICO: "Errore caricamento SAL periodo",

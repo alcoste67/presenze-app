@@ -418,52 +418,93 @@ function formattaDelta(delta: number) {
   return `${sign}${delta.toFixed(0)}%`;
 }
 
+function drawCenteredText({
+  page,
+  text,
+  x,
+  y,
+  width,
+  size,
+  font,
+  color,
+}: {
+  page: PDFPage;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  size: number;
+  font: PDFFont;
+  color: RGB;
+}) {
+  const normalizedText = normalizzaTestoPdf(text);
+  const textWidth = font.widthOfTextAtSize(
+    normalizedText,
+    size
+  );
+  const textX = x + Math.max(0, (width - textWidth) / 2);
+
+  drawText(page, normalizedText, {
+    x: textX,
+    y,
+    size,
+    font,
+    color,
+  });
+}
+
 async function embedImageFromUrl(
   pdfDoc: PDFDocument,
   url: string
 ): Promise<PDFImage | null> {
-  const dataUrlMatch =
-    /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(
-      url
-    );
+  try {
+    const dataUrlMatch =
+      /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(
+        url
+      );
 
-  if (dataUrlMatch) {
-    const [, mime, encoded] = dataUrlMatch;
-    const bytes = Buffer.from(encoded, "base64");
+    if (dataUrlMatch) {
+      const [, mime, encoded] = dataUrlMatch;
+      const bytes = Buffer.from(encoded, "base64");
 
-    if (mime.toLowerCase() === "png") {
-      return pdfDoc.embedPng(bytes);
+      if (mime.toLowerCase() === "png") {
+        return pdfDoc.embedPng(bytes);
+      }
+
+      if (mime.toLowerCase() === "webp") {
+        return null;
+      }
+
+      return pdfDoc.embedJpg(bytes);
     }
 
-    if (mime.toLowerCase() === "webp") {
+    const response = await fetch(url);
+
+    if (!response.ok) {
       return null;
     }
 
-    return pdfDoc.embedJpg(bytes);
-  }
+    const contentType =
+      response.headers.get("content-type") || "";
+    const bytes = Buffer.from(
+      await response.arrayBuffer()
+    );
 
-  const response = await fetch(url);
+    if (contentType.includes("png")) {
+      return pdfDoc.embedPng(bytes);
+    }
 
-  if (!response.ok) {
+    if (
+      contentType.includes("jpeg") ||
+      contentType.includes("jpg")
+    ) {
+      return pdfDoc.embedJpg(bytes);
+    }
+
+    return null;
+  } catch {
     return null;
   }
-
-  const contentType =
-    response.headers.get("content-type") || "";
-  const bytes = Buffer.from(await response.arrayBuffer());
-
-  if (contentType.includes("png")) {
-    return pdfDoc.embedPng(bytes);
-  }
-
-  if (
-    contentType.includes("jpeg") ||
-    contentType.includes("jpg")
-  ) {
-    return pdfDoc.embedJpg(bytes);
-  }
-
-  return null;
 }
 
 function getQueryValue(
@@ -744,7 +785,10 @@ export async function GET(
       cursorY -= rowHeight;
     });
 
-    const foto = freezeExport.foto.slice(0, 6);
+    const foto = freezeExport.foto.slice(
+      0,
+      SAL_FREEZE_EXPORT.PDF.MAX_FOTO
+    );
     if (foto.length > 0) {
       const fotoPage = pdfDoc.addPage([
         PAGE_WIDTH,
@@ -773,11 +817,11 @@ export async function GET(
         color: COLORS.muted,
       });
 
-      const photoWidth = 240;
-      const photoHeight = 140;
-      const captionHeight = 30;
+      const photoWidth = 244;
+      const photoHeight = 110;
+      const captionHeight = 26;
       const gapX = 14;
-      const gapY = 18;
+      const gapY = 14;
       const startX = MARGIN_X;
       const startY = 500;
 
@@ -800,10 +844,13 @@ export async function GET(
         const x = startX + col * (photoWidth + gapX);
         const topY =
           startY - row * (photoHeight + captionHeight + gapY);
+        const imageBottomY = topY - photoHeight;
+        const captionText =
+          `${formattaData(foto[index].data_riferimento)}${foto[index].descrizione?.trim() ? ` • ${foto[index].descrizione.trim()}` : ""}`;
 
         fotoPage.drawRectangle({
           x,
-          y: topY - photoHeight,
+          y: imageBottomY - captionHeight,
           width: photoWidth,
           height: photoHeight + captionHeight,
           color: COLORS.white,
@@ -814,46 +861,43 @@ export async function GET(
         if (image) {
           fotoPage.drawImage(image, {
             x: x + 1,
-            y: topY - photoHeight + 1,
+            y: imageBottomY + 1,
             width: photoWidth - 2,
             height: photoHeight - 2,
           });
         } else {
           fotoPage.drawRectangle({
             x: x + 1,
-            y: topY - photoHeight + 1,
+            y: imageBottomY + 1,
             width: photoWidth - 2,
             height: photoHeight - 2,
             color: COLORS.graySoft,
+          });
+
+          drawCenteredText({
+            page: fotoPage,
+            text: SAL_FREEZE_PDF.FOTO_NON_DISPONIBILE,
+            x: x + 1,
+            y: imageBottomY + Math.floor(photoHeight / 2) - 4,
+            width: photoWidth - 2,
+            size: 9,
+            font: fonts.bold,
+            color: COLORS.gray,
           });
         }
 
         drawWrappedText({
           page: fotoPage,
-          text:
-            foto[index].descrizione ||
-            formattaData(foto[index].data_riferimento),
+          text: captionText,
           x: x + 8,
-          y: topY - photoHeight - 14,
+          y: imageBottomY - 14,
           maxWidth: photoWidth - 16,
-          size: 8,
+          size: 7,
           font: fonts.bold,
           color: COLORS.text,
-          maxLines: 2,
-          lineHeight: 9,
+          maxLines: 1,
+          lineHeight: 8,
         });
-
-        drawText(
-          fotoPage,
-          formattaData(foto[index].data_riferimento),
-          {
-          x: x + 8,
-          y: topY - photoHeight - 26,
-          size: 7,
-          font: fonts.regular,
-          color: COLORS.muted,
-          }
-        );
       });
 
     }

@@ -9,6 +9,11 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
+import {
+  createSalFreeze,
+  SAL_FREEZE_ERRORI,
+  SalFreezeError,
+} from "@/services/salFreeze/createSalFreeze";
 import { loadSalFreezeExportCommittente } from "@/services/salFreeze/loadSalFreezeExportCommittente";
 import type { SalFreezeLavorazione, SalFreezeMensile } from "@/types/salFreeze";
 
@@ -230,7 +235,10 @@ function buildSalSheet({
   });
 
   if (freezeExport.lavorazioni.length === 0) {
-    rows.push(["Mancante", "Nessun SAL periodo disponibile"]);
+    rows.push([
+      SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+      SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+    ]);
   }
 
   return rows;
@@ -249,7 +257,28 @@ function buildMissingSheet({
     ["Cantiere", sanitizeExcelText(cantiereNome)],
     ["Periodo", sanitizeExcelText(getPeriodLabel(periodStart, periodEnd))],
     [],
-    ["Mancante", "Nessun SAL periodo disponibile"],
+    ["Mancante", SAL_FREEZE_TESTI.EXPORT_MENSILE.SAL_PERIODO_MANCANTE],
+  ];
+}
+
+function buildInfoSheet({
+  cantiereNome,
+  periodStart,
+  periodEnd,
+  titolo,
+  messaggio,
+}: {
+  cantiereNome: string;
+  periodStart: string;
+  periodEnd: string;
+  titolo: string;
+  messaggio: string;
+}) {
+  return [
+    ["Cantiere", sanitizeExcelText(cantiereNome)],
+    ["Periodo", sanitizeExcelText(getPeriodLabel(periodStart, periodEnd))],
+    [],
+    [sanitizeExcelText(titolo), sanitizeExcelText(messaggio)],
   ];
 }
 
@@ -267,82 +296,218 @@ async function buildSheetsForCantieri({
   periodStart,
   periodEnd,
   selectedCantieri,
+  utenteAdmin,
+  userEmail,
+  userId,
 }: {
   periodStart: string;
   periodEnd: string;
   selectedCantieri: Array<{ id: string; nome: string }>;
+  utenteAdmin: boolean;
+  userEmail: string;
+  userId: string;
 }) {
   const sheets: ExportSheet[] = [];
   const usedNames = new Set<string>();
 
   for (const cantiere of selectedCantieri) {
-    const { data: freeze, error: freezeError } =
-      await supabaseAdmin
-      .from("sal_freeze_mensili")
-      .select(
-        "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by"
-      )
-      .eq("cantiere_id", cantiere.id)
-      .eq("period_start", periodStart)
-      .eq("period_end", periodEnd)
-      .is("annullato_at", null)
-      .order("freeze_at", { ascending: false })
-      .maybeSingle();
+    const cantiereNome =
+      cantiere.nome || cantiere.id;
+    const sheetName = getUniqueSheetName(
+      cantiereNome,
+      usedNames
+    );
 
-    if (freezeError) {
-      throw new Error(
-        `Errore lettura SAL periodo per ${cantiere.id}: ${freezeError.message}`
-      );
-    }
+    try {
+      const { data: freeze, error: freezeError } =
+        await supabaseAdmin
+          .from("sal_freeze_mensili")
+          .select(
+            "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by"
+          )
+          .eq("cantiere_id", cantiere.id)
+          .eq("period_start", periodStart)
+          .eq("period_end", periodEnd)
+          .is("annullato_at", null)
+          .order("freeze_at", { ascending: false })
+          .order("period_start", { ascending: false })
+          .maybeSingle();
 
-    if (!freeze?.id) {
+      if (freezeError) {
+        throw new Error(
+          `Errore lettura SAL periodo per ${cantiere.id}: ${freezeError.message}`
+        );
+      }
+
+      let freezeId = freeze?.id || null;
+
+      if (!freezeId) {
+        if (!utenteAdmin) {
+          sheets.push({
+            name: sheetName,
+            rows: buildMissingSheet({
+              cantiereNome,
+              periodStart,
+              periodEnd,
+            }),
+          });
+          continue;
+        }
+
+        try {
+          const freezeCreato = await createSalFreeze({
+            cantiereId: cantiere.id,
+            periodStart,
+            periodEnd,
+            selectedPhotoIds: [],
+            note: SAL_FREEZE_TESTI.EXPORT_MENSILE.AUTO_CREATE_NOTE,
+            userEmail,
+            userId,
+            supabaseClient: supabaseAdmin,
+          });
+
+          freezeId = freezeCreato.freezeId;
+        } catch (error: unknown) {
+          if (
+            error instanceof SalFreezeError &&
+            error.code === SAL_FREEZE_ERRORI.NESSUNA_LAVORAZIONE
+          ) {
+            sheets.push({
+              name: sheetName,
+              rows: buildInfoSheet({
+                cantiereNome,
+                periodStart,
+                periodEnd,
+                titolo: SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+                messaggio: SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+              }),
+            });
+            continue;
+          }
+
+          if (
+            error instanceof SalFreezeError &&
+            error.code === SAL_FREEZE_ERRORI.FREEZE_ESISTENTE
+          ) {
+            const { data: freezeEsistente, error: freezeEsistenteError } =
+              await supabaseAdmin
+                .from("sal_freeze_mensili")
+                .select(
+                  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by"
+                )
+                .eq("cantiere_id", cantiere.id)
+                .eq("period_start", periodStart)
+                .eq("period_end", periodEnd)
+                .is("annullato_at", null)
+                .order("freeze_at", { ascending: false })
+                .order("period_start", { ascending: false })
+                .maybeSingle();
+
+            if (freezeEsistenteError) {
+              throw new Error(
+                `Errore lettura SAL periodo per ${cantiere.id}: ${freezeEsistenteError.message}`
+              );
+            }
+
+            freezeId = freezeEsistente?.id || null;
+          } else {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : SAL_FREEZE_TESTI.ERRORI.GENERICO;
+
+            console.error("[sal-period-excel-multiplo-error]", {
+              cantiereId: cantiere.id,
+              cantiereNome,
+              periodStart,
+              periodEnd,
+              errorMessage,
+            });
+
+            sheets.push({
+              name: sheetName,
+              rows: buildInfoSheet({
+                cantiereNome,
+                periodStart,
+                periodEnd,
+                titolo: SAL_FREEZE_TESTI.EXPORT_MENSILE.ERRORE_CANTIERE,
+                messaggio: errorMessage,
+              }),
+            });
+            continue;
+          }
+        }
+      }
+
+      if (!freezeId) {
+        sheets.push({
+          name: sheetName,
+          rows: buildMissingSheet({
+            cantiereNome,
+            periodStart,
+            periodEnd,
+          }),
+        });
+        continue;
+      }
+
+      const freezeExport =
+        await loadSalFreezeExportCommittente({
+          freezeId,
+          includeFoto: false,
+        });
+
+      if (!freezeExport) {
+        sheets.push({
+          name: sheetName,
+          rows: buildInfoSheet({
+            cantiereNome,
+            periodStart,
+            periodEnd,
+            titolo: SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+            messaggio: SAL_FREEZE_TESTI.EXPORT_MENSILE.NESSUN_AVANZAMENTO,
+          }),
+        });
+        continue;
+      }
+
       sheets.push({
-        name: getUniqueSheetName(
-          cantiere.nome || cantiere.id,
-          usedNames
-        ),
-        rows: buildMissingSheet({
-          cantiereNome: cantiere.nome || cantiere.id,
+        name: sheetName,
+        rows: buildSalSheet({
+          freezeExport,
+          cantiereNome,
           periodStart,
           periodEnd,
+          freezeAtLabel: formattaDataOra(
+            freezeExport.freeze.freeze_at
+          ),
         }),
       });
-      continue;
-    }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : SAL_FREEZE_TESTI.ERRORI.GENERICO;
 
-    const freezeExport = await loadSalFreezeExportCommittente({
-      freezeId: freeze.id,
-      includeFoto: false,
-    });
-
-    if (!freezeExport) {
-      sheets.push({
-        name: getUniqueSheetName(
-          cantiere.nome || cantiere.id,
-          usedNames
-        ),
-        rows: buildMissingSheet({
-          cantiereNome: cantiere.nome || cantiere.id,
-          periodStart,
-          periodEnd,
-        }),
-      });
-      continue;
-    }
-
-    sheets.push({
-      name: getUniqueSheetName(
-        cantiere.nome || cantiere.id,
-        usedNames
-      ),
-      rows: buildSalSheet({
-        freezeExport,
-        cantiereNome: cantiere.nome || cantiere.id,
+      console.error("[sal-period-excel-multiplo-error]", {
+        cantiereId: cantiere.id,
+        cantiereNome,
         periodStart,
         periodEnd,
-        freezeAtLabel: formattaDataOra(freezeExport.freeze.freeze_at),
-      }),
-    });
+        errorMessage,
+      });
+
+      sheets.push({
+        name: sheetName,
+        rows: buildInfoSheet({
+          cantiereNome,
+          periodStart,
+          periodEnd,
+          titolo: SAL_FREEZE_TESTI.EXPORT_MENSILE.ERRORE_CANTIERE,
+          messaggio: errorMessage,
+        }),
+      });
+    }
   }
 
   return sheets;
@@ -460,6 +625,9 @@ export async function POST(
       periodStart: body.periodStart,
       periodEnd: body.periodEnd,
       selectedCantieri,
+      utenteAdmin,
+      userEmail: user.email,
+      userId: user.id,
     });
 
     const workbook = buildCommessaWorkbook(sheets);
