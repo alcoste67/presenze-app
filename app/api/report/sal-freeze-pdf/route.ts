@@ -141,7 +141,16 @@ async function loadLogoA2C(
     );
     const bytes = await readFile(logoPath);
     return pdfDoc.embedPng(bytes);
-  } catch {
+  } catch (error: unknown) {
+    console.error("[sal-period-pdf-inner-catch]", {
+      step: "load_logo",
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error),
+      name:
+        error instanceof Error ? error.name : undefined,
+    });
     return null;
   }
 }
@@ -649,7 +658,24 @@ async function embedImageFromUrl(
     }
 
     return null;
-  } catch {
+  } catch (error: unknown) {
+    const sourceKind = url.startsWith("data:image/")
+      ? "data_url"
+      : url.startsWith("http://") ||
+          url.startsWith("https://")
+        ? "http_url"
+        : "storage_path";
+
+    console.error("[sal-period-pdf-inner-catch]", {
+      step: "embed_image",
+      sourceKind,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error),
+      name:
+        error instanceof Error ? error.name : undefined,
+    });
     return null;
   }
 }
@@ -668,6 +694,14 @@ export async function GET(
   request: NextRequest
 ): Promise<Response> {
   const accessToken = estraiBearerToken(request);
+  const freezeId = getQueryValue(
+    request,
+    SAL_FREEZE_QUERY.FREEZE_ID
+  );
+
+  console.log("[sal-period-pdf-start]", {
+    freezeId,
+  });
 
   if (!accessToken) {
     return jsonErrore(
@@ -690,6 +724,11 @@ export async function GET(
     );
   }
 
+  console.log("[sal-period-pdf-auth-ok]", {
+    freezeId,
+    email: user.email,
+  });
+
   const utenteAdmin = await isAdmin(
     user.email,
     supabaseAdmin
@@ -707,10 +746,6 @@ export async function GET(
     );
   }
 
-  const freezeId = getQueryValue(
-    request,
-    SAL_FREEZE_QUERY.FREEZE_ID
-  );
   const cantiereNomeQuery =
     getQueryValue(request, SAL_FREEZE_QUERY.CANTIERE_NOME) || "";
 
@@ -723,6 +758,10 @@ export async function GET(
   }
 
   try {
+    console.log("[sal-period-pdf-before-loader]", {
+      freezeId,
+    });
+
     const freezeExport =
       await loadSalFreezeExportCommittente({
         freezeId,
@@ -736,10 +775,20 @@ export async function GET(
       );
     }
 
+    console.log("[sal-period-pdf-after-loader]", {
+      freezeId,
+      lavorazioni: freezeExport.lavorazioni.length,
+      foto: freezeExport.foto.length,
+    });
+
     const cantiereNome =
       cantiereNomeQuery ||
       freezeExport.cantiere?.nome ||
       freezeExport.freeze.cantiere_id;
+
+    console.log("[sal-period-pdf-before-doc]", {
+      freezeId,
+    });
 
     const pdfDoc = await PDFDocument.create();
     const fonts = {
@@ -1064,6 +1113,11 @@ export async function GET(
 
     const pdfBytes = await pdfDoc.save();
 
+    console.log("[sal-period-pdf-buffer-ok]", {
+      freezeId,
+      size: pdfBytes.length,
+    });
+
     return new Response(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
@@ -1073,6 +1127,16 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    console.error("[sal-period-pdf-catch]", {
+      freezeId,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error),
+      name:
+        error instanceof Error ? error.name : undefined,
+    });
+
     console.error("[sal-period-pdf-export-error-raw]", error);
 
     const errore = getErroreExportPdf(error);
