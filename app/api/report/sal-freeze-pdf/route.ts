@@ -236,6 +236,33 @@ function drawWrappedText({
   });
 }
 
+function drawCenteredImage({
+  page,
+  image,
+  x,
+  y,
+  boxWidth,
+  boxHeight,
+}: {
+  page: PDFPage;
+  image: PDFImage;
+  x: number;
+  y: number;
+  boxWidth: number;
+  boxHeight: number;
+}) {
+  const scaled = image.scaleToFit(boxWidth, boxHeight);
+  const drawX = x + (boxWidth - scaled.width) / 2;
+  const drawY = y + (boxHeight - scaled.height) / 2;
+
+  page.drawImage(image, {
+    x: drawX,
+    y: drawY,
+    width: scaled.width,
+    height: scaled.height,
+  });
+}
+
 function drawFooter({
   page,
   pageNumber,
@@ -817,8 +844,8 @@ export async function GET(
         color: COLORS.muted,
       });
 
-      const photoWidth = 244;
-      const photoHeight = 110;
+      const photoWidth = 240;
+      const photoHeight = 160;
       const captionHeight = 26;
       const gapX = 14;
       const gapY = 14;
@@ -859,11 +886,13 @@ export async function GET(
         });
 
         if (image) {
-          fotoPage.drawImage(image, {
+          drawCenteredImage({
+            page: fotoPage,
+            image,
             x: x + 1,
             y: imageBottomY + 1,
-            width: photoWidth - 2,
-            height: photoHeight - 2,
+            boxWidth: photoWidth - 2,
+            boxHeight: photoHeight - 2,
           });
         } else {
           fotoPage.drawRectangle({
