@@ -15,7 +15,6 @@ import { SAL_TESTI } from "@/constants/sal";
 import {
   SAL_FREEZE_EXPORT,
   SAL_FREEZE_TESTI,
-  SAL_FREEZE_STORAGE_BUCKET,
 } from "@/constants/salFreeze";
 import { supabase } from "@/lib/supabase";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
@@ -115,8 +114,42 @@ function getMessaggioApi(
   return null;
 }
 
-function getTestoBreve(value: string) {
-  return value.replace(/\s+/g, " ").trim().slice(0, 180);
+function getTestoBreve(value: string, maxLength = 180) {
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function getPreviewUrlSicura(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  if (
+    /^data:image\/(png|jpe?g|webp);base64,/i.test(value) ||
+    /^https?:\/\//i.test(value)
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function getRiferimentoTecnicoFoto(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  if (/^data:image\//i.test(value)) {
+    return "Foto incorporata / data URL";
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return getTestoBreve(value, 80);
+  }
+
+  return getTestoBreve(value, 80);
 }
 
 async function getMessaggioErroreExportDaResponse({
@@ -256,22 +289,6 @@ function getFreezePeriodoLabel(
   freeze: SalFreezeMensile
 ) {
   return `${formattaData(freeze.period_start)} - ${formattaData(freeze.period_end)}`;
-}
-
-function isBucketPath(value: string) {
-  return value.startsWith(
-    `${SAL_FREEZE_STORAGE_BUCKET}/`
-  );
-}
-
-function estraiPathStorage(value: string) {
-  if (!isBucketPath(value)) {
-    return null;
-  }
-
-  return value.slice(
-    SAL_FREEZE_STORAGE_BUCKET.length + 1
-  );
 }
 
 function SectionCard({
@@ -1332,6 +1349,10 @@ export default function BackofficeSalFreezePage() {
                         selectedPhotoIds.includes(
                           foto.id
                         );
+                      const previewUrl =
+                        getPreviewUrlSicura(
+                          foto.immagine_data_url
+                        );
 
                       return (
                         <label
@@ -1350,19 +1371,27 @@ export default function BackofficeSalFreezePage() {
 
                             <div className="min-w-0 flex-1">
                               <div className="aspect-[4/3] overflow-hidden rounded-lg bg-industrial-bg-soft">
-                                <img
-                                  src={foto.immagine_data_url}
-                                  alt={
-                                    foto.descrizione ||
-                                    SAL_FREEZE_TESTI.FOTO_RECENTI
-                                  }
-                                  className="h-full w-full object-cover"
-                                />
+                                {previewUrl ? (
+                                  <img
+                                    src={previewUrl}
+                                    alt={
+                                      foto.descrizione ||
+                                      SAL_FREEZE_TESTI.FOTO_RECENTI
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center rounded-lg bg-industrial-bg-soft px-3 text-center text-xs text-industrial-muted">
+                                    Preview non disponibile
+                                  </div>
+                                )}
                               </div>
 
                               <p className="mt-2 text-sm font-medium text-industrial-text">
                                 {foto.descrizione ||
-                                  SAL_FREEZE_TESTI.FOTO_RECENTI}
+                                  formattaData(
+                                    foto.data_riferimento
+                                  )}
                               </p>
                               <p className="mt-1 text-xs text-industrial-muted-strong">
                                 {formattaData(
@@ -1389,31 +1418,50 @@ export default function BackofficeSalFreezePage() {
                 subtitle={`${fotoSelezionate.length} foto`}
               >
                 {fotoSelezionate.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {fotoSelezionate.map((foto) => (
-                      <figure
-                        key={foto.id}
-                        className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
-                      >
-                        <div className="aspect-[4/3] bg-industrial-bg-soft">
-                          <img
-                            src={foto.immagine_data_url}
-                            alt={
-                              foto.descrizione ||
-                              SAL_FREEZE_TESTI
-                                .ANTEPRIMA_FOTO_SELEZIONATE
-                            }
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <figcaption className="p-3 text-sm text-industrial-muted">
-                          {foto.descrizione ||
-                            formattaData(
-                              foto.data_riferimento
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {fotoSelezionate.map((foto) => {
+                      const previewUrl = getPreviewUrlSicura(
+                        foto.immagine_data_url
+                      );
+
+                      return (
+                        <figure
+                          key={foto.id}
+                          className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
+                        >
+                          <div className="aspect-[4/3] max-h-[210px] overflow-hidden bg-industrial-bg-soft">
+                            {previewUrl ? (
+                              <img
+                                src={previewUrl}
+                                alt={
+                                  foto.descrizione ||
+                                  SAL_FREEZE_TESTI
+                                    .ANTEPRIMA_FOTO_SELEZIONATE
+                                }
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center px-3 text-center text-xs text-industrial-muted">
+                                Preview non disponibile
+                              </div>
                             )}
-                        </figcaption>
-                      </figure>
-                    ))}
+                          </div>
+                          <figcaption className="space-y-1 p-3 text-sm text-industrial-muted">
+                            <p className="font-medium text-industrial-text">
+                              {foto.descrizione ||
+                                formattaData(
+                                  foto.data_riferimento
+                                )}
+                            </p>
+                            <p className="text-xs text-industrial-muted-strong">
+                              {formattaData(
+                                foto.data_riferimento
+                              )}
+                            </p>
+                          </figcaption>
+                        </figure>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-industrial-muted">
@@ -1852,44 +1900,54 @@ export default function BackofficeSalFreezePage() {
 
                     {freezeDettaglioDaMostrare.foto.length > 0 ? (
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {freezeDettaglioDaMostrare.foto.map((foto) => (
-                          <figure
-                            key={foto.id}
-                            className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
-                          >
-                            <div className="aspect-[4/3] bg-industrial-bg-soft">
-                              {foto.preview_url ? (
-                                <img
-                                  src={foto.preview_url}
-                                  alt={foto.descrizione}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full items-center justify-center text-sm text-industrial-muted">
-                                  Preview non disponibile
-                                </div>
-                              )}
-                            </div>
-                            <figcaption className="space-y-1 p-3">
-                              <p className="text-sm font-medium text-industrial-text">
-                                {foto.descrizione ||
-                                  formattaData(
+                        {freezeDettaglioDaMostrare.foto.map((foto) => {
+                          const previewUrl = getPreviewUrlSicura(
+                            foto.preview_url
+                          );
+                          const riferimentoTecnico =
+                            getRiferimentoTecnicoFoto(
+                              foto.storage_path_snapshot
+                            );
+
+                          return (
+                            <figure
+                              key={foto.id}
+                              className="overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
+                            >
+                              <div className="aspect-[4/3] max-h-[210px] overflow-hidden bg-industrial-bg-soft">
+                                {previewUrl ? (
+                                  <img
+                                    src={previewUrl}
+                                    alt={foto.descrizione}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center px-3 text-center text-sm text-industrial-muted">
+                                    Preview non disponibile
+                                  </div>
+                                )}
+                              </div>
+                              <figcaption className="space-y-1 p-3">
+                                <p className="text-sm font-medium text-industrial-text">
+                                  {foto.descrizione ||
+                                    formattaData(
+                                      foto.data_riferimento
+                                    )}
+                                </p>
+                                <p className="text-xs text-industrial-muted">
+                                  {formattaData(
                                     foto.data_riferimento
                                   )}
-                              </p>
-                              <p className="text-xs text-industrial-muted">
-                                {formattaData(
-                                  foto.data_riferimento
-                                )}
-                              </p>
-                              <p className="break-all text-[11px] text-industrial-muted-strong">
-                                {estraiPathStorage(
-                                  foto.storage_path_snapshot
-                                ) || foto.storage_path_snapshot}
-                              </p>
-                            </figcaption>
-                          </figure>
-                        ))}
+                                </p>
+                                {riferimentoTecnico ? (
+                                  <p className="break-all text-[11px] text-industrial-muted-strong">
+                                    {riferimentoTecnico}
+                                  </p>
+                                ) : null}
+                              </figcaption>
+                            </figure>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="mt-3 text-sm text-industrial-muted">
