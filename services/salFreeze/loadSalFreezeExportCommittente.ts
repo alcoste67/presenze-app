@@ -42,6 +42,21 @@ function estraiStoragePath(
   return { bucket, path };
 }
 
+function getPreviewUrlDaSnapshot(
+  storagePathSnapshot: string
+) {
+  if (
+    /^data:image\/(png|jpe?g|webp);base64,/i.test(
+      storagePathSnapshot
+    ) ||
+    /^https?:\/\//i.test(storagePathSnapshot)
+  ) {
+    return storagePathSnapshot;
+  }
+
+  return null;
+}
+
 async function aggiungiPreviewFoto({
   foto,
   supabaseClient,
@@ -56,9 +71,13 @@ async function aggiungiPreviewFoto({
       );
 
       if (!storage) {
+        const directPreview = getPreviewUrlDaSnapshot(
+          item.storage_path_snapshot
+        );
+
         return {
           ...item,
-          preview_url: null,
+          preview_url: directPreview,
         };
       }
 

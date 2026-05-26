@@ -180,6 +180,10 @@ type UploadedFreezePhoto = FreezeFotoSourceRow & {
   storage_path_snapshot: string;
 };
 
+type PreparedFreezePhoto = UploadedFreezePhoto & {
+  copiedToStorage: boolean;
+};
+
 export type SalFreezeCreato = {
   freezeId: string;
   freeze: FreezeHeaderRow;
@@ -246,6 +250,16 @@ function decodeDataUrl(dataUrl: string) {
     bytes: Buffer.from(match[2], "base64"),
     ...info,
   };
+}
+
+function isDataUrl(value: string) {
+  return /^data:image\/(png|jpe?g|webp);base64,/i.test(
+    value
+  );
+}
+
+function isHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value);
 }
 
 function sanitizeFileName(value: string) {
@@ -446,16 +460,43 @@ async function uploadFotoFreeze({
   foto: FreezeFotoSourceRow[];
   supabaseClient: SupabaseClient;
 }) {
-  const uploadedPhotos: UploadedFreezePhoto[] = [];
+  const uploadedPhotos: PreparedFreezePhoto[] = [];
 
   for (let index = 0; index < foto.length; index += 1) {
     const currentFoto = foto[index];
-    const parsed = decodeDataUrl(currentFoto.immagine_data_url);
+    const immagineOriginale =
+      currentFoto.immagine_data_url.trim();
+
+    if (isHttpUrl(immagineOriginale)) {
+      uploadedPhotos.push({
+        ...currentFoto,
+        object_path: immagineOriginale,
+        storage_path_snapshot: immagineOriginale,
+        copiedToStorage: false,
+      });
+      continue;
+    }
+
+    if (!isDataUrl(immagineOriginale)) {
+      console.warn("[SAL_FREEZE] foto SAL non supportata", {
+        step: "copy_photos",
+        fotoId: currentFoto.id,
+        cantiereId,
+        freezeId,
+      });
+      continue;
+    }
+
+    const parsed = decodeDataUrl(immagineOriginale);
 
     if (!parsed) {
-      throw new Error(
-        `Formato immagine non supportato per foto ${currentFoto.id}`
-      );
+      console.warn("[SAL_FREEZE] foto SAL non decodificabile", {
+        step: "copy_photos",
+        fotoId: currentFoto.id,
+        cantiereId,
+        freezeId,
+      });
+      continue;
     }
 
     const fileName = sanitizeFileName(
@@ -472,16 +513,28 @@ async function uploadFotoFreeze({
       });
 
     if (error) {
-      throwSalFreezeError(
-        SAL_FREEZE_ERRORI.COPIA_FOTO_FALLITA,
-        `Upload foto freeze SAL: ${getErroreSupabase(error)}`
-      );
+      console.warn("[SAL_FREEZE] copia foto SAL fallita", {
+        step: "copy_photos",
+        fotoId: currentFoto.id,
+        cantiereId,
+        freezeId,
+        errorMessage: getErroreSupabase(error),
+      });
+
+      uploadedPhotos.push({
+        ...currentFoto,
+        object_path: immagineOriginale,
+        storage_path_snapshot: immagineOriginale,
+        copiedToStorage: false,
+      });
+      continue;
     }
 
     uploadedPhotos.push({
       ...currentFoto,
       object_path: objectPath,
       storage_path_snapshot: storagePathSnapshot,
+      copiedToStorage: true,
     });
   }
 
@@ -691,9 +744,9 @@ export async function createSalFreeze({
         supabaseClient,
       })
   );
-  const uploadedPaths = uploadedPhotos.map(
-    (foto) => foto.object_path
-  );
+  const uploadedPaths = uploadedPhotos
+    .filter((foto) => foto.copiedToStorage)
+    .map((foto) => foto.object_path);
 
   const lavorazioniFreeze: SalFreezeLavorazioneInsert[] = salLive.lavorazioni
     .map((lavorazione) => {
