@@ -2,7 +2,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   SalFreezeExportCommittente,
-  SalFreezeFoto,
   SalFreezeFotoPreview,
   SalFreezeLavorazione,
   SalFreezeMensile,
@@ -10,12 +9,22 @@ import type {
 
 type SupabaseClient = typeof supabaseAdmin;
 
+type SalFreezeFotoExportRow = {
+  id: string;
+  freeze_id: string;
+  storage_path_snapshot: string;
+  descrizione: string;
+  data_riferimento: string;
+  selected_at: string | null;
+  ordine: number;
+};
+
 const SELECT_SAL_FREEZE_MENSILE =
   "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
 const SELECT_SAL_FREEZE_LAVORAZIONI =
   "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at";
 const SELECT_SAL_FREEZE_FOTO =
-  "id, freeze_id, cantiere_id, sal_foto_id, lavorazione_id, data_riferimento, storage_path_snapshot, descrizione, ordine, created_at";
+  "id, freeze_id, storage_path_snapshot, descrizione, data_riferimento, selected_at, ordine";
 
 function estraiStoragePath(
   storagePathSnapshot: string
@@ -61,7 +70,7 @@ async function aggiungiPreviewFoto({
   foto,
   supabaseClient,
 }: {
-  foto: SalFreezeFoto[];
+  foto: SalFreezeFotoExportRow[];
   supabaseClient: SupabaseClient;
 }): Promise<SalFreezeFotoPreview[]> {
   return Promise.all(
@@ -143,6 +152,7 @@ export async function loadSalFreezeExportCommittente({
       .select(SELECT_SAL_FREEZE_FOTO)
       .eq("freeze_id", freezeId)
       .order("ordine", { ascending: true })
+      .order("selected_at", { ascending: true })
       .limit(6),
   ]);
 
@@ -176,7 +186,7 @@ export async function loadSalFreezeExportCommittente({
   }
 
   const foto = await aggiungiPreviewFoto({
-    foto: (fotoResult.data || []) as SalFreezeFoto[],
+    foto: (fotoResult.data || []) as SalFreezeFotoExportRow[],
     supabaseClient,
   });
 

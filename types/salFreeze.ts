@@ -27,14 +27,15 @@ export type SalFreezeLavorazione = {
 export type SalFreezeFoto = {
   id: string;
   freeze_id: string;
-  cantiere_id: string;
-  sal_foto_id: string;
-  lavorazione_id: string | null;
+  cantiere_id?: string;
+  sal_foto_id?: string;
+  lavorazione_id?: string | null;
   data_riferimento: string;
   storage_path_snapshot: string;
   descrizione: string;
   ordine: number;
-  created_at: string;
+  selected_at?: string | null;
+  created_at?: string;
 };
 
 export type SalFreezeFotoPreview = SalFreezeFoto & {

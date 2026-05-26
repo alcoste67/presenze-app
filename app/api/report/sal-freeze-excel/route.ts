@@ -160,7 +160,7 @@ function buildFotoSheet({
 
   freezeExport.foto.slice(0, 6).forEach((foto) => {
     rows.push([
-      foto.sal_foto_id,
+      foto.sal_foto_id || foto.id,
       foto.descrizione,
       formattaData(foto.data_riferimento),
       foto.storage_path_snapshot,
