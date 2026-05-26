@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import {
   PDFDocument,
   type PDFImage,
@@ -120,6 +122,22 @@ function drawText(
   }
 ) {
   page.drawText(normalizzaTestoPdf(text), options);
+}
+
+async function loadLogoA2C(
+  pdfDoc: PDFDocument
+): Promise<PDFImage | null> {
+  try {
+    const logoPath = path.join(
+      process.cwd(),
+      "public",
+      "a2c-logo.png"
+    );
+    const bytes = await readFile(logoPath);
+    return pdfDoc.embedPng(bytes);
+  } catch {
+    return null;
+  }
 }
 
 function formattaData(value: string) {
@@ -263,6 +281,60 @@ function drawCenteredImage({
   });
 }
 
+function drawHeaderLogo({
+  page,
+  fonts,
+  logo,
+}: {
+  page: PDFPage;
+  fonts: { regular: PDFFont; bold: PDFFont };
+  logo: PDFImage | null;
+}) {
+  const headerHeight = 72;
+  const headerBottom = PAGE_HEIGHT - headerHeight;
+
+  if (logo) {
+    const scaled = logo.scaleToFit(110, 28);
+    page.drawImage(logo, {
+      x: MARGIN_X,
+      y: headerBottom + 22,
+      width: scaled.width,
+      height: scaled.height,
+    });
+  } else {
+    drawText(page, "A2C SISTEMI", {
+      x: MARGIN_X,
+      y: TOP_Y - 2,
+      size: 18,
+      font: fonts.bold,
+      color: COLORS.text,
+    });
+  }
+
+  drawText(page, SAL_FREEZE_PDF.TITOLO, {
+    x: PAGE_WIDTH - MARGIN_X - 160,
+    y: TOP_Y + 1,
+    size: 18,
+    font: fonts.bold,
+    color: COLORS.text,
+  });
+
+  drawText(page, SAL_FREEZE_PDF.SOTTOTITOLO, {
+    x: PAGE_WIDTH - MARGIN_X - 160,
+    y: TOP_Y - 16,
+    size: 10,
+    font: fonts.regular,
+    color: COLORS.muted,
+  });
+
+  page.drawLine({
+    start: { x: MARGIN_X, y: headerBottom + 8 },
+    end: { x: PAGE_WIDTH - MARGIN_X, y: headerBottom + 8 },
+    thickness: 1,
+    color: COLORS.orange,
+  });
+}
+
 function drawFooter({
   page,
   pageNumber,
@@ -295,34 +367,26 @@ function drawHeader({
   fonts,
   cantiereNome,
   freeze,
+  logo,
 }: {
   page: PDFPage;
   fonts: { regular: PDFFont; bold: PDFFont };
   cantiereNome: string;
   freeze: SalFreezeExportCommittente["freeze"];
+  logo: PDFImage | null;
 }) {
   page.drawRectangle({
     x: 0,
-    y: PAGE_HEIGHT - 70,
+    y: PAGE_HEIGHT - 72,
     width: PAGE_WIDTH,
-    height: 70,
+    height: 72,
     color: COLORS.surface,
   });
 
-  drawText(page, SAL_FREEZE_PDF.TITOLO, {
-    x: MARGIN_X,
-    y: TOP_Y,
-    size: 20,
-    font: fonts.bold,
-    color: COLORS.text,
-  });
-
-  drawText(page, SAL_FREEZE_PDF.SOTTOTITOLO, {
-    x: MARGIN_X,
-    y: TOP_Y - 18,
-    size: 10,
-    font: fonts.regular,
-    color: COLORS.muted,
+  drawHeaderLogo({
+    page,
+    fonts,
+    logo,
   });
 
   drawText(page, `${SAL_FREEZE_PDF.CANTIERE}:`, {
@@ -365,7 +429,7 @@ function drawHeader({
   page.drawLine({
     start: { x: MARGIN_X, y: 660 },
     end: { x: PAGE_WIDTH - MARGIN_X, y: 660 },
-    thickness: 2,
+    thickness: 1,
     color: COLORS.orange,
   });
 }
@@ -628,6 +692,7 @@ export async function GET(
         StandardFonts.HelveticaBold
       ),
     };
+    const logo = await loadLogoA2C(pdfDoc);
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
@@ -636,6 +701,7 @@ export async function GET(
       fonts,
       cantiereNome,
       freeze: freezeExport.freeze,
+      logo,
     });
 
     drawInfoBox({
@@ -695,10 +761,10 @@ export async function GET(
     });
 
     const headers = [
-      { label: SAL_FREEZE_PDF.LAVORAZIONE, width: 240 },
-      { label: SAL_FREEZE_PDF.PERCENTUALE_PRECEDENTE, width: 90 },
-      { label: SAL_FREEZE_PDF.PERCENTUALE_ATTUALE, width: 90 },
-      { label: SAL_FREEZE_PDF.DELTA_PERIODO, width: 90 },
+      { label: SAL_FREEZE_PDF.LAVORAZIONE, width: 250 },
+      { label: SAL_FREEZE_PDF.PERCENTUALE_PRECEDENTE, width: 84 },
+      { label: SAL_FREEZE_PDF.PERCENTUALE_ATTUALE, width: 84 },
+      { label: SAL_FREEZE_PDF.DELTA_PERIODO, width: 84 },
     ];
     let cursorX = MARGIN_X + 8;
 
@@ -725,6 +791,7 @@ export async function GET(
           fonts,
           cantiereNome,
           freeze: freezeExport.freeze,
+          logo,
         });
         page.drawRectangle({
           x: MARGIN_X,
@@ -826,6 +893,7 @@ export async function GET(
         fonts,
         cantiereNome,
         freeze: freezeExport.freeze,
+        logo,
       });
 
       drawText(fotoPage, SAL_FREEZE_PDF.FOTO_SELEZIONATE, {
@@ -844,13 +912,18 @@ export async function GET(
         color: COLORS.muted,
       });
 
-      const photoWidth = 240;
-      const photoHeight = 160;
-      const captionHeight = 26;
+      const columns = foto.length === 1 ? 1 : 2;
       const gapX = 14;
       const gapY = 14;
+      const availableWidth = PAGE_WIDTH - MARGIN_X * 2;
+      const photoWidth =
+        columns === 1
+          ? availableWidth
+          : (availableWidth - gapX) / 2;
+      const photoHeight = 160;
+      const captionHeight = 30;
       const startX = MARGIN_X;
-      const startY = 500;
+      const startY = 495;
 
       const embeddedPhotos = await Promise.all(
         foto.map(async (item) => {
@@ -866,18 +939,19 @@ export async function GET(
       );
 
       embeddedPhotos.forEach((image, index) => {
-        const col = index % 2;
-        const row = Math.floor(index / 2);
+        const col = columns === 1 ? 0 : index % 2;
+        const row =
+          columns === 1 ? index : Math.floor(index / 2);
         const x = startX + col * (photoWidth + gapX);
         const topY =
           startY - row * (photoHeight + captionHeight + gapY);
-        const imageBottomY = topY - photoHeight;
+        const cardY = topY - photoHeight - captionHeight;
         const captionText =
           `${formattaData(foto[index].data_riferimento)}${foto[index].descrizione?.trim() ? ` • ${foto[index].descrizione.trim()}` : ""}`;
 
         fotoPage.drawRectangle({
           x,
-          y: imageBottomY - captionHeight,
+          y: cardY,
           width: photoWidth,
           height: photoHeight + captionHeight,
           color: COLORS.white,
@@ -890,14 +964,14 @@ export async function GET(
             page: fotoPage,
             image,
             x: x + 1,
-            y: imageBottomY + 1,
+            y: cardY + captionHeight + 1,
             boxWidth: photoWidth - 2,
             boxHeight: photoHeight - 2,
           });
         } else {
           fotoPage.drawRectangle({
             x: x + 1,
-            y: imageBottomY + 1,
+            y: cardY + captionHeight + 1,
             width: photoWidth - 2,
             height: photoHeight - 2,
             color: COLORS.graySoft,
@@ -907,7 +981,7 @@ export async function GET(
             page: fotoPage,
             text: SAL_FREEZE_PDF.FOTO_NON_DISPONIBILE,
             x: x + 1,
-            y: imageBottomY + Math.floor(photoHeight / 2) - 4,
+            y: cardY + captionHeight + Math.floor(photoHeight / 2) - 4,
             width: photoWidth - 2,
             size: 9,
             font: fonts.bold,
@@ -919,7 +993,7 @@ export async function GET(
           page: fotoPage,
           text: captionText,
           x: x + 8,
-          y: imageBottomY - 14,
+          y: cardY + 18,
           maxWidth: photoWidth - 16,
           size: 7,
           font: fonts.bold,
