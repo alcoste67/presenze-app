@@ -1140,18 +1140,36 @@ export async function GET(
     console.error("[sal-period-pdf-export-error-raw]", error);
 
     const errore = getErroreExportPdf(error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : errore.errorMessage;
+    const errorName =
+      error instanceof Error ? error.name : null;
+    const errorStackFirstLine =
+      error instanceof Error
+        ? error.stack?.split("\n")[0] || null
+        : null;
 
     console.error("[sal-period-pdf-export-error]", {
       freezeId,
       step: errore.step,
-      errorMessage: errore.errorMessage,
+      errorMessage,
       code: errore.code,
     });
 
-    return jsonErrore(
-      errore.step,
-      errore.errorMessage,
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
+    return Response.json(
+      {
+        success: false,
+        step: errore.step,
+        errorMessage,
+        errorName,
+        errorStackFirstLine,
+      },
+      {
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        headers: NO_STORE_HEADERS,
+      }
     );
   }
 }
