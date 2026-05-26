@@ -19,7 +19,9 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
-import { SalFreezeExportError } from "@/services/salFreeze/loadSalFreezeExportCommittente";
+import {
+  isSalFreezeExportError,
+} from "@/services/salFreeze/loadSalFreezeExportCommittente";
 import { loadSalFreezeExportCommittente } from "@/services/salFreeze/loadSalFreezeExportCommittente";
 import type { SalFreezeExportCommittente } from "@/types/salFreeze";
 
@@ -488,7 +490,7 @@ function drawInfoBox({
 }
 
 function getErroreExportPdf(error: unknown) {
-  if (error instanceof SalFreezeExportError) {
+  if (isSalFreezeExportError(error)) {
     return {
       step: error.step,
       errorMessage: error.message,
@@ -1047,11 +1049,11 @@ export async function GET(
   } catch (error: unknown) {
     const errore = getErroreExportPdf(error);
 
-    console.error("[sal-period-export-loader-error]", {
+    console.error("[sal-period-pdf-export-error]", {
+      freezeId,
       step: errore.step,
       errorMessage: errore.errorMessage,
       code: errore.code,
-      freezeId,
     });
 
     return jsonErrore(

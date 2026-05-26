@@ -35,6 +35,7 @@ type SupabaseErrorLike = {
 export class SalFreezeExportError extends Error {
   readonly step: SalFreezeExportStep;
   readonly code: string | null;
+  readonly isSalFreezeExportError = true;
 
   constructor(
     step: SalFreezeExportStep,
@@ -42,6 +43,10 @@ export class SalFreezeExportError extends Error {
   ) {
     const errorMessage = getErroreSupabase(error);
     super(errorMessage);
+    Object.setPrototypeOf(
+      this,
+      SalFreezeExportError.prototype
+    );
     this.name = "SalFreezeExportError";
     this.step = step;
     this.code =
@@ -52,6 +57,25 @@ export class SalFreezeExportError extends Error {
         ? (error as SupabaseErrorLike).code || null
         : null;
   }
+}
+
+export function isSalFreezeExportError(
+  error: unknown
+): error is SalFreezeExportError {
+  if (error instanceof SalFreezeExportError) {
+    return true;
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+
+  return (
+    record.isSalFreezeExportError === true ||
+    record.name === "SalFreezeExportError"
+  );
 }
 
 const SELECT_SAL_FREEZE_MENSILE =
