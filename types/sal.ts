@@ -19,3 +19,24 @@ export type SalCantiere = {
   oreUomoTotaliMinuti: number;
   lavorazioni: SalLavorazione[];
 };
+
+export type SalLavorazioneFoto = {
+  id: string;
+  cantiere_id: string;
+  lavorazione_id: string | null;
+  timbratura_id: string | null;
+  data_riferimento: string;
+  immagine_data_url: string;
+  descrizione: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type SalLavorazioneFotoInput = {
+  cantiere_id: string;
+  lavorazione_id: string | null;
+  timbratura_id: string | null;
+  data_riferimento: string;
+  immagine_data_url: string;
+  descrizione: string;
+};

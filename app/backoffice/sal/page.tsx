@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
+  ChangeEvent,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -14,9 +17,12 @@ import {
 } from "@/constants/sal";
 import { supabase } from "@/lib/supabase";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { creaSalLavorazioniFoto } from "@/services/sal/creaSalLavorazioniFoto";
+import { loadSalLavorazioniFoto } from "@/services/sal/loadSalLavorazioniFoto";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
+  SalLavorazioneFoto,
   SalCantiere,
   SalLavorazione,
   StatoSalLavorazione,
@@ -122,6 +128,33 @@ function formattaOreUomo(minutiTotali: number) {
   return `${ore}${SAL_TESTI.UNITA_ORA} ${minuti}${SAL_TESTI.UNITA_MINUTO}`;
 }
 
+function formattaDataIso(data: Date) {
+  const year = data.getFullYear();
+  const month = String(
+    data.getMonth() + 1
+  ).padStart(2, "0");
+  const day = String(data.getDate()).padStart(
+    2,
+    "0"
+  );
+
+  return `${year}-${month}-${day}`;
+}
+
+function getDataOggi() {
+  return formattaDataIso(new Date());
+}
+
+function formattaDataBreve(data: string) {
+  if (!data) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("it-IT").format(
+    new Date(`${data}T00:00:00`)
+  );
+}
+
 function BarraProgresso({
   percentuale,
 }: {
@@ -192,11 +225,31 @@ export default function BackofficeSalPage() {
   >([]);
   const [cantiereId, setCantiereId] =
     useState("");
+  const [dataRiferimento, setDataRiferimento] =
+    useState(getDataOggi());
   const [sal, setSal] =
     useState<SalCantiere | null>(null);
+  const [fotoLavorazioni, setFotoLavorazioni] =
+    useState<SalLavorazioneFoto[]>([]);
+  const [fotoDaCaricare, setFotoDaCaricare] =
+    useState<
+      {
+        localId: string;
+        fileName: string;
+        immagine_data_url: string;
+      }[]
+    >([]);
+  const [fotoDescrizione, setFotoDescrizione] =
+    useState("");
+  const [fotoLavorazioneId, setFotoLavorazioneId] =
+    useState("");
   const [loadingCantieri, setLoadingCantieri] =
     useState(true);
   const [loadingSal, setLoadingSal] =
+    useState(false);
+  const [loadingFoto, setLoadingFoto] =
+    useState(false);
+  const [salvataggioFoto, setSalvataggioFoto] =
     useState(false);
   const [loadingPdf, setLoadingPdf] =
     useState(false);
@@ -204,29 +257,16 @@ export default function BackofficeSalPage() {
     string | null
   >(null);
 
-  const caricaSal = async (
-    nextCantiereId: string
-  ) => {
-    if (!nextCantiereId) {
-      setSal(null);
-      return;
-    }
-
-    try {
-      setLoadingSal(true);
-      setErrore(null);
-
-      const dati = await loadSalCantiere(
-        nextCantiereId
-      );
-
-      setSal(dati);
-    } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
-    } finally {
-      setLoadingSal(false);
-    }
-  };
+  const lavorazioniById = useMemo(
+    () =>
+      new Map(
+        sal?.lavorazioni.map((lavorazione) => [
+          lavorazione.id,
+          lavorazione,
+        ]) || []
+      ),
+    [sal]
+  );
 
   useEffect(() => {
     let attivo = true;
@@ -245,10 +285,6 @@ export default function BackofficeSalPage() {
 
         setCantieri(dati);
         setCantiereId(primoCantiereId);
-
-        if (primoCantiereId) {
-          await caricaSal(primoCantiereId);
-        }
       } catch (error: unknown) {
         if (attivo) {
           setErrore(
@@ -269,15 +305,200 @@ export default function BackofficeSalPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let attivo = true;
+
+    const caricaSalEFoto = async () => {
+      if (!cantiereId) {
+        setSal(null);
+        setFotoLavorazioni([]);
+        setLoadingSal(false);
+        setLoadingFoto(false);
+        return;
+      }
+
+      try {
+        setLoadingSal(true);
+        setLoadingFoto(true);
+        setErrore(null);
+
+        const [salCaricato, fotoCaricate] =
+          await Promise.all([
+            loadSalCantiere(cantiereId),
+            loadSalLavorazioniFoto({
+              cantiereId,
+              dataRiferimento,
+              limit: 12,
+            }),
+          ]);
+
+        if (!attivo) {
+          return;
+        }
+
+        setSal(salCaricato);
+        setFotoLavorazioni(fotoCaricate);
+      } catch (error: unknown) {
+        if (attivo) {
+          setErrore(
+            getMessaggioErrore(error)
+          );
+        }
+      } finally {
+        if (attivo) {
+          setLoadingSal(false);
+          setLoadingFoto(false);
+        }
+      }
+    };
+
+    void caricaSalEFoto();
+
+    return () => {
+      attivo = false;
+    };
+  }, [cantiereId, dataRiferimento]);
+
   const handleCantiereChange = (
     nextCantiereId: string
   ) => {
     setCantiereId(nextCantiereId);
     setErrore(null);
-    if (!nextCantiereId) {
-      setSal(null);
+    setFotoDaCaricare([]);
+    setFotoDescrizione("");
+    setFotoLavorazioneId("");
+  };
+
+  const handleDataRiferimentoChange = (
+    nextDataRiferimento: string
+  ) => {
+    setDataRiferimento(nextDataRiferimento);
+  };
+
+  const leggiFileComeDataUrl = (
+    file: File
+  ) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+          return;
+        }
+
+        reject(
+          new Error(
+            SAL_TESTI.ERRORI.GENERICO
+          )
+        );
+      };
+
+      reader.onerror = () => {
+        reject(
+          new Error(
+            SAL_TESTI.ERRORI.GENERICO
+          )
+        );
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+  const handleFotoInputChange = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(
+      event.target.files || []
+    );
+
+    if (files.length === 0) {
+      return;
     }
-    void caricaSal(nextCantiereId);
+
+    try {
+      const fotoDataUrl =
+        await Promise.all(
+          files.map(async (file) => {
+            if (
+              !file.type.startsWith("image/")
+            ) {
+              throw new Error(
+                SAL_TESTI.ERRORI.GENERICO
+              );
+            }
+
+            return leggiFileComeDataUrl(file);
+          })
+        );
+
+      setFotoDaCaricare((fotoCorrenti) => [
+        ...fotoCorrenti,
+        ...fotoDataUrl.map(
+          (immagineDataUrl, index) => ({
+            localId: `${Date.now()}-${index}`,
+            fileName: files[index]?.name || "",
+            immagine_data_url:
+              immagineDataUrl,
+          })
+        ),
+      ]);
+      event.target.value = "";
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    }
+  };
+
+  const handleEliminaFotoDaCaricare = (
+    localId: string
+  ) => {
+    setFotoDaCaricare((fotoCorrenti) =>
+      fotoCorrenti.filter(
+        (foto) => foto.localId !== localId
+      )
+    );
+  };
+
+  const handleSalvaFoto = async () => {
+    if (
+      !cantiereId ||
+      fotoDaCaricare.length === 0
+    ) {
+      return;
+    }
+
+    try {
+      setSalvataggioFoto(true);
+      setErrore(null);
+
+      const fotoSalvate =
+        await creaSalLavorazioniFoto({
+          foto: fotoDaCaricare.map((foto) => ({
+            cantiere_id: cantiereId,
+            lavorazione_id:
+              fotoLavorazioneId || null,
+            timbratura_id: null,
+            data_riferimento:
+              dataRiferimento,
+            immagine_data_url:
+              foto.immagine_data_url,
+            descrizione:
+              fotoDescrizione.trim(),
+          })),
+        });
+
+      setFotoLavorazioni((fotoCorrenti) => [
+        ...fotoSalvate,
+        ...fotoCorrenti,
+      ].slice(0, 12));
+      setFotoDaCaricare([]);
+      setFotoDescrizione("");
+      setFotoLavorazioneId("");
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setSalvataggioFoto(false);
+    }
   };
 
   const handleEsportaPdf = async () => {
@@ -307,7 +528,7 @@ export default function BackofficeSalPage() {
       }
 
       const response = await fetch(
-        `/api/report/sal-pdf?cantiereId=${encodeURIComponent(cantiereId)}`,
+        `/api/report/sal-pdf?cantiereId=${encodeURIComponent(cantiereId)}&dataRiferimento=${encodeURIComponent(dataRiferimento)}`,
         {
           headers: {
             [API_HEADERS.AUTHORIZATION]:
@@ -415,6 +636,227 @@ export default function BackofficeSalPage() {
               ))}
             </select>
           </label>
+        </section>
+
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">
+                {SAL_TESTI.FOTO_LAVORAZIONI}
+              </h2>
+              <p className="mt-1 text-sm text-industrial-muted">
+                {SAL_TESTI.FOTO_CARICATE}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                {SAL_TESTI.DATA_RIFERIMENTO}
+              </span>
+              <input
+                type="date"
+                value={dataRiferimento}
+                onChange={(event) =>
+                  handleDataRiferimentoChange(
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+              />
+            </label>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                  {SAL_TESTI.SELEZIONA_LAVORAZIONE}
+                </span>
+                <select
+                  value={fotoLavorazioneId}
+                  onChange={(event) =>
+                    setFotoLavorazioneId(
+                      event.target.value
+                    )
+                  }
+                  disabled={
+                    loadingSal ||
+                    sal?.lavorazioni.length === 0
+                  }
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                >
+                  <option value="">
+                    {SAL_TESTI.SELEZIONA_LAVORAZIONE}
+                  </option>
+                  {sal?.lavorazioni.map(
+                    (lavorazione) => (
+                      <option
+                        key={lavorazione.id}
+                        value={lavorazione.id}
+                      >
+                        {lavorazione.nome}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                  {SAL_TESTI.DESCRIZIONE_FOTO}
+                </span>
+                <textarea
+                  value={fotoDescrizione}
+                  onChange={(event) =>
+                    setFotoDescrizione(
+                      event.target.value
+                    )
+                  }
+                  rows={3}
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="block flex-1 min-w-[220px]">
+              <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                {SAL_TESTI.CARICA_FOTO}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={handleFotoInputChange}
+                className="block w-full rounded-lg border border-dashed border-industrial-border bg-industrial-control p-3 text-sm text-industrial-muted file:mr-3 file:rounded-md file:border-0 file:bg-industrial-orange file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-industrial-orange-hover"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={handleSalvaFoto}
+              disabled={
+                salvataggioFoto ||
+                fotoDaCaricare.length === 0 ||
+                !cantiereId
+              }
+              className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+            >
+              {salvataggioFoto
+                ? SAL_TESTI.CARICAMENTO
+                : SAL_TESTI.AGGIUNGI_FOTO}
+            </button>
+          </div>
+
+          {fotoDaCaricare.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-3 text-sm font-medium text-industrial-muted">
+                {
+                  SAL_TESTI.ANTEPRIMA_FOTO_SELEZIONATE
+                }
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {fotoDaCaricare.map((foto) => (
+                  <div
+                    key={foto.localId}
+                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-3"
+                  >
+                    <Image
+                      src={foto.immagine_data_url}
+                      alt={foto.fileName}
+                      width={640}
+                      height={360}
+                      unoptimized
+                      className="h-40 w-full rounded-md object-cover"
+                    />
+                    <div className="mt-3 flex items-start justify-between gap-2">
+                      <p className="text-xs text-industrial-muted">
+                        {foto.fileName}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEliminaFotoDaCaricare(
+                            foto.localId
+                          )
+                        }
+                        className="text-xs font-semibold text-industrial-orange transition-colors duration-200 ease-out hover:text-industrial-orange-hover"
+                      >
+                        {SAL_TESTI.RIMUOVI}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold">
+                {SAL_TESTI.GALLERIA_RECENTE}
+              </h3>
+              {loadingFoto && (
+                <span className="text-sm text-industrial-muted">
+                  {SAL_TESTI.CARICAMENTO}
+                </span>
+              )}
+            </div>
+
+            {!loadingFoto &&
+              fotoLavorazioni.length === 0 && (
+                <p className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 text-sm text-industrial-muted">
+                  {SAL_TESTI.NESSUNA_FOTO}
+                </p>
+              )}
+
+            {fotoLavorazioni.length > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {fotoLavorazioni.map((foto) => (
+                  <article
+                    key={foto.id}
+                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-3"
+                  >
+                    <Image
+                      src={foto.immagine_data_url}
+                      alt={foto.descrizione || foto.id}
+                      width={640}
+                      height={360}
+                      unoptimized
+                      className="h-44 w-full rounded-md object-cover"
+                    />
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm font-medium text-industrial-text">
+                        {foto.descrizione ||
+                          SAL_TESTI.DESCRIZIONE_FOTO}
+                      </p>
+                      <p className="text-xs text-industrial-muted">
+                        {formattaDataBreve(
+                          foto.data_riferimento
+                        )}
+                        {foto.lavorazione_id &&
+                          lavorazioniById.get(
+                            foto.lavorazione_id
+                          ) && (
+                            <>
+                              {" "}
+                              -{" "}
+                              {
+                                lavorazioniById.get(
+                                  foto.lavorazione_id
+                                )?.nome
+                              }
+                            </>
+                          )}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
         {loading && (

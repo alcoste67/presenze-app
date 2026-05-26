@@ -13,6 +13,7 @@ import {
 import { APP_ROUTES } from "@/constants/routes";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { isResponsabile } from "@/services/dipendenti/isResponsabile";
 import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
 
 type Props = {
@@ -33,6 +34,11 @@ export function ProtezioneBackoffice({
     const accessoOperativoRapporti =
       pathname ===
       APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO;
+    const accessoCostiMacchinari =
+      pathname ===
+      APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;
+    const accessoHubBackoffice =
+      pathname === APP_ROUTES.BACKOFFICE;
 
     const verificaAccesso = async () => {
       setAutorizzato(false);
@@ -59,6 +65,28 @@ export function ProtezioneBackoffice({
         }
 
         if (utenteAdmin) {
+          setAutorizzato(true);
+
+          return;
+        }
+
+        if (
+          accessoHubBackoffice ||
+          accessoCostiMacchinari
+        ) {
+          const utenteResponsabile =
+            await isResponsabile(user.email);
+
+          if (!attivo) {
+            return;
+          }
+
+          if (!utenteResponsabile) {
+            router.replace(APP_ROUTES.HOME);
+
+            return;
+          }
+
           setAutorizzato(true);
 
           return;

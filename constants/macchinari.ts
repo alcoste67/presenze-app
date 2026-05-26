@@ -1,0 +1,74 @@
+export const TIPI_MACCHINARIO = {
+  SCAVATORE: "SCAVATORE",
+  PLE: "PLE",
+  AUTOGRU: "AUTOGRU",
+  CAROTAGGIO: "CAROTAGGIO",
+  ALTRO: "ALTRO",
+} as const;
+
+export const MACCHINARI_TESTI = {
+  TITOLO: "Costi Macchinari",
+  CARD_DESCRIZIONE:
+    "Utilizzo macchinari speciali per commessa",
+  CANTIERE: "Cantiere",
+  SELEZIONA_CANTIERE:
+    "Seleziona un cantiere",
+  TIPO_MACCHINARIO: "Tipo macchinario",
+  DESCRIZIONE: "Descrizione",
+  DATA_UTILIZZO: "Data utilizzo",
+  ORE_UTILIZZO: "Ore utilizzo",
+  TARIFFA_ORARIA: "Tariffa oraria",
+  COSTO_TOTALE: "Costo totale",
+  NOTE: "Note",
+  ANTEPRIMA_FOTO_SELEZIONATE:
+    "Anteprima foto selezionate",
+  RIMUOVI: "Rimuovi",
+  CONFERMA_ELIMINAZIONE:
+    "Eliminare questo utilizzo macchinario?",
+  VOCI: "voci",
+  AGGIUNGI: "Aggiungi utilizzo",
+  SALVA: "Salva",
+  SALVATAGGIO: "Salvataggio...",
+  MODIFICA: "Modifica",
+  ANNULLA: "Annulla",
+  ELIMINA: "Elimina",
+  LISTA: "Utilizzi macchinari",
+  NESSUNO:
+    "Nessun utilizzo registrato",
+  CARICAMENTO: "Caricamento...",
+  BACKOFFICE: "Back-office",
+  TIMBRATURE: "Timbrature",
+    TARIFFA_VISIBILE:
+    "Tariffa oraria visibile solo ad admin/responsabile",
+  COSTO_VISIBILE:
+    "Costo totale visibile solo ad admin/responsabile",
+  TIPI_LABEL: {
+    SCAVATORE: "Scavatore",
+    PLE: "PLE",
+    AUTOGRU: "Autogru",
+    CAROTAGGIO: "Carotaggio",
+    ALTRO: "Altro",
+  },
+  ERRORI: {
+    GENERICO:
+      "Errore gestione costi macchinari",
+    CANTIERE_OBBLIGATORIO:
+      "Seleziona un cantiere",
+    TIPO_OBBLIGATORIO:
+      "Seleziona il tipo macchinario",
+    DATA_OBBLIGATORIA:
+      "Inserisci la data utilizzo",
+    ORE_NON_VALIDO:
+      "Ore utilizzo non valide",
+    TARIFFA_NON_VALIDA:
+      "Tariffa oraria non valida",
+    ACCESSO_NEGATO:
+      "Accesso non autorizzato",
+  },
+  MESSAGGI: {
+    CREATO: "Utilizzo macchinario creato",
+    AGGIORNATO:
+      "Utilizzo macchinario aggiornato",
+    ELIMINATO: "Utilizzo macchinario eliminato",
+  },
+} as const;

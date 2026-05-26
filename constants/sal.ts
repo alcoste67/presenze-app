@@ -11,11 +11,25 @@ export const SAL_TESTI = {
   BACKOFFICE: "Back-office",
   TIMBRATURE: "Timbrature",
   CANTIERE: "Cantiere",
+  DATA_RIFERIMENTO: "Data riferimento",
   SELEZIONA_CANTIERE:
     "Seleziona un cantiere",
   NESSUN_CANTIERE:
     "Nessun cantiere disponibile",
   CARICAMENTO: "Caricamento...",
+  FOTO_LAVORAZIONI: "Foto lavorazioni",
+  SELEZIONA_LAVORAZIONE:
+    "Seleziona lavorazione",
+  NESSUNA_FOTO:
+    "Nessuna foto disponibile",
+  AGGIUNGI_FOTO: "Aggiungi foto",
+  CARICA_FOTO: "Carica foto",
+  DESCRIZIONE_FOTO: "Descrizione foto",
+  GALLERIA_RECENTE: "Galleria recente",
+  FOTO_CARICATE: "Foto caricate",
+  ANTEPRIMA_FOTO_SELEZIONATE:
+    "Anteprima foto selezionate",
+  RIMUOVI: "Rimuovi",
   AVANZAMENTO_TOTALE:
     "Avanzamento totale cantiere",
   ORE_UOMO_TOTALI: "Ore uomo totali",
@@ -51,15 +65,23 @@ export const SAL_PDF = {
     DATA_GENERAZIONE:
       "Data generazione",
     CANTIERE: "Cantiere",
+    DATA_RIFERIMENTO: "Data riferimento",
     AVANZAMENTO_TOTALE:
       "Avanzamento totale",
     ORE_UOMO_TOTALI: "Ore uomo totali",
     LAVORAZIONI: "Lavorazioni",
+    FOTO_LAVORAZIONI: "Foto lavorazioni",
+    FOTO_RECENTI: "Foto recenti",
     LAVORAZIONE: "Lavorazione",
+    DESCRIZIONE: "Descrizione",
     PERCENTUALE:
       "Percentuale completamento",
     STATO: "Stato",
     ORE_UOMO: "Ore uomo",
+    NESSUNA_FOTO:
+      "Nessuna foto disponibile",
+    MASSIMO_FOTO:
+      "Nel PDF vengono incluse al massimo 6 foto recenti",
     PAGINA: "Pagina",
     DI: "di",
   },

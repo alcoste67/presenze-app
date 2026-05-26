@@ -4,6 +4,7 @@ import path from "node:path";
 import type { NextRequest } from "next/server";
 import {
   PDFDocument,
+  PDFImage,
   PDFPage,
   PDFFont,
   RGB,
@@ -22,8 +23,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { loadCantiereBackoffice } from "@/services/cantieri/loadCantiereBackoffice";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
+import { loadSalLavorazioniFoto } from "@/services/sal/loadSalLavorazioniFoto";
 import type {
   SalCantiere,
+  SalLavorazioneFoto,
   SalLavorazione,
   StatoSalLavorazione,
 } from "@/types/sal";
@@ -43,8 +46,10 @@ type Layout = {
 
 type SalPdfParams = {
   cantiereNome: string;
+  dataRiferimento: string;
   dataGenerazione: Date;
   sal: SalCantiere;
+  fotoLavorazioni: SalLavorazioneFoto[];
 };
 
 const PAGE_WIDTH = 595.28;
@@ -191,6 +196,18 @@ function formattaDataFile(data: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseDataIso(data: string) {
+  if (!data) {
+    return null;
+  }
+
+  const parsed = new Date(`${data}T00:00:00`);
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+}
+
 function getStatoLabel(
   stato: StatoSalLavorazione
 ) {
@@ -240,6 +257,29 @@ function getNomeFile(
     .slice(0, 80);
 
   return `${SAL_PDF.FILE_PREFIX}_${cantiereFile || "cantiere"}_${formattaDataFile(dataGenerazione)}.pdf`;
+}
+
+async function embedImmagineDataUrl(
+  pdfDoc: PDFDocument,
+  dataUrl: string
+): Promise<PDFImage | null> {
+  const match =
+    /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(
+      dataUrl
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const mime = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], "base64");
+
+  if (mime === "png") {
+    return pdfDoc.embedPng(bytes);
+  }
+
+  return pdfDoc.embedJpg(bytes);
 }
 
 function wrapText({
@@ -332,6 +372,7 @@ function drawHeader({
   fonts,
   logo,
   cantiereNome,
+  dataRiferimento,
   dataGenerazione,
 }: {
   page: PDFPage;
@@ -340,6 +381,7 @@ function drawHeader({
     draw: (page: PDFPage) => void;
   };
   cantiereNome: string;
+  dataRiferimento: string;
   dataGenerazione: Date;
 }) {
   logo.draw(page);
@@ -371,6 +413,24 @@ function drawHeader({
       color: COLORS.muted,
     }
   );
+
+  const dataRiferimentoParsed = parseDataIso(
+    dataRiferimento
+  );
+
+  if (dataRiferimentoParsed) {
+    drawText(
+      page,
+      `${SAL_PDF.TESTI.DATA_RIFERIMENTO}: ${formattaData(dataRiferimentoParsed)}`,
+      {
+        x: 170,
+        y: 722,
+        size: 9,
+        font: fonts.regular,
+        color: COLORS.muted,
+      }
+    );
+  }
 
   page.drawLine({
     start: { x: MARGIN_X, y: 708 },
@@ -625,6 +685,189 @@ function drawEmptyTableRow({
   });
 }
 
+function drawFotoCard({
+  page,
+  fonts,
+  foto,
+  lavorazioneNome,
+  x,
+  y,
+  width,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  foto: {
+    image: PDFImage | null;
+    descrizione: string;
+    dataRiferimento: string;
+  };
+  lavorazioneNome: string;
+  x: number;
+  y: number;
+  width: number;
+}) {
+  const height = 180;
+
+  page.drawRectangle({
+    x,
+    y: y - height,
+    width,
+    height,
+    color: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 0.6,
+  });
+
+  if (foto.image) {
+    const boxWidth = width - 20;
+    const boxHeight = 104;
+    const dimensions = foto.image.scaleToFit(
+      boxWidth,
+      boxHeight
+    );
+    const imageX =
+      x + (width - dimensions.width) / 2;
+
+    page.drawImage(foto.image, {
+      x: imageX,
+      y: y - 18 - dimensions.height,
+      width: dimensions.width,
+      height: dimensions.height,
+    });
+  }
+
+  drawWrappedText({
+    page,
+    text:
+      foto.descrizione ||
+      SAL_PDF.TESTI.DESCRIZIONE,
+    x: x + 10,
+    y: y - 132,
+    maxWidth: width - 20,
+    size: 9,
+    font: fonts.bold,
+    color: COLORS.text,
+    maxLines: 2,
+    lineHeight: 10,
+  });
+
+  drawWrappedText({
+    page,
+    text: [
+      formattaData(
+        parseDataIso(foto.dataRiferimento) ||
+          new Date()
+      ),
+      lavorazioneNome,
+    ]
+      .filter(Boolean)
+      .join(" - "),
+    x: x + 10,
+    y: y - 154,
+    maxWidth: width - 20,
+    size: 7.5,
+    font: fonts.regular,
+    color: COLORS.muted,
+    maxLines: 2,
+    lineHeight: 8,
+  });
+}
+
+async function drawFotoPage({
+  pdfDoc,
+  fonts,
+  fotoLavorazioni,
+  sal,
+}: {
+  pdfDoc: PDFDocument;
+  fonts: FontSet;
+  fotoLavorazioni: SalLavorazioneFoto[];
+  sal: SalCantiere;
+}) {
+  if (fotoLavorazioni.length === 0) {
+    return;
+  }
+
+  const page = pdfDoc.addPage([
+    PAGE_WIDTH,
+    PAGE_HEIGHT,
+  ]);
+  const lavorazioniById = new Map(
+    sal.lavorazioni.map((lavorazione) => [
+      lavorazione.id,
+      lavorazione.nome,
+    ])
+  );
+  const fotoPdf = await Promise.all(
+    fotoLavorazioni.slice(0, 6).map(async (foto) => ({
+      image: await embedImmagineDataUrl(
+        pdfDoc,
+        foto.immagine_data_url
+      ),
+      descrizione: foto.descrizione,
+      dataRiferimento: foto.data_riferimento,
+      lavorazioneNome:
+        (foto.lavorazione_id &&
+          lavorazioniById.get(
+            foto.lavorazione_id
+          )) ||
+        "",
+    }))
+  );
+
+  drawText(page, SAL_PDF.TESTI.FOTO_LAVORAZIONI, {
+    x: MARGIN_X,
+    y: 774,
+    size: 16,
+    font: fonts.bold,
+    color: COLORS.text,
+  });
+
+  drawText(page, SAL_PDF.TESTI.FOTO_RECENTI, {
+    x: MARGIN_X,
+    y: 754,
+    size: 10,
+    font: fonts.regular,
+    color: COLORS.muted,
+  });
+
+  drawText(page, SAL_PDF.TESTI.MASSIMO_FOTO, {
+    x: MARGIN_X,
+    y: 738,
+    size: 8,
+    font: fonts.regular,
+    color: COLORS.muted,
+  });
+
+  const cardWidth =
+    (PAGE_WIDTH - MARGIN_X * 2 - 16) / 2;
+  const startY = 690;
+  const rowGap = 18;
+  const colGap = 16;
+
+  fotoPdf.forEach((foto, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const x =
+      MARGIN_X + col * (cardWidth + colGap);
+    const y =
+      startY - row * (180 + rowGap);
+    drawFotoCard({
+      page,
+      fonts,
+      foto: {
+        image: foto.image,
+        descrizione: foto.descrizione,
+        dataRiferimento: foto.dataRiferimento,
+      },
+      lavorazioneNome: foto.lavorazioneNome,
+      x,
+      y,
+      width: cardWidth,
+    });
+  });
+}
+
 function drawFooter({
   page,
   fonts,
@@ -684,8 +927,10 @@ async function embedLogo(
 
 async function generaSalPdf({
   cantiereNome,
+  dataRiferimento,
   dataGenerazione,
   sal,
+  fotoLavorazioni,
 }: SalPdfParams) {
   const pdfDoc = await PDFDocument.create();
   const fonts = {
@@ -713,6 +958,7 @@ async function generaSalPdf({
     fonts,
     logo,
     cantiereNome,
+    dataRiferimento,
     dataGenerazione,
   });
 
@@ -790,6 +1036,13 @@ async function generaSalPdf({
     tableY -= ROW_HEIGHT;
   });
 
+  await drawFotoPage({
+    pdfDoc,
+    fonts,
+    fotoLavorazioni,
+    sal,
+  });
+
   const pages = pdfDoc.getPages();
 
   pages.forEach((pdfPage, index) => {
@@ -808,6 +1061,10 @@ export async function GET(request: NextRequest) {
   const cantiereId =
     request.nextUrl.searchParams.get(
       "cantiereId"
+    ) || "";
+  const dataRiferimento =
+    request.nextUrl.searchParams.get(
+      "dataRiferimento"
     ) || "";
 
   try {
@@ -872,11 +1129,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const fotoLavorazioni =
+      dataRiferimento
+        ? await loadSalLavorazioniFoto({
+            cantiereId,
+            dataRiferimento,
+            limit: 6,
+            supabaseClient: supabaseAdmin,
+          })
+        : [];
+
     const dataGenerazione = new Date();
     const pdfBytes = await generaSalPdf({
       cantiereNome: cantiere.nome,
+      dataRiferimento,
       dataGenerazione,
       sal,
+      fotoLavorazioni,
     });
     const fileName = getNomeFile(
       cantiere.nome,
