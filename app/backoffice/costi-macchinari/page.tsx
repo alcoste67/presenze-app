@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,32 +14,40 @@ import {
   MACCHINARI_TESTI,
   TIPI_MACCHINARIO,
 } from "@/constants/macchinari";
+import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { aggiornaCostoMacchinarioCommessa } from "@/services/costiMacchinari/aggiornaCostoMacchinarioCommessa";
 import { creaCostoMacchinarioCommessa } from "@/services/costiMacchinari/creaCostoMacchinarioCommessa";
 import { eliminaCostoMacchinarioCommessa } from "@/services/costiMacchinari/eliminaCostoMacchinarioCommessa";
 import { loadCostiMacchinariCommessa } from "@/services/costiMacchinari/loadCostiMacchinariCommessa";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { loadMacchinariAdmin } from "@/services/macchinari/loadMacchinariAdmin";
+import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   CostoMacchinarioCommessa,
   TipoMacchinario,
 } from "@/types/costiMacchinari";
+import type {
+  Macchinario,
+  MacchinarioPubblico,
+} from "@/types/macchinari";
 
 type CostoForm = {
+  macchinario_id: string;
   tipo_macchinario: TipoMacchinario | "";
   data_utilizzo: string;
   ore_utilizzo: string;
   descrizione: string;
-  tariffa_oraria: string;
   note: string;
 };
 
 const FORM_INIZIALE: CostoForm = {
+  macchinario_id: "",
   tipo_macchinario: "",
   data_utilizzo: getLocalDateIso(),
   ore_utilizzo: "",
   descrizione: "",
-  tariffa_oraria: "",
   note: "",
 };
 
@@ -100,14 +109,22 @@ function formattaData(value: string) {
 function preparaPayload({
   cantiereId,
   form,
+  macchinarioSelezionato,
+  mostraCosti,
 }: {
   cantiereId: string;
   form: CostoForm;
+  macchinarioSelezionato:
+    | Macchinario
+    | MacchinarioPubblico
+    | null;
+  mostraCosti: boolean;
 }):
   | {
       payload: {
         cantiere_id: string;
         rapporto_intervento_id: string | null;
+        macchinario_id: string | null;
         tipo_macchinario: TipoMacchinario;
         descrizione: string;
         data_utilizzo: string;
@@ -141,6 +158,17 @@ function preparaPayload({
     };
   }
 
+  const macchinarioId = form.macchinario_id || null;
+  const tipoMacchinario = form.tipo_macchinario;
+
+  if (!macchinarioId && !tipoMacchinario) {
+    return {
+      errore:
+        MACCHINARI_TESTI.ERRORI
+          .TIPO_OBBLIGATORIO,
+    };
+  }
+
   const oreUtilizzo = parseNumeroDecimale(
     form.ore_utilizzo
   );
@@ -156,35 +184,45 @@ function preparaPayload({
     };
   }
 
-  const tariffaOraria = form.tariffa_oraria.trim()
-    ? parseNumeroDecimale(form.tariffa_oraria)
-    : null;
-
-  if (
-    form.tariffa_oraria.trim() &&
-    tariffaOraria === null
-  ) {
-    return {
-      errore:
-        MACCHINARI_TESTI.ERRORI
-          .TARIFFA_NON_VALIDA,
-    };
-  }
+  const tariffaOraria =
+    mostraCosti &&
+    macchinarioSelezionato &&
+    "costo_orario" in macchinarioSelezionato
+      ? macchinarioSelezionato.costo_orario
+      : null;
 
   const costoTotale =
-    tariffaOraria === null
+    !mostraCosti || tariffaOraria === null
       ? null
       : Math.round(
           oreUtilizzo * tariffaOraria * 100
         ) / 100;
 
+  const descrizione =
+    form.descrizione.trim() ||
+    macchinarioSelezionato?.descrizione ||
+    "";
+
+  const tipoDaSalvare =
+    tipoMacchinario ||
+    macchinarioSelezionato?.tipo ||
+    null;
+
+  if (!tipoDaSalvare) {
+    return {
+      errore:
+        MACCHINARI_TESTI.ERRORI
+          .TIPO_OBBLIGATORIO,
+    };
+  }
+
   return {
     payload: {
       cantiere_id: cantiereId,
       rapporto_intervento_id: null,
-      tipo_macchinario:
-        form.tipo_macchinario,
-      descrizione: form.descrizione.trim(),
+      macchinario_id: macchinarioId,
+      tipo_macchinario: tipoDaSalvare,
+      descrizione,
       data_utilizzo: form.data_utilizzo,
       ore_utilizzo: oreUtilizzo,
       tariffa_oraria: tariffaOraria,
@@ -208,6 +246,10 @@ export default function BackofficeCostiMacchinariPage() {
   const [cantieri, setCantieri] = useState<
     CantiereBackoffice[]
   >([]);
+  const [macchinariPubblici, setMacchinariPubblici] =
+    useState<MacchinarioPubblico[]>([]);
+  const [macchinariAdmin, setMacchinariAdmin] =
+    useState<Macchinario[]>([]);
   const [cantiereId, setCantiereId] =
     useState("");
   const [costi, setCosti] = useState<
@@ -218,7 +260,11 @@ export default function BackofficeCostiMacchinariPage() {
   const [costoInModificaId, setCostoInModificaId] =
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingRuolo, setLoadingRuolo] =
+    useState(true);
   const [loadingCosti, setLoadingCosti] =
+    useState(false);
+  const [loadingMacchinari, setLoadingMacchinari] =
     useState(false);
   const [salvataggio, setSalvataggio] =
     useState(false);
@@ -228,6 +274,8 @@ export default function BackofficeCostiMacchinariPage() {
   const [messaggio, setMessaggio] = useState<
     string | null
   >(null);
+  const [isAdminUser, setIsAdminUser] =
+    useState(false);
 
   const cantiereSelezionato = useMemo(
     () =>
@@ -236,6 +284,69 @@ export default function BackofficeCostiMacchinariPage() {
       ) || null,
     [cantieri, cantiereId]
   );
+
+  const macchinarioSelezionato = useMemo(() => {
+    if (!form.macchinario_id) {
+      return null;
+    }
+
+    if (isAdminUser) {
+      return (
+        macchinariAdmin.find(
+          (macchinario) =>
+            macchinario.id === form.macchinario_id
+        ) || null
+      );
+    }
+
+    return (
+      macchinariPubblici.find(
+        (macchinario) =>
+          macchinario.id === form.macchinario_id
+      ) || null
+    );
+  }, [
+    form.macchinario_id,
+    isAdminUser,
+    macchinariAdmin,
+    macchinariPubblici,
+  ]);
+
+  useEffect(() => {
+    let attivo = true;
+
+    const caricaRuolo = async () => {
+      try {
+        const user = await loadUtenteAuth();
+
+        if (!attivo || !user?.email) {
+          return;
+        }
+
+        const admin = await isAdmin(user.email);
+
+        if (!attivo) {
+          return;
+        }
+
+        setIsAdminUser(admin);
+      } catch (error: unknown) {
+        if (attivo) {
+          setErrore(getMessaggioErrore(error));
+        }
+      } finally {
+        if (attivo) {
+          setLoadingRuolo(false);
+        }
+      }
+    };
+
+    void caricaRuolo();
+
+    return () => {
+      attivo = false;
+    };
+  }, []);
 
   useEffect(() => {
     let attivo = true;
@@ -274,27 +385,39 @@ export default function BackofficeCostiMacchinariPage() {
   useEffect(() => {
     let attivo = true;
 
-    const caricaCosti = async () => {
-      if (!cantiereId) {
-        setCosti([]);
-        setLoadingCosti(false);
-        return;
-      }
-
+    const caricaMacchinari = async () => {
       try {
-        setLoadingCosti(true);
-        setErrore(null);
+        setLoadingMacchinari(true);
+
+        if (isAdminUser) {
+          const dati = await loadMacchinariAdmin();
+
+          if (!attivo) {
+            return;
+          }
+
+          setMacchinariAdmin(dati);
+          setMacchinariPubblici(
+            dati.map((macchinario) => ({
+              id: macchinario.id,
+              nome: macchinario.nome,
+              tipo: macchinario.tipo,
+              descrizione: macchinario.descrizione,
+              attivo: macchinario.attivo,
+            }))
+          );
+          return;
+        }
 
         const dati =
-          await loadCostiMacchinariCommessa({
-            cantiereId,
-          });
+          await loadMacchinariPubblici();
 
         if (!attivo) {
           return;
         }
 
-        setCosti(dati);
+        setMacchinariPubblici(dati);
+        setMacchinariAdmin([]);
       } catch (error: unknown) {
         if (attivo) {
           setErrore(
@@ -303,17 +426,58 @@ export default function BackofficeCostiMacchinariPage() {
         }
       } finally {
         if (attivo) {
-          setLoadingCosti(false);
+          setLoadingMacchinari(false);
         }
       }
     };
 
-    void caricaCosti();
+    if (!loadingRuolo) {
+      void caricaMacchinari();
+    }
 
     return () => {
       attivo = false;
     };
-  }, [cantiereId]);
+  }, [isAdminUser, loadingRuolo]);
+
+  const caricaCosti = useCallback(async () => {
+    if (!cantiereId) {
+      setCosti([]);
+      return;
+    }
+
+    try {
+      setLoadingCosti(true);
+      setErrore(null);
+
+      const dati = await loadCostiMacchinariCommessa({
+        cantiereId,
+        includeCosti: isAdminUser,
+      });
+
+      setCosti(
+        dati as CostoMacchinarioCommessa[]
+      );
+    } catch (error: unknown) {
+      setErrore(getMessaggioErrore(error));
+    } finally {
+      setLoadingCosti(false);
+    }
+  }, [cantiereId, isAdminUser]);
+
+  useEffect(() => {
+    if (loadingRuolo) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void caricaCosti();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [caricaCosti, loadingRuolo]);
 
   const resetForm = () => {
     setForm({
@@ -332,6 +496,33 @@ export default function BackofficeCostiMacchinariPage() {
     resetForm();
   };
 
+  const handleMacchinarioChange = (
+    nextMacchinarioId: string
+  ) => {
+    const nextMacchinario =
+      isAdminUser
+        ? macchinariAdmin.find(
+            (macchinario) =>
+              macchinario.id === nextMacchinarioId
+          )
+        : macchinariPubblici.find(
+            (macchinario) =>
+              macchinario.id === nextMacchinarioId
+          );
+
+    setForm((corrente) => ({
+      ...corrente,
+      macchinario_id: nextMacchinarioId,
+      tipo_macchinario:
+        nextMacchinario?.tipo ||
+        corrente.tipo_macchinario,
+      descrizione:
+        corrente.descrizione ||
+        nextMacchinario?.descrizione ||
+        "",
+    }));
+  };
+
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
   ) => {
@@ -340,6 +531,8 @@ export default function BackofficeCostiMacchinariPage() {
     const risultato = preparaPayload({
       cantiereId,
       form,
+      macchinarioSelezionato,
+      mostraCosti: isAdminUser,
     });
 
     if ("errore" in risultato) {
@@ -353,39 +546,25 @@ export default function BackofficeCostiMacchinariPage() {
       setMessaggio(null);
 
       if (costoInModificaId) {
-        const costoAggiornato =
-          await aggiornaCostoMacchinarioCommessa({
-            costoId: costoInModificaId,
-            costo: risultato.payload,
-          });
-
-        setCosti((costiCorrenti) =>
-          costiCorrenti.map((costo) =>
-            costo.id === costoAggiornato.id
-              ? costoAggiornato
-              : costo
-          )
-        );
-
+        await aggiornaCostoMacchinarioCommessa({
+          costoId: costoInModificaId,
+          costo: risultato.payload,
+          includeCosti: isAdminUser,
+        });
         setMessaggio(
           MACCHINARI_TESTI.MESSAGGI.AGGIORNATO
         );
       } else {
-        const nuovoCosto =
-          await creaCostoMacchinarioCommessa({
-            costo: risultato.payload,
-          });
-
-        setCosti((costiCorrenti) => [
-          nuovoCosto,
-          ...costiCorrenti,
-        ]);
-
+        await creaCostoMacchinarioCommessa({
+          costo: risultato.payload,
+          includeCosti: isAdminUser,
+        });
         setMessaggio(
           MACCHINARI_TESTI.MESSAGGI.CREATO
         );
       }
 
+      await caricaCosti();
       resetForm();
     } catch (error: unknown) {
       setErrore(getMessaggioErrore(error));
@@ -399,14 +578,11 @@ export default function BackofficeCostiMacchinariPage() {
   ) => {
     setCostoInModificaId(costo.id);
     setForm({
+      macchinario_id: costo.macchinario_id || "",
       tipo_macchinario: costo.tipo_macchinario,
       data_utilizzo: costo.data_utilizzo,
       ore_utilizzo: String(costo.ore_utilizzo),
       descrizione: costo.descrizione,
-      tariffa_oraria:
-        costo.tariffa_oraria === null
-          ? ""
-          : String(costo.tariffa_oraria),
       note: costo.note,
     });
     setErrore(null);
@@ -432,13 +608,6 @@ export default function BackofficeCostiMacchinariPage() {
       await eliminaCostoMacchinarioCommessa({
         costoId: costo.id,
       });
-
-      setCosti((costiCorrenti) =>
-        costiCorrenti.filter(
-          (item) => item.id !== costo.id
-        )
-      );
-
       setMessaggio(
         MACCHINARI_TESTI.MESSAGGI.ELIMINATO
       );
@@ -446,6 +615,8 @@ export default function BackofficeCostiMacchinariPage() {
       if (costoInModificaId === costo.id) {
         resetForm();
       }
+
+      await caricaCosti();
     } catch (error: unknown) {
       setErrore(getMessaggioErrore(error));
     } finally {
@@ -454,21 +625,31 @@ export default function BackofficeCostiMacchinariPage() {
   };
 
   const costoStimato = useMemo(() => {
+    if (!isAdminUser) {
+      return null;
+    }
+
     const ore = parseNumeroDecimale(
       form.ore_utilizzo
     );
-    const tariffa = form.tariffa_oraria.trim()
-      ? parseNumeroDecimale(form.tariffa_oraria)
-      : null;
+    const tariffa =
+      (macchinarioSelezionato as
+        | Macchinario
+        | null)?.costo_orario ?? null;
 
     if (ore === null || tariffa === null) {
       return null;
     }
 
     return Math.round(ore * tariffa * 100) / 100;
-  }, [form.ore_utilizzo, form.tariffa_oraria]);
+  }, [
+    form.ore_utilizzo,
+    isAdminUser,
+    macchinarioSelezionato,
+  ]);
 
-  const loadingTotale = loading || loadingCosti;
+  const loadingTotale =
+    loading || loadingRuolo || loadingCosti || loadingMacchinari;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
@@ -549,6 +730,38 @@ export default function BackofficeCostiMacchinariPage() {
             className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]"
           >
             <div className="grid gap-4">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                  {MACCHINARI_TESTI.MACCHINARIO}
+                </span>
+                <select
+                  value={form.macchinario_id}
+                  onChange={(event) =>
+                    handleMacchinarioChange(
+                      event.target.value
+                    )
+                  }
+                  disabled={loadingMacchinari || loadingRuolo}
+                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                >
+                  <option value="">
+                    {MACCHINARI_TESTI.SELEZIONA_MACCHINARIO}
+                  </option>
+                  {(isAdminUser
+                    ? macchinariAdmin
+                    : macchinariPubblici
+                  ).map((macchinario) => (
+                    <option
+                      key={macchinario.id}
+                      value={macchinario.id}
+                    >
+                      {macchinario.nome} -{" "}
+                      {getTipoLabel(macchinario.tipo)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="block">
                 <span className="mb-1 block text-sm font-medium text-industrial-muted">
                   {MACCHINARI_TESTI.TIPO_MACCHINARIO}
@@ -650,37 +863,37 @@ export default function BackofficeCostiMacchinariPage() {
                 />
               </label>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.TARIFFA_ORARIA}
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.tariffa_oraria}
-                  onChange={(event) =>
-                    setForm((formCorrente) => ({
-                      ...formCorrente,
-                      tariffa_oraria:
-                        event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+              {isAdminUser && (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                      {MACCHINARI_TESTI.TARIFFA_ORARIA}
+                    </span>
+                    <input
+                      type="text"
+                      value={formattaEuro(
+                        (macchinarioSelezionato as
+                          | Macchinario
+                          | null)?.costo_orario ?? null
+                      )}
+                      readOnly
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-surface-strong p-3 text-industrial-text outline-none"
+                    />
+                  </label>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.COSTO_TOTALE}
-                </span>
-                <input
-                  type="text"
-                  value={formattaEuro(costoStimato)}
-                  readOnly
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-surface-strong p-3 text-industrial-text outline-none"
-                />
-              </label>
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                      {MACCHINARI_TESTI.COSTO_TOTALE}
+                    </span>
+                    <input
+                      type="text"
+                      value={formattaEuro(costoStimato)}
+                      readOnly
+                      className="w-full rounded-lg border border-industrial-border bg-industrial-surface-strong p-3 text-industrial-text outline-none"
+                    />
+                  </label>
+                </>
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
@@ -721,11 +934,13 @@ export default function BackofficeCostiMacchinariPage() {
                 </p>
               </div>
 
-              <p className="max-w-sm text-xs text-industrial-muted">
-                {MACCHINARI_TESTI.TARIFFA_VISIBILE}
-                {" "}
-                {MACCHINARI_TESTI.COSTO_VISIBILE}
-              </p>
+              {isAdminUser && (
+                <p className="max-w-sm text-xs text-industrial-muted">
+                  {MACCHINARI_TESTI.TARIFFA_VISIBILE}
+                  {" "}
+                  {MACCHINARI_TESTI.COSTO_VISIBILE}
+                </p>
+              )}
             </div>
 
             {loadingTotale && (
@@ -751,9 +966,23 @@ export default function BackofficeCostiMacchinariPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h3 className="font-semibold text-industrial-text">
-                          {getTipoLabel(
-                            costo.tipo_macchinario
-                          )}
+                          {(() => {
+                            const macchinario =
+                              (isAdminUser
+                                ? macchinariAdmin
+                                : macchinariPubblici
+                              ).find(
+                                (item) =>
+                                  item.id ===
+                                  costo.macchinario_id
+                              );
+
+                            return macchinario
+                              ? `${macchinario.nome} - ${getTipoLabel(macchinario.tipo)}`
+                              : getTipoLabel(
+                                  costo.tipo_macchinario
+                                );
+                          })()}
                         </h3>
                         <p className="mt-1 text-sm text-industrial-muted">
                           {formattaData(
@@ -774,18 +1003,20 @@ export default function BackofficeCostiMacchinariPage() {
                         )}
                       </div>
 
-                      <div className="text-right text-sm">
-                        <p className="font-semibold text-industrial-text">
-                          {formattaEuro(
-                            costo.tariffa_oraria
-                          )}
-                        </p>
-                        <p className="mt-1 text-industrial-muted">
-                          {formattaEuro(
-                            costo.costo_totale
-                          )}
-                        </p>
-                      </div>
+                      {isAdminUser && (
+                        <div className="text-right text-sm">
+                          <p className="font-semibold text-industrial-text">
+                            {formattaEuro(
+                              costo.tariffa_oraria
+                            )}
+                          </p>
+                          <p className="mt-1 text-industrial-muted">
+                            {formattaEuro(
+                              costo.costo_totale
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-3">

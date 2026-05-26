@@ -1,13 +1,12 @@
 import Link from "next/link";
 
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
-import { MACCHINARI_TESTI } from "@/constants/macchinari";
-import { APP_ROUTES } from "@/constants/routes";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 import { SAL_TESTI } from "@/constants/sal";
+import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
 
 export default function BackofficePage() {
   return (
@@ -93,17 +92,7 @@ export default function BackofficePage() {
             </p>
           </Link>
 
-          <Link
-            href={APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI}
-            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-          >
-            <h2 className="text-xl font-semibold">
-              {MACCHINARI_TESTI.TITOLO}
-            </h2>
-            <p className="mt-2 text-sm text-industrial-muted">
-              {MACCHINARI_TESTI.CARD_DESCRIZIONE}
-            </p>
-          </Link>
+          <CardMacchinariAdmin />
 
           <Link
             href="/backoffice/produttivita"

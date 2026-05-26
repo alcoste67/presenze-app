@@ -6,4 +6,6 @@ export const APP_ROUTES = {
     "/backoffice/rapporti-intervento",
   BACKOFFICE_COSTI_MACCHINARI:
     "/backoffice/costi-macchinari",
+  BACKOFFICE_MACCHINARI:
+    "/backoffice/macchinari",
 } as const;

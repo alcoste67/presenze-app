@@ -10,9 +10,20 @@ export const MACCHINARI_TESTI = {
   TITOLO: "Costi Macchinari",
   CARD_DESCRIZIONE:
     "Utilizzo macchinari speciali per commessa",
+  ANAGRAFICA_TITOLO: "Anagrafica macchinari",
+  ANAGRAFICA_CARD_DESCRIZIONE:
+    "Gestione macchinari e costi orari",
+  NOME: "Nome",
+  TIPO: "Tipo",
+  COSTO_ORARIO: "Costo orario",
+  ATTIVO: "Attivo",
+  DISATTIVO: "Disattivo",
   CANTIERE: "Cantiere",
   SELEZIONA_CANTIERE:
     "Seleziona un cantiere",
+  SELEZIONA_MACCHINARIO:
+    "Seleziona un macchinario",
+  MACCHINARIO: "Macchinario",
   TIPO_MACCHINARIO: "Tipo macchinario",
   DESCRIZIONE: "Descrizione",
   DATA_UTILIZZO: "Data utilizzo",
@@ -33,15 +44,30 @@ export const MACCHINARI_TESTI = {
   ANNULLA: "Annulla",
   ELIMINA: "Elimina",
   LISTA: "Utilizzi macchinari",
+  LISTA_ANAGRAFICA:
+    "Elenco macchinari",
   NESSUNO:
     "Nessun utilizzo registrato",
+  NESSUNO_ANAGRAFICA:
+    "Nessun macchinario registrato",
   CARICAMENTO: "Caricamento...",
   BACKOFFICE: "Back-office",
   TIMBRATURE: "Timbrature",
-    TARIFFA_VISIBILE:
+  TARIFFA_VISIBILE:
     "Tariffa oraria visibile solo ad admin/responsabile",
   COSTO_VISIBILE:
     "Costo totale visibile solo ad admin/responsabile",
+  COSTO_ORARIO_VISIBILE:
+    "Costo orario visibile solo ad admin",
+  SOLO_ADMIN:
+    "Disponibile solo per amministratori",
+  CODA_TIPI: {
+    SCAVATORE: "Scavatore",
+    PLE: "PLE",
+    AUTOGRU: "Autogru",
+    CAROTAGGIO: "Carotaggio",
+    ALTRO: "Altro",
+  },
   TIPI_LABEL: {
     SCAVATORE: "Scavatore",
     PLE: "PLE",
@@ -62,6 +88,10 @@ export const MACCHINARI_TESTI = {
       "Ore utilizzo non valide",
     TARIFFA_NON_VALIDA:
       "Tariffa oraria non valida",
+    NOME_OBBLIGATORIO:
+      "Inserisci il nome del macchinario",
+    TIPO_ANAGRAFICA_OBBLIGATORIO:
+      "Seleziona il tipo del macchinario",
     ACCESSO_NEGATO:
       "Accesso non autorizzato",
   },
@@ -70,5 +100,11 @@ export const MACCHINARI_TESTI = {
     AGGIORNATO:
       "Utilizzo macchinario aggiornato",
     ELIMINATO: "Utilizzo macchinario eliminato",
+    MACCHINARIO_CREATO:
+      "Macchinario creato",
+    MACCHINARIO_AGGIORNATO:
+      "Macchinario aggiornato",
+    MACCHINARIO_ELIMINATO:
+      "Macchinario eliminato",
   },
 } as const;
