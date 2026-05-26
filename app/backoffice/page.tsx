@@ -6,7 +6,9 @@ import { COMMESSA_TESTI } from "@/constants/commessa";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
+import { APP_ROUTES } from "@/constants/routes";
 import { SAL_TESTI } from "@/constants/sal";
+import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
 
 export default function BackofficePage() {
@@ -38,6 +40,18 @@ export default function BackofficePage() {
             </h2>
             <p className="mt-2 text-sm text-industrial-muted">
               Gestione anagrafica dipendenti
+            </p>
+          </Link>
+
+          <Link
+            href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+          >
+            <h2 className="text-xl font-semibold">
+              Freeze SAL
+            </h2>
+            <p className="mt-2 text-sm text-industrial-muted">
+              Chiusure mensili SAL e export committente
             </p>
           </Link>
 
@@ -88,6 +102,18 @@ export default function BackofficePage() {
             </h2>
             <p className="mt-2 text-sm text-industrial-muted">
               {SAL_TESTI.CARD_DESCRIZIONE}
+            </p>
+          </Link>
+
+          <Link
+            href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+          >
+            <h2 className="text-xl font-semibold">
+              {SAL_FREEZE_TESTI.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-industrial-muted">
+              {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
             </p>
           </Link>
 

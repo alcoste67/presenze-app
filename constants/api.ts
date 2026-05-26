@@ -15,6 +15,10 @@ export const API_ROUTES = {
     "/api/report/commessa-pdf",
   REPORT_COMMESSA_EXCEL:
     "/api/report/commessa-excel",
+  REPORT_SAL_FREEZE_PDF:
+    "/api/report/sal-freeze-pdf",
+  REPORT_SAL_FREEZE_EXCEL:
+    "/api/report/sal-freeze-excel",
   REPORT_RAPPORTO_INTERVENTO_PDF:
     "/api/report/rapporto-intervento-pdf",
   VERIFICA_DIPENDENTE_ATTIVO:
