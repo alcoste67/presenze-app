@@ -30,9 +30,12 @@ const SAL_FREEZE_QUERY = SAL_FREEZE_EXPORT.QUERY;
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
-const MARGIN_X = 42;
+const MARGIN_X = 40;
 const TOP_Y = 792;
 const FOOTER_Y = 28;
+const HEADER_CARD_GAP = 16;
+const HEADER_CARD_WIDTH =
+  (PAGE_WIDTH - MARGIN_X * 2 - HEADER_CARD_GAP * 3) / 4;
 
 const COLORS = {
   text: rgb(0.141, 0.149, 0.169),
@@ -462,9 +465,9 @@ function drawInfoBox({
   });
 
   drawText(page, label, {
-    x: x + 10,
-    y: y + 35,
-    size: 8,
+    x: x + 8,
+    y: y + 34,
+    size: 7,
     font: fonts.bold,
     color: COLORS.muted,
   });
@@ -472,14 +475,14 @@ function drawInfoBox({
   drawWrappedText({
     page,
     text: value,
-    x: x + 10,
-    y: y + 22,
-    maxWidth: width - 20,
-    size: 10,
+    x: x + 8,
+    y: y + 20,
+    maxWidth: width - 16,
+    size: 9,
     font: fonts.bold,
     color: COLORS.text,
     maxLines: 2,
-    lineHeight: 11,
+    lineHeight: 10,
   });
 }
 
@@ -704,44 +707,33 @@ export async function GET(
       logo,
     });
 
-    drawInfoBox({
-      page,
-      fonts,
-      x: MARGIN_X,
-      y: 590,
-      width: 150,
-      label: SAL_FREEZE_PDF.CANTIERE,
-      value: cantiereNome,
-    });
-
-    drawInfoBox({
-      page,
-      fonts,
-      x: MARGIN_X + 164,
-      y: 590,
-      width: 138,
-      label: SAL_FREEZE_PDF.PERIODO,
-      value: `${formattaData(freezeExport.freeze.period_start)} - ${formattaData(freezeExport.freeze.period_end)}`,
-    });
-
-    drawInfoBox({
-      page,
-      fonts,
-      x: MARGIN_X + 316,
-      y: 590,
-      width: 113,
-      label: SAL_FREEZE_PDF.DATA_FREEZE,
-      value: formattaDataOra(freezeExport.freeze.freeze_at),
-    });
-
-    drawInfoBox({
-      page,
-      fonts,
-      x: MARGIN_X + 443,
-      y: 590,
-      width: 110,
-      label: SAL_FREEZE_PDF.FOTO_SELEZIONATE,
-      value: String(freezeExport.foto.length),
+    [
+      {
+        label: SAL_FREEZE_PDF.CANTIERE,
+        value: cantiereNome,
+      },
+      {
+        label: SAL_FREEZE_PDF.PERIODO,
+        value: `${formattaData(freezeExport.freeze.period_start)} - ${formattaData(freezeExport.freeze.period_end)}`,
+      },
+      {
+        label: SAL_FREEZE_PDF.DATA_FREEZE,
+        value: formattaDataOra(freezeExport.freeze.freeze_at),
+      },
+      {
+        label: SAL_FREEZE_PDF.FOTO_SELEZIONATE,
+        value: String(freezeExport.foto.length),
+      },
+    ].forEach((item, index) => {
+      drawInfoBox({
+        page,
+        fonts,
+        x: MARGIN_X + index * (HEADER_CARD_WIDTH + HEADER_CARD_GAP),
+        y: 590,
+        width: HEADER_CARD_WIDTH,
+        label: item.label,
+        value: item.value,
+      });
     });
 
     drawText(page, SAL_FREEZE_PDF.LAVORAZIONI, {
