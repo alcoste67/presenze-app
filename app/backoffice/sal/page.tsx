@@ -11,11 +11,10 @@ import {
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { API_HEADERS } from "@/constants/api";
+import { APP_ROUTES } from "@/constants/routes";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
-import {
-  SAL_STATI,
-  SAL_TESTI,
-} from "@/constants/sal";
+import { SAL_STATI, SAL_TESTI } from "@/constants/sal";
+import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
 import { supabase } from "@/lib/supabase";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { creaSalLavorazioniFoto } from "@/services/sal/creaSalLavorazioniFoto";
@@ -927,6 +926,35 @@ export default function BackofficeSalPage() {
             </section>
           </div>
         )}
+
+        <section className="mt-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold">
+                {SAL_FREEZE_TESTI.TITOLO}
+              </h2>
+              <p className="mt-1 text-sm text-industrial-muted">
+                {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
+              >
+                {SAL_FREEZE_TESTI.CREA_FREEZE}
+              </Link>
+
+              <Link
+                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
+                className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              >
+                {SAL_FREEZE_TESTI.LISTA_FREEZE}
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );

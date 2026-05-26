@@ -25,9 +25,9 @@ export const SAL_FREEZE_EXPORT = {
 } as const;
 
 export const SAL_FREEZE_TESTI = {
-  TITOLO: "Freeze SAL mensili",
+  TITOLO: "SAL periodo",
   CARD_DESCRIZIONE:
-    "Storico chiusure mensili SAL",
+    "Storico SAL periodo e export committente",
   BACKOFFICE: "Back-office",
   CANTIERE: "Cantiere",
   PERIODO_MESE: "Periodo mese",
@@ -38,43 +38,43 @@ export const SAL_FREEZE_TESTI = {
   ANTEPRIMA_FOTO_SELEZIONATE:
     "Anteprima foto selezionate",
   NOTE: "Note",
-  CREA_FREEZE: "Crea freeze",
-  ANNULLA_FREEZE: "Annulla freeze",
+  CREA_FREEZE: "Crea SAL periodo",
+  ANNULLA_FREEZE: "Annulla SAL periodo",
   ESPORTA_PDF: "Esporta PDF",
   ESPORTA_EXCEL: "Esporta Excel",
   ESPORTA: "Esporta",
-  CREA_FREEZE_CTA: "Crea freeze mensile",
-  LISTA_FREEZE: "Freeze esistenti",
-  DETTAGLIO_FREEZE: "Dettaglio freeze",
+  CREA_FREEZE_CTA: "Crea SAL periodo mensile",
+  LISTA_FREEZE: "Storico SAL periodo",
+  DETTAGLIO_FREEZE: "Dettaglio SAL periodo",
   LAVORAZIONI: "Lavorazioni",
   PERCENTUALE_PRECEDENTE: "Percentuale precedente",
   PERCENTUALE_ATTUALE: "Percentuale attuale",
   DELTA_PERCENTUALE: "Delta percentuale",
   ORE_UOMO: "Ore uomo",
   FOTO_SELEZIONATE_TITOLO:
-    "Foto selezionate nel freeze",
+    "Foto selezionate nel SAL periodo",
   MACCHINARI: "Macchinari",
   NESSUN_CANTIERE:
     "Nessun cantiere disponibile",
   NESSUNA_FOTO:
     "Nessuna foto disponibile",
   NESSUN_FREEZE:
-    "Nessun freeze disponibile",
+    "Nessun SAL periodo disponibile",
   NESSUN_DETTAGLIO:
-    "Seleziona un freeze per vedere il dettaglio",
+    "Seleziona un SAL periodo per vedere il dettaglio",
   NESSUN_DATO:
     "Nessun dato disponibile",
   SOLO_ADMIN_CREA:
-    "Solo ADMIN puo creare freeze mensili",
+    "Solo ADMIN puo creare SAL periodo",
   SOLO_ADMIN_CREA_BUTTON:
-    "Crea freeze",
+    "Crea SAL periodo",
   MESSAGGI: {
-    FREEZE_CREATO: "Freeze mensile creato",
-    FREEZE_ANNULLATO: "Freeze annullato",
-    DATI_AGGIORNATI: "Dati freeze aggiornati",
+    FREEZE_CREATO: "SAL periodo creato",
+    FREEZE_ANNULLATO: "SAL periodo annullato",
+    DATI_AGGIORNATI: "Dati SAL periodo aggiornati",
   },
   PDF: {
-    TITOLO: "Freeze SAL",
+    TITOLO: "SAL periodo",
     SOTTOTITOLO: "Export committente",
     CANTIERE: "Cantiere",
     PERIODO: "Periodo",
@@ -97,12 +97,12 @@ export const SAL_FREEZE_TESTI = {
     MASSIMO_FOTO: `Nel foglio foto sono incluse al massimo ${SAL_FREEZE_EXPORT.EXCEL.MAX_FOTO} foto selezionate`,
   },
   ERRORI: {
-    GENERICO: "Errore caricamento freeze SAL",
+    GENERICO: "Errore caricamento SAL periodo",
     INPUT_NON_VALIDO: "Input non valido",
     ACCESSO_NEGATO: "Accesso non autorizzato",
-    FREEZE_NON_TROVATO: "Freeze SAL non trovato",
+    FREEZE_NON_TROVATO: "SAL periodo non trovato",
     FREEZE_ESISTENTE:
-      "Freeze SAL gia esistente per il periodo selezionato",
+      "SAL periodo gia esistente per il periodo selezionato",
     NESSUNA_LAVORAZIONE:
       "Nessuna lavorazione SAL trovata per il cantiere selezionato",
     FOTO_NON_VALIDA:

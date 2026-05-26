@@ -11,6 +11,18 @@ import type { SalLavorazioneFoto } from "@/types/sal";
 
 type SupabaseClient = typeof supabaseAdmin;
 
+export type SalFreezeDiagnosticStep =
+  | "auth"
+  | "admin_check"
+  | "existing_freeze_check"
+  | "load_sal_live"
+  | "insert_header"
+  | "insert_lavorazioni"
+  | "copy_photos"
+  | "insert_photos"
+  | "insert_macchinari"
+  | "cleanup";
+
 export const SAL_FREEZE_ERRORI = {
   INPUT_NON_VALIDO: "INPUT_NON_VALIDO",
   ACCESSO_NEGATO: "ACCESSO_NEGATO",
@@ -20,6 +32,7 @@ export const SAL_FREEZE_ERRORI = {
   NESSUNA_LAVORAZIONE: "NESSUNA_LAVORAZIONE",
   FOTO_NON_TROVATA: "FOTO_NON_TROVATA",
   COPIA_FOTO_FALLITA: "COPIA_FOTO_FALLITA",
+  ERRORE_GENERICO: "ERRORE_GENERICO",
 } as const;
 
 export type SalFreezeErrorCode =
@@ -27,19 +40,62 @@ export type SalFreezeErrorCode =
 
 export class SalFreezeError extends Error {
   readonly code: SalFreezeErrorCode;
+  readonly step?: SalFreezeDiagnosticStep;
 
-  constructor(code: SalFreezeErrorCode, message: string) {
+  constructor(
+    code: SalFreezeErrorCode,
+    message: string,
+    step?: SalFreezeDiagnosticStep
+  ) {
     super(message);
     this.name = "SalFreezeError";
     this.code = code;
+    this.step = step;
   }
 }
 
 function throwSalFreezeError(
   code: SalFreezeErrorCode,
-  message: string
+  message: string,
+  step?: SalFreezeDiagnosticStep
 ): never {
-  throw new SalFreezeError(code, message);
+  throw new SalFreezeError(code, message, step);
+}
+
+function toSalFreezeError(
+  error: unknown,
+  step: SalFreezeDiagnosticStep
+) {
+  if (error instanceof SalFreezeError) {
+    return new SalFreezeError(
+      error.code,
+      error.message,
+      error.step || step
+    );
+  }
+
+  const message =
+    error instanceof Error ? error.message : "Errore freeze SAL";
+
+  return new SalFreezeError(
+    SAL_FREEZE_ERRORI.ERRORE_GENERICO,
+    message,
+    step
+  );
+}
+
+async function runSalFreezeStep<T>(
+  step: SalFreezeDiagnosticStep,
+  label: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  console.error(`[SAL_FREEZE] ${label}`, { step });
+
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    throw toSalFreezeError(error, step);
+  }
 }
 
 type FreezePrevRow = {
@@ -494,7 +550,8 @@ export async function createSalFreeze({
   if (!cantiereId) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.INPUT_NON_VALIDO,
-      "Seleziona un cantiere"
+      "Seleziona un cantiere",
+      "auth"
     );
   }
 
@@ -504,14 +561,16 @@ export async function createSalFreeze({
   if (!parsedStart || !parsedEnd) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.INPUT_NON_VALIDO,
-      "Periodo freeze non valido"
+      "Periodo freeze non valido",
+      "auth"
     );
   }
 
   if (parsedStart.getTime() > parsedEnd.getTime()) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.INPUT_NON_VALIDO,
-      "Periodo freeze non valido"
+      "Periodo freeze non valido",
+      "auth"
     );
   }
 
@@ -523,20 +582,26 @@ export async function createSalFreeze({
   if (!utenteAdmin) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.ACCESSO_NEGATO,
-      "Accesso non autorizzato"
+      "Accesso non autorizzato",
+      "admin_check"
     );
   }
 
   const { data: freezeEsistente, error: freezeEsistenteError } =
-    await supabaseClient
-      .from("sal_freeze_mensili")
-      .select("id")
-      .eq("cantiere_id", cantiereId)
-      .eq("period_start", periodStart)
-      .eq("period_end", periodEnd)
-      .is("annullato_at", null)
-      .limit(1)
-      .maybeSingle();
+    await runSalFreezeStep(
+      "existing_freeze_check",
+      "existing freeze check",
+      async () =>
+        supabaseClient
+          .from("sal_freeze_mensili")
+          .select("id")
+          .eq("cantiere_id", cantiereId)
+          .eq("period_start", periodStart)
+          .eq("period_end", periodEnd)
+          .is("annullato_at", null)
+          .limit(1)
+          .maybeSingle()
+    );
 
   if (freezeEsistenteError) {
     throwErroreSupabase(
@@ -548,26 +613,45 @@ export async function createSalFreeze({
   if (freezeEsistente) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.FREEZE_ESISTENTE,
-      "Freeze SAL gia esistente per il periodo selezionato"
+      "Freeze SAL gia esistente per il periodo selezionato",
+      "existing_freeze_check"
     );
   }
 
   const [freezePrecedente, salLive, fotoSelezionate, macchinari] =
     await Promise.all([
-      loadFreezePrecedente(cantiereId, supabaseClient),
-      loadSalCantiere(cantiereId, supabaseClient),
-      loadSelectedPhotos(
-        cantiereId,
-        Array.from(new Set(selectedPhotoIds)),
-        supabaseClient
+      runSalFreezeStep(
+        "existing_freeze_check",
+        "load freeze precedente",
+        () => loadFreezePrecedente(cantiereId, supabaseClient)
       ),
-      loadMacchinariFreeze(cantiereId, supabaseClient),
+      runSalFreezeStep(
+        "load_sal_live",
+        "load sal live",
+        () => loadSalCantiere(cantiereId, supabaseClient)
+      ),
+      runSalFreezeStep(
+        "copy_photos",
+        "load selected photos",
+        () =>
+          loadSelectedPhotos(
+            cantiereId,
+            Array.from(new Set(selectedPhotoIds)),
+            supabaseClient
+          )
+      ),
+      runSalFreezeStep(
+        "insert_macchinari",
+        "load macchinari freeze",
+        () => loadMacchinariFreeze(cantiereId, supabaseClient)
+      ),
     ]);
 
   if (salLive.lavorazioni.length === 0) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.NESSUNA_LAVORAZIONE,
-      "Nessuna lavorazione SAL trovata per il cantiere selezionato"
+      "Nessuna lavorazione SAL trovata per il cantiere selezionato",
+      "load_sal_live"
     );
   }
 
@@ -591,12 +675,17 @@ export async function createSalFreeze({
   );
 
   const freezeId = crypto.randomUUID();
-  const uploadedPhotos = await uploadFotoFreeze({
-    freezeId,
-    cantiereId,
-    foto: fotoSelezionate,
-    supabaseClient,
-  });
+  const uploadedPhotos = await runSalFreezeStep(
+    "copy_photos",
+    "copy/upload foto storage",
+    () =>
+      uploadFotoFreeze({
+        freezeId,
+        cantiereId,
+        foto: fotoSelezionate,
+        supabaseClient,
+      })
+  );
   const uploadedPaths = uploadedPhotos.map(
     (foto) => foto.object_path
   );
@@ -654,20 +743,30 @@ export async function createSalFreeze({
   let freezeHeader: FreezeHeaderRow | null = null;
 
   try {
-    freezeHeader = await insertHeaderFreeze({
-      freezeId,
-      cantiereId,
-      periodStart,
-      periodEnd,
-      createdBy: userId,
-      note: note?.trim() || "",
-      supabaseClient,
-    });
+    freezeHeader = await runSalFreezeStep(
+      "insert_header",
+      "insert sal_freeze_mensili",
+      () =>
+        insertHeaderFreeze({
+          freezeId,
+          cantiereId,
+          periodStart,
+          periodEnd,
+          createdBy: userId,
+          note: note?.trim() || "",
+          supabaseClient,
+        })
+    );
 
     if (lavorazioniFreeze.length > 0) {
-      const { error } = await supabaseClient
-        .from("sal_freeze_lavorazioni")
-        .insert(lavorazioniFreeze);
+      const { error } = await runSalFreezeStep(
+        "insert_lavorazioni",
+        "insert sal_freeze_lavorazioni",
+        async () =>
+          await supabaseClient
+            .from("sal_freeze_lavorazioni")
+            .insert(lavorazioniFreeze)
+      );
 
       if (error) {
         throwErroreSupabase(
@@ -678,9 +777,14 @@ export async function createSalFreeze({
     }
 
     if (fotoFreeze.length > 0) {
-      const { error } = await supabaseClient
-        .from("sal_freeze_foto")
-        .insert(fotoFreeze);
+      const { error } = await runSalFreezeStep(
+        "insert_photos",
+        "insert sal_freeze_foto",
+        async () =>
+          await supabaseClient
+            .from("sal_freeze_foto")
+            .insert(fotoFreeze)
+      );
 
       if (error) {
         throwErroreSupabase(
@@ -691,9 +795,14 @@ export async function createSalFreeze({
     }
 
     if (macchinariFreeze.length > 0) {
-      const { error } = await supabaseClient
-        .from("sal_freeze_macchinari")
-        .insert(macchinariFreeze);
+      const { error } = await runSalFreezeStep(
+        "insert_macchinari",
+        "insert sal_freeze_macchinari",
+        async () =>
+          await supabaseClient
+            .from("sal_freeze_macchinari")
+            .insert(macchinariFreeze)
+      );
 
       if (error) {
         throwErroreSupabase(
@@ -710,16 +819,39 @@ export async function createSalFreeze({
       macchinari: macchinariFreeze,
     };
   } catch (error: unknown) {
-    await cleanupFreeze({
+    console.error("[SAL_FREEZE] cleanup eventuale", {
+      step: "cleanup",
       freezeId,
-      uploadedPaths,
-      supabaseClient,
+      uploadedCount: uploadedPaths.length,
     });
+
+    try {
+      await runSalFreezeStep("cleanup", "cleanup", () =>
+        cleanupFreeze({
+          freezeId,
+          uploadedPaths,
+          supabaseClient,
+        })
+      );
+    } catch (cleanupError: unknown) {
+      console.error("[SAL_FREEZE] cleanup fallito", {
+        step: "cleanup",
+        freezeId,
+        error:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : "Errore cleanup",
+      });
+    }
 
     if (error instanceof SalFreezeError) {
       throw error;
     }
 
-    throwErroreSupabase("Creazione freeze SAL", error);
+    throw new SalFreezeError(
+      SAL_FREEZE_ERRORI.ERRORE_GENERICO,
+      error instanceof Error ? error.message : "Errore freeze SAL",
+      "cleanup"
+    );
   }
 }

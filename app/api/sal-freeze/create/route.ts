@@ -32,12 +32,20 @@ const NO_STORE_HEADERS = {
 
 function jsonErrore(
   errore: string,
-  status: number
+  status: number,
+  details?: {
+    errorCode?: string;
+    errorMessage?: string;
+    step?: string;
+  }
 ) {
   return Response.json(
     {
       success: false,
       errore,
+      errorCode: details?.errorCode || errore,
+      errorMessage: details?.errorMessage || errore,
+      step: details?.step || "unknown",
     },
     {
       status,
@@ -175,51 +183,76 @@ function getErroreHttp(
   error: unknown
 ): {
   status: number;
-  errore: string;
+  errorCode: string;
+  errorMessage: string;
+  step: string;
 } {
   if (error instanceof SalFreezeError) {
     switch (error.code) {
       case SAL_FREEZE_ERRORI.INPUT_NON_VALIDO:
         return {
           status: HTTP_STATUS.BAD_REQUEST,
-          errore: ERRORI_API.INPUT_NON_VALIDO,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.INPUT_NON_VALIDO,
+          step: error.step || "auth",
         };
       case SAL_FREEZE_ERRORI.ACCESSO_NEGATO:
         return {
           status: HTTP_STATUS.FORBIDDEN,
-          errore: ERRORI_API.ACCESSO_NEGATO,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.ACCESSO_NEGATO,
+          step: error.step || "admin_check",
         };
       case SAL_FREEZE_ERRORI.FREEZE_ESISTENTE:
         return {
           status: HTTP_STATUS.CONFLICT,
-          errore: ERRORI_API.FREEZE_ESISTENTE,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.FREEZE_ESISTENTE,
+          step: error.step || "existing_freeze_check",
         };
       case SAL_FREEZE_ERRORI.NESSUNA_LAVORAZIONE:
         return {
           status: HTTP_STATUS.NOT_FOUND,
-          errore: ERRORI_API.NESSUNA_LAVORAZIONE,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.NESSUNA_LAVORAZIONE,
+          step: error.step || "load_sal_live",
         };
       case SAL_FREEZE_ERRORI.FOTO_NON_TROVATA:
         return {
           status: HTTP_STATUS.NOT_FOUND,
-          errore: ERRORI_API.FOTO_NON_TROVATA,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.FOTO_NON_TROVATA,
+          step: error.step || "copy_photos",
         };
       case SAL_FREEZE_ERRORI.COPIA_FOTO_FALLITA:
         return {
           status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-          errore: ERRORI_API.COPIA_FOTO_FALLITA,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.COPIA_FOTO_FALLITA,
+          step: error.step || "copy_photos",
+        };
+      case SAL_FREEZE_ERRORI.ERRORE_GENERICO:
+        return {
+          status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.ERRORE_GENERICO,
+          step: error.step || "unknown",
         };
       default:
         return {
           status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-          errore: ERRORI_API.ERRORE_GENERICO,
+          errorCode: error.code,
+          errorMessage: ERRORI_API.ERRORE_GENERICO,
+          step: error.step || "unknown",
         };
     }
   }
 
   return {
     status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    errore: ERRORI_API.ERRORE_GENERICO,
+    errorCode: SAL_FREEZE_ERRORI.ERRORE_GENERICO,
+    errorMessage: ERRORI_API.ERRORE_GENERICO,
+    step: "unknown",
   };
 }
 
@@ -231,9 +264,18 @@ export async function POST(
   const accessToken = estraiAccessToken(request);
 
   if (!accessToken) {
+    console.error("[SAL_FREEZE] auth bearer mancante/non valido", {
+      step: "auth",
+    });
+
     return jsonErrore(
       ERRORI_API.TOKEN_MANCANTE,
-      HTTP_STATUS.UNAUTHORIZED
+      HTTP_STATUS.UNAUTHORIZED,
+      {
+        errorCode: "TOKEN_MANCANTE",
+        errorMessage: ERRORI_API.TOKEN_MANCANTE,
+        step: "auth",
+      }
     );
   }
 
@@ -243,32 +285,75 @@ export async function POST(
   } = await supabaseAdmin.auth.getUser(accessToken);
 
   if (authError || !user?.email) {
+    console.error("[SAL_FREEZE] auth bearer mancante/non valido", {
+      step: "auth",
+    });
+
     return jsonErrore(
       ERRORI_API.TOKEN_NON_VALIDO,
-      HTTP_STATUS.UNAUTHORIZED
+      HTTP_STATUS.UNAUTHORIZED,
+      {
+        errorCode: "TOKEN_NON_VALIDO",
+        errorMessage: ERRORI_API.TOKEN_NON_VALIDO,
+        step: "auth",
+      }
     );
   }
+
+  console.error("[SAL_FREEZE] email utente rilevata", {
+    step: "auth",
+    email: user.email,
+  });
 
   const utenteAdmin = await isAdmin(
     user.email,
     supabaseAdmin
   );
 
+  console.error("[SAL_FREEZE] esito check isAdmin", {
+    step: "admin_check",
+    email: user.email,
+    isAdmin: utenteAdmin,
+  });
+
   if (!utenteAdmin) {
     return jsonErrore(
       ERRORI_API.ACCESSO_NEGATO,
-      HTTP_STATUS.FORBIDDEN
+      HTTP_STATUS.FORBIDDEN,
+      {
+        errorCode: SAL_FREEZE_ERRORI.ACCESSO_NEGATO,
+        errorMessage: ERRORI_API.ACCESSO_NEGATO,
+        step: "admin_check",
+      }
     );
   }
 
   const payload = await leggiPayload(request);
 
   if (!payload) {
+    console.error("[SAL_FREEZE] validazione input fallita", {
+      step: "input_validation",
+    });
+
     return jsonErrore(
       ERRORI_API.INPUT_NON_VALIDO,
-      HTTP_STATUS.BAD_REQUEST
+      HTTP_STATUS.BAD_REQUEST,
+      {
+        errorCode: SAL_FREEZE_ERRORI.INPUT_NON_VALIDO,
+        errorMessage: ERRORI_API.INPUT_NON_VALIDO,
+        step: "input_validation",
+      }
     );
   }
+
+  console.error("[SAL_FREEZE] inizio createSalFreeze", {
+    step: "existing_freeze_check",
+    cantiereId: payload.cantiereId,
+    periodStart: payload.periodStart,
+    periodEnd: payload.periodEnd,
+    selectedPhotoIdsCount: payload.selectedPhotoIds.length,
+    hasNote: Boolean(payload.note),
+  });
 
   try {
     const freeze = await createSalFreeze({
@@ -284,9 +369,20 @@ export async function POST(
   } catch (error: unknown) {
     const httpErrore = getErroreHttp(error);
 
+    console.error("[SAL_FREEZE] createSalFreeze fallita", {
+      step: httpErrore.step,
+      errorCode: httpErrore.errorCode,
+      errorMessage: httpErrore.errorMessage,
+    });
+
     return jsonErrore(
-      httpErrore.errore,
-      httpErrore.status
+      httpErrore.errorMessage,
+      httpErrore.status,
+      {
+        errorCode: httpErrore.errorCode,
+        errorMessage: httpErrore.errorMessage,
+        step: httpErrore.step,
+      }
     );
   }
 }
