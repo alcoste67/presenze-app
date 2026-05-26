@@ -27,6 +27,17 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
+const ERRORI = {
+  TOKEN_MANCANTE: "Token autenticazione mancante",
+  TOKEN_NON_VALIDO: "Token autenticazione non valido",
+  ACCESSO_NEGATO: "Accesso non autorizzato",
+  FREEZE_OBBLIGATORIO: "Freeze SAL obbligatorio",
+  DETTAGLIO_NON_DISPONIBILE:
+    "Dettaglio SAL periodo non disponibile",
+  LETTURA_DETTAGLIO:
+    "Errore lettura dettaglio SAL periodo",
+} as const;
+
 const SELECT_SAL_FREEZE_MENSILE =
   "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
 const SELECT_SAL_FREEZE_LAVORAZIONI =
@@ -36,9 +47,21 @@ const SELECT_SAL_FREEZE_FOTO =
 const SELECT_SAL_FREEZE_MACCHINARI =
   "id, freeze_id, macchinario_id, tipo_macchinario_snapshot, descrizione_snapshot, ore_utilizzo, note, ordine, created_at";
 
-function jsonErrore(error: string, status: number) {
+function jsonErrore(
+  errorMessage: string,
+  status: number,
+  details: {
+    freezeId: string | null;
+    step: string;
+  }
+) {
   return Response.json(
-    { success: false, error },
+    {
+      success: false,
+      errorMessage,
+      step: details.step,
+      freezeId: details.freezeId,
+    },
     { status, headers: NO_STORE_HEADERS }
   );
 }
@@ -76,8 +99,12 @@ function leggiFreezeId(request: NextRequest) {
 }
 
 function estraiStoragePath(
-  storagePathSnapshot: string
+  storagePathSnapshot: string | null | undefined
 ): { bucket: string; path: string } | null {
+  if (typeof storagePathSnapshot !== "string") {
+    return null;
+  }
+
   const separatorIndex =
     storagePathSnapshot.indexOf("/");
 
@@ -138,171 +165,199 @@ async function aggiungiPreviewFoto({
 }
 
 export async function GET(request: NextRequest) {
-  const accessToken = estraiBearerToken(request);
-
-  if (!accessToken) {
-    return jsonErrore(
-      "Token autenticazione mancante",
-      HTTP_STATUS.UNAUTHORIZED
-    );
-  }
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAdmin.auth.getUser(accessToken);
-
-  if (authError || !user?.email) {
-    return jsonErrore(
-      "Token autenticazione non valido",
-      HTTP_STATUS.UNAUTHORIZED
-    );
-  }
-
-  const utenteAdmin = await isAdmin(
-    user.email,
-    supabaseAdmin
-  );
-  const utenteResponsabile = utenteAdmin
-    ? true
-    : await isResponsabile(user.email, supabaseAdmin);
-
-  if (!utenteAdmin && !utenteResponsabile) {
-    return jsonErrore(
-      "Accesso non autorizzato",
-      HTTP_STATUS.FORBIDDEN
-    );
-  }
-
   const freezeId = leggiFreezeId(request);
 
-  if (!freezeId) {
-    return jsonErrore(
-      "Freeze SAL obbligatorio",
-      HTTP_STATUS.BAD_REQUEST
-    );
-  }
+  try {
+    const accessToken = estraiBearerToken(request);
 
-  const [
-    freezeResult,
-    lavorazioniResult,
-    fotoResult,
-    macchinariResult,
-  ] = await Promise.all([
-    supabaseAdmin
-      .from("sal_freeze_mensili")
-      .select(SELECT_SAL_FREEZE_MENSILE)
-      .eq("id", freezeId)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("sal_freeze_lavorazioni")
-      .select(SELECT_SAL_FREEZE_LAVORAZIONI)
-      .eq("freeze_id", freezeId)
-      .order("ordine", { ascending: true }),
-    supabaseAdmin
-      .from("sal_freeze_foto")
-      .select(SELECT_SAL_FREEZE_FOTO)
-      .eq("freeze_id", freezeId)
-      .order("ordine", { ascending: true }),
-    supabaseAdmin
-      .from("sal_freeze_macchinari")
-      .select(SELECT_SAL_FREEZE_MACCHINARI)
-      .eq("freeze_id", freezeId)
-      .order("ordine", { ascending: true }),
-  ]);
-
-  if (freezeResult.error) {
-    console.error("[sal-freeze-dettaglio-error]", {
-      freezeId,
-      step: "freeze",
-      errorMessage: freezeResult.error.message,
-    });
-
-    return jsonErrore(
-      "Errore lettura dettaglio SAL periodo",
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
-    );
-  }
-
-  if (lavorazioniResult.error) {
-    console.error("[sal-freeze-dettaglio-error]", {
-      freezeId,
-      step: "lavorazioni",
-      errorMessage: lavorazioniResult.error.message,
-    });
-
-    return jsonErrore(
-      "Errore lettura dettaglio SAL periodo",
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
-    );
-  }
-
-  if (fotoResult.error) {
-    console.error("[sal-freeze-dettaglio-error]", {
-      freezeId,
-      step: "foto",
-      errorMessage: fotoResult.error.message,
-    });
-
-    return jsonErrore(
-      "Errore lettura dettaglio SAL periodo",
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
-    );
-  }
-
-  if (macchinariResult.error) {
-    console.error("[sal-freeze-dettaglio-error]", {
-      freezeId,
-      step: "macchinari",
-      errorMessage: macchinariResult.error.message,
-    });
-
-    return jsonErrore(
-      "Errore lettura dettaglio SAL periodo",
-      HTTP_STATUS.INTERNAL_SERVER_ERROR
-    );
-  }
-
-  const freeze = freezeResult.data as
-    | SalFreezeMensile
-    | null;
-
-  if (!freeze) {
-    return jsonErrore(
-      "SAL periodo non trovato",
-      HTTP_STATUS.NOT_FOUND
-    );
-  }
-
-  const foto = await aggiungiPreviewFoto({
-    foto: (fotoResult.data || []) as SalFreezeFoto[],
-  });
-
-  const dettaglio: SalFreezeDettaglio = {
-    freeze,
-    lavorazioni: (lavorazioniResult.data ||
-      []) as SalFreezeLavorazione[],
-    foto,
-    macchinari: (macchinariResult.data ||
-      []) as SalFreezeMacchinario[],
-  };
-
-  console.log("[sal-freeze-dettaglio]", {
-    freezeId,
-    cantiereId: freeze.cantiere_id,
-    fotoCount: foto.length,
-    lavorazioniCount: dettaglio.lavorazioni.length,
-    macchinariCount: dettaglio.macchinari.length,
-  });
-
-  return Response.json(
-    {
-      success: true,
-      dettaglio,
-    },
-    {
-      status: 200,
-      headers: NO_STORE_HEADERS,
+    if (!accessToken) {
+      return jsonErrore(
+        ERRORI.TOKEN_MANCANTE,
+        HTTP_STATUS.UNAUTHORIZED,
+        { freezeId, step: "auth" }
+      );
     }
-  );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
+    if (authError || !user?.email) {
+      return jsonErrore(
+        ERRORI.TOKEN_NON_VALIDO,
+        HTTP_STATUS.UNAUTHORIZED,
+        { freezeId, step: "auth" }
+      );
+    }
+
+    const utenteAdmin = await isAdmin(
+      user.email,
+      supabaseAdmin
+    );
+    const utenteResponsabile = utenteAdmin
+      ? true
+      : await isResponsabile(user.email, supabaseAdmin);
+
+    if (!utenteAdmin && !utenteResponsabile) {
+      return jsonErrore(
+        ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN,
+        { freezeId, step: "admin_check" }
+      );
+    }
+
+    if (!freezeId) {
+      return jsonErrore(
+        ERRORI.FREEZE_OBBLIGATORIO,
+        HTTP_STATUS.BAD_REQUEST,
+        { freezeId: null, step: "input" }
+      );
+    }
+
+    const [
+      freezeResult,
+      lavorazioniResult,
+      fotoResult,
+      macchinariResult,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("sal_freeze_mensili")
+        .select(SELECT_SAL_FREEZE_MENSILE)
+        .eq("id", freezeId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("sal_freeze_lavorazioni")
+        .select(SELECT_SAL_FREEZE_LAVORAZIONI)
+        .eq("freeze_id", freezeId)
+        .order("ordine", { ascending: true }),
+      supabaseAdmin
+        .from("sal_freeze_foto")
+        .select(SELECT_SAL_FREEZE_FOTO)
+        .eq("freeze_id", freezeId)
+        .order("ordine", { ascending: true }),
+      supabaseAdmin
+        .from("sal_freeze_macchinari")
+        .select(SELECT_SAL_FREEZE_MACCHINARI)
+        .eq("freeze_id", freezeId)
+        .order("ordine", { ascending: true }),
+    ]);
+
+    if (freezeResult.error) {
+      console.error("[sal-freeze-detail-error]", {
+        freezeId,
+        step: "freeze",
+        errorMessage: freezeResult.error.message,
+      });
+
+      return jsonErrore(
+        ERRORI.LETTURA_DETTAGLIO,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        { freezeId, step: "freeze" }
+      );
+    }
+
+    if (lavorazioniResult.error) {
+      console.error("[sal-freeze-detail-error]", {
+        freezeId,
+        step: "lavorazioni",
+        errorMessage: lavorazioniResult.error.message,
+      });
+
+      return jsonErrore(
+        ERRORI.LETTURA_DETTAGLIO,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        { freezeId, step: "lavorazioni" }
+      );
+    }
+
+    if (fotoResult.error) {
+      console.error("[sal-freeze-detail-error]", {
+        freezeId,
+        step: "foto",
+        errorMessage: fotoResult.error.message,
+      });
+
+      return jsonErrore(
+        ERRORI.LETTURA_DETTAGLIO,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        { freezeId, step: "foto" }
+      );
+    }
+
+    if (macchinariResult.error) {
+      console.error("[sal-freeze-detail-error]", {
+        freezeId,
+        step: "macchinari",
+        errorMessage: macchinariResult.error.message,
+      });
+
+      return jsonErrore(
+        ERRORI.LETTURA_DETTAGLIO,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        { freezeId, step: "macchinari" }
+      );
+    }
+
+    const freeze = freezeResult.data as
+      | SalFreezeMensile
+      | null;
+
+    if (!freeze) {
+      return jsonErrore(
+        ERRORI.DETTAGLIO_NON_DISPONIBILE,
+        HTTP_STATUS.NOT_FOUND,
+        { freezeId, step: "freeze_not_found" }
+      );
+    }
+
+    const foto = await aggiungiPreviewFoto({
+      foto: (fotoResult.data || []) as SalFreezeFoto[],
+    });
+
+    const dettaglio: SalFreezeDettaglio = {
+      freeze,
+      lavorazioni: (lavorazioniResult.data ||
+        []) as SalFreezeLavorazione[],
+      foto,
+      macchinari: (macchinariResult.data ||
+        []) as SalFreezeMacchinario[],
+    };
+
+    console.log("[sal-freeze-dettaglio]", {
+      freezeId,
+      cantiereId: freeze.cantiere_id,
+      fotoCount: foto.length,
+      lavorazioniCount: dettaglio.lavorazioni.length,
+      macchinariCount: dettaglio.macchinari.length,
+    });
+
+    return Response.json(
+      {
+        success: true,
+        dettaglio,
+      },
+      {
+        status: 200,
+        headers: NO_STORE_HEADERS,
+      }
+    );
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : ERRORI.LETTURA_DETTAGLIO;
+
+    console.error("[sal-freeze-detail-error]", {
+      freezeId,
+      step: "unexpected",
+      errorMessage,
+    });
+
+    return jsonErrore(
+      errorMessage,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      { freezeId, step: "unexpected" }
+    );
+  }
 }

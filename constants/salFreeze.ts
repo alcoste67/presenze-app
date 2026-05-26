@@ -61,7 +61,7 @@ export const SAL_FREEZE_TESTI = {
   NESSUN_FREEZE:
     "Nessun SAL periodo disponibile",
   NESSUN_DETTAGLIO:
-    "Seleziona un SAL periodo per vedere il dettaglio",
+    "Dettaglio SAL periodo non disponibile",
   NESSUN_DATO:
     "Nessun dato disponibile",
   SOLO_ADMIN_CREA:

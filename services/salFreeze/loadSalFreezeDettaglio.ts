@@ -21,6 +21,28 @@ function isRecord(
   );
 }
 
+function getMessaggioErroreDettaglio(
+  payload: unknown
+) {
+  if (!isRecord(payload)) {
+    return SAL_FREEZE_TESTI.ERRORI.GENERICO;
+  }
+
+  const errorMessage =
+    typeof payload.errorMessage === "string" &&
+    payload.errorMessage.trim()
+      ? payload.errorMessage.trim()
+      : SAL_FREEZE_TESTI.ERRORI.GENERICO;
+
+  const step =
+    typeof payload.step === "string" &&
+    payload.step.trim()
+      ? payload.step.trim()
+      : "unknown";
+
+  return `Errore lettura dettaglio SAL periodo. Step: ${step}. Errore: ${errorMessage}`;
+}
+
 export async function loadSalFreezeDettaglio({
   freezeId,
   supabaseClient = supabase,
@@ -65,17 +87,13 @@ export async function loadSalFreezeDettaglio({
     .catch(() => null);
 
   if (!response.ok) {
-    const errorMessage =
-      isRecord(payload) &&
-      typeof payload.error === "string"
-        ? payload.error
-        : SAL_FREEZE_TESTI.ERRORI.GENERICO;
-
     if (response.status === 404) {
       return null;
     }
 
-    throw new Error(errorMessage);
+    throw new Error(
+      getMessaggioErroreDettaglio(payload)
+    );
   }
 
   const dettaglio =
