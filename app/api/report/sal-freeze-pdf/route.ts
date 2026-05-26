@@ -498,9 +498,34 @@ function getErroreExportPdf(error: unknown) {
     };
   }
 
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    const message =
+      typeof record.message === "string"
+        ? record.message
+        : null;
+    const step =
+      typeof record.step === "string"
+        ? record.step
+        : message
+          ? "pdf_generation"
+          : "unexpected";
+    const code =
+      typeof record.code === "string"
+        ? record.code
+        : null;
+
+    return {
+      step,
+      errorMessage:
+        message || "Errore imprevisto durante la generazione PDF SAL periodo",
+      code,
+    };
+  }
+
   if (error instanceof Error) {
     return {
-      step: "unexpected",
+      step: "pdf_generation",
       errorMessage: error.message,
       code: null,
     };
@@ -508,7 +533,8 @@ function getErroreExportPdf(error: unknown) {
 
   return {
     step: "unexpected",
-    errorMessage: SAL_FREEZE_TESTI.ERRORI.GENERICO,
+    errorMessage:
+      "Errore imprevisto durante la generazione PDF SAL periodo",
     code: null,
   };
 }
@@ -1047,6 +1073,8 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    console.error("[sal-period-pdf-export-error-raw]", error);
+
     const errore = getErroreExportPdf(error);
 
     console.error("[sal-period-pdf-export-error]", {
