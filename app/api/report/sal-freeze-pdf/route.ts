@@ -1,6 +1,4 @@
 import type { NextRequest } from "next/server";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import {
   PDFDocument,
   type PDFImage,
@@ -128,31 +126,6 @@ function drawText(
   }
 ) {
   page.drawText(normalizzaTestoPdf(text), options);
-}
-
-async function loadLogoA2C(
-  pdfDoc: PDFDocument
-): Promise<PDFImage | null> {
-  try {
-    const logoPath = path.join(
-      process.cwd(),
-      "public",
-      "a2c-logo.png"
-    );
-    const bytes = await readFile(logoPath);
-    return pdfDoc.embedPng(bytes);
-  } catch (error: unknown) {
-    console.error("[sal-period-pdf-inner-catch]", {
-      step: "load_logo",
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      name:
-        error instanceof Error ? error.name : undefined,
-    });
-    return null;
-  }
 }
 
 function formattaData(value: string) {
@@ -299,32 +272,20 @@ function drawCenteredImage({
 function drawHeaderLogo({
   page,
   fonts,
-  logo,
 }: {
   page: PDFPage;
   fonts: { regular: PDFFont; bold: PDFFont };
-  logo: PDFImage | null;
 }) {
   const headerHeight = 72;
   const headerBottom = PAGE_HEIGHT - headerHeight;
 
-  if (logo) {
-    const scaled = logo.scaleToFit(110, 28);
-    page.drawImage(logo, {
-      x: MARGIN_X,
-      y: headerBottom + 22,
-      width: scaled.width,
-      height: scaled.height,
-    });
-  } else {
-    drawText(page, "A2C SISTEMI", {
-      x: MARGIN_X,
-      y: TOP_Y - 2,
-      size: 18,
-      font: fonts.bold,
-      color: COLORS.text,
-    });
-  }
+  drawText(page, "A2C SISTEMI", {
+    x: MARGIN_X,
+    y: TOP_Y - 2,
+    size: 18,
+    font: fonts.bold,
+    color: COLORS.text,
+  });
 
   drawText(page, SAL_FREEZE_PDF.TITOLO, {
     x: PAGE_WIDTH - MARGIN_X - 160,
@@ -382,13 +343,11 @@ function drawHeader({
   fonts,
   cantiereNome,
   freeze,
-  logo,
 }: {
   page: PDFPage;
   fonts: { regular: PDFFont; bold: PDFFont };
   cantiereNome: string;
   freeze: SalFreezeExportCommittente["freeze"];
-  logo: PDFImage | null;
 }) {
   page.drawRectangle({
     x: 0,
@@ -401,7 +360,6 @@ function drawHeader({
   drawHeaderLogo({
     page,
     fonts,
-    logo,
   });
 
   drawText(page, `${SAL_FREEZE_PDF.CANTIERE}:`, {
@@ -658,24 +616,7 @@ async function embedImageFromUrl(
     }
 
     return null;
-  } catch (error: unknown) {
-    const sourceKind = url.startsWith("data:image/")
-      ? "data_url"
-      : url.startsWith("http://") ||
-          url.startsWith("https://")
-        ? "http_url"
-        : "storage_path";
-
-    console.error("[sal-period-pdf-inner-catch]", {
-      step: "embed_image",
-      sourceKind,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      name:
-        error instanceof Error ? error.name : undefined,
-    });
+  } catch {
     return null;
   }
 }
@@ -694,17 +635,6 @@ export async function GET(
   request: NextRequest
 ): Promise<Response> {
   const accessToken = estraiBearerToken(request);
-  const freezeId = getQueryValue(
-    request,
-    SAL_FREEZE_QUERY.FREEZE_ID
-  );
-
-  console.log("[sal-period-pdf-start]", {
-    freezeId,
-  });
-  console.log("[sal-period-pdf-auth-header]", {
-    hasAuthHeader: !!accessToken,
-  });
 
   if (!accessToken) {
     return jsonErrore(
@@ -714,131 +644,26 @@ export async function GET(
     );
   }
 
-  console.log("[sal-period-pdf-before-get-user]", {
-    freezeId,
-  });
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseAdmin.auth.getUser(accessToken);
 
-  let userEmail: string | null = null;
-
-  try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(accessToken);
-
-    console.log("[sal-period-pdf-after-get-user]", {
-      freezeId,
-      hasUser: !!user,
-      email: user?.email || null,
-    });
-
-    if (authError || !user?.email) {
-      return jsonErrore(
-        "auth_get_user",
-        SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
-        HTTP_STATUS.UNAUTHORIZED
-      );
-    }
-
-    userEmail = user.email;
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
-
-    console.error("[sal-period-pdf-catch]", {
-      freezeId,
-      message,
-      name:
-        error instanceof Error ? error.name : undefined,
-    });
-
+  if (authError || !user?.email) {
     return jsonErrore(
-      "auth_get_user",
-      message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+      "auth",
+      SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
       HTTP_STATUS.UNAUTHORIZED
     );
   }
 
-  console.log("[sal-period-pdf-auth-ok]", {
-    freezeId,
-    email: userEmail,
-  });
-
-  console.log("[sal-period-pdf-before-is-admin]", {
-    freezeId,
-  });
-
-  let utenteAdmin = false;
-
-  try {
-    utenteAdmin = await isAdmin(
-      userEmail as string,
-      supabaseAdmin
-    );
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
-
-    console.error("[sal-period-pdf-catch]", {
-      freezeId,
-      message,
-      name:
-        error instanceof Error ? error.name : undefined,
-    });
-
-    return jsonErrore(
-      "role_check",
-      message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
-      HTTP_STATUS.FORBIDDEN
-    );
-  }
-
-  console.log("[sal-period-pdf-after-is-admin]", {
-    freezeId,
-    isAdmin: utenteAdmin,
-  });
-
-  let utenteResponsabile = false;
-
-  if (!utenteAdmin) {
-    console.log("[sal-period-pdf-before-is-responsabile]", {
-      freezeId,
-    });
-
-    try {
-      utenteResponsabile = await isResponsabile(
-        userEmail as string,
-        supabaseAdmin
-      );
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
-
-      console.error("[sal-period-pdf-catch]", {
-        freezeId,
-        message,
-        name:
-          error instanceof Error ? error.name : undefined,
-      });
-
-      return jsonErrore(
-        "role_check",
-        message || SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
-        HTTP_STATUS.FORBIDDEN
-      );
-    }
-
-    console.log("[sal-period-pdf-after-is-responsabile]", {
-      freezeId,
-      isResponsabile: utenteResponsabile,
-    });
-  }
+  const utenteAdmin = await isAdmin(
+    user.email,
+    supabaseAdmin
+  );
+  const utenteResponsabile = utenteAdmin
+    ? false
+    : await isResponsabile(user.email, supabaseAdmin);
 
   if (!utenteAdmin && !utenteResponsabile) {
     return jsonErrore(
@@ -848,32 +673,22 @@ export async function GET(
     );
   }
 
+  const freezeId = getQueryValue(
+    request,
+    SAL_FREEZE_QUERY.FREEZE_ID
+  );
   const cantiereNomeQuery =
     getQueryValue(request, SAL_FREEZE_QUERY.CANTIERE_NOME) || "";
 
-  console.log("[sal-period-pdf-before-freezeid-check]", {
-    freezeId,
-  });
-
   if (!freezeId) {
-    return Response.json(
-      {
-        success: false,
-        step: "input",
-        errorMessage: "freezeId mancante",
-      },
-      {
-        status: HTTP_STATUS.BAD_REQUEST,
-        headers: NO_STORE_HEADERS,
-      }
+    return jsonErrore(
+      "input",
+      "freezeId mancante",
+      HTTP_STATUS.BAD_REQUEST
     );
   }
 
   try {
-    console.log("[sal-period-pdf-before-loader]", {
-      freezeId,
-    });
-
     const freezeExport =
       await loadSalFreezeExportCommittente({
         freezeId,
@@ -887,20 +702,10 @@ export async function GET(
       );
     }
 
-    console.log("[sal-period-pdf-after-loader]", {
-      freezeId,
-      lavorazioni: freezeExport.lavorazioni.length,
-      foto: freezeExport.foto.length,
-    });
-
     const cantiereNome =
       cantiereNomeQuery ||
       freezeExport.cantiere?.nome ||
       freezeExport.freeze.cantiere_id;
-
-    console.log("[sal-period-pdf-before-doc]", {
-      freezeId,
-    });
 
     const pdfDoc = await PDFDocument.create();
     const fonts = {
@@ -911,7 +716,6 @@ export async function GET(
         StandardFonts.HelveticaBold
       ),
     };
-    const logo = await loadLogoA2C(pdfDoc);
 
     let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
@@ -920,7 +724,6 @@ export async function GET(
       fonts,
       cantiereNome,
       freeze: freezeExport.freeze,
-      logo,
     });
 
     [
@@ -999,7 +802,6 @@ export async function GET(
           fonts,
           cantiereNome,
           freeze: freezeExport.freeze,
-          logo,
         });
         page.drawRectangle({
           x: MARGIN_X,
@@ -1101,7 +903,6 @@ export async function GET(
         fonts,
         cantiereNome,
         freeze: freezeExport.freeze,
-        logo,
       });
 
       drawText(fotoPage, SAL_FREEZE_PDF.FOTO_SELEZIONATE, {
@@ -1225,11 +1026,6 @@ export async function GET(
 
     const pdfBytes = await pdfDoc.save();
 
-    console.log("[sal-period-pdf-buffer-ok]", {
-      freezeId,
-      size: pdfBytes.length,
-    });
-
     return new Response(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
@@ -1239,44 +1035,13 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    console.error("[sal-period-pdf-catch]", {
-      freezeId,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error),
-      name:
-        error instanceof Error ? error.name : undefined,
-    });
-
-    console.error("[sal-period-pdf-export-error-raw]", error);
-
     const errore = getErroreExportPdf(error);
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : errore.errorMessage;
-    const errorName =
-      error instanceof Error ? error.name : null;
-    const errorStackFirstLine =
-      error instanceof Error
-        ? error.stack?.split("\n")[0] || null
-        : null;
-
-    console.error("[sal-period-pdf-export-error]", {
-      freezeId,
-      step: errore.step,
-      errorMessage,
-      code: errore.code,
-    });
-
     return Response.json(
       {
         success: false,
         step: errore.step,
-        errorMessage,
-        errorName,
-        errorStackFirstLine,
+        errorMessage: errore.errorMessage,
+        code: errore.code,
       },
       {
         status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
