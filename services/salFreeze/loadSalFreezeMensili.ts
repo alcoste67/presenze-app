@@ -1,11 +1,19 @@
+import { API_HEADERS, API_ROUTES } from "@/constants/api";
+import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
 import { supabase } from "@/lib/supabase";
-import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type { SalFreezeMensile } from "@/types/salFreeze";
 
 type SupabaseClient = typeof supabase;
 
-const SELECT_SAL_FREEZE_MENSILI =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
 
 export async function loadSalFreezeMensili({
   cantiereId,
@@ -18,18 +26,61 @@ export async function loadSalFreezeMensili({
     return [];
   }
 
-  const { data, error } = await supabaseClient
-    .from("sal_freeze_mensili")
-    .select(SELECT_SAL_FREEZE_MENSILI)
-    .eq("cantiere_id", cantiereId)
-    .order("freeze_at", { ascending: false });
+  const { data: sessionData, error: sessionError } =
+    await supabaseClient.auth.getSession();
 
-  if (error) {
-    throwErroreSupabase(
-      "Lettura freeze SAL mensili",
-      error
+  if (sessionError) {
+    throw new Error(
+      SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
     );
   }
 
-  return (data || []) as SalFreezeMensile[];
+  const accessToken =
+    sessionData.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error(
+      SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
+    );
+  }
+
+  const response = await fetch(
+    `${API_ROUTES.SAL_FREEZE_MENSILI}?cantiereId=${encodeURIComponent(cantiereId)}`,
+    {
+      headers: {
+        [API_HEADERS.AUTHORIZATION]:
+          `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+      },
+    }
+  );
+
+  const payload = await response
+    .json()
+    .catch(() => null);
+
+  if (!response.ok) {
+    const errorMessage =
+      isRecord(payload) &&
+      typeof payload.error === "string"
+        ? payload.error
+        : SAL_FREEZE_TESTI.ERRORI.GENERICO;
+
+    throw new Error(errorMessage);
+  }
+
+  const freezeList =
+    isRecord(payload) &&
+    Array.isArray(payload.freezeList)
+      ? (payload.freezeList as SalFreezeMensile[])
+      : isRecord(payload) &&
+          Array.isArray(payload.data)
+        ? (payload.data as SalFreezeMensile[])
+        : [];
+
+  console.log("[sal-freeze-mensili-loader]", {
+    cantiereId,
+    freezeCount: freezeList.length,
+  });
+
+  return freezeList;
 }

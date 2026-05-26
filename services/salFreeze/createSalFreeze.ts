@@ -178,6 +178,7 @@ type UploadedFreezePhoto = FreezeFotoSourceRow & {
 };
 
 export type SalFreezeCreato = {
+  freezeId: string;
   freeze: FreezeHeaderRow;
   lavorazioni: SalFreezeLavorazioneInsert[];
   foto: SalFreezeFotoInsert[];
@@ -814,6 +815,7 @@ export async function createSalFreeze({
     }
 
     return {
+      freezeId: freezeHeader.id,
       freeze: freezeHeader,
       lavorazioni: lavorazioniFreeze,
       foto: fotoFreeze,

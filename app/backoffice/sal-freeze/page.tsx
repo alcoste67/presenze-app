@@ -346,6 +346,39 @@ export default function BackofficeSalFreezePage() {
     freezeDettaglioDaMostrare?.freeze.annullato_at
   );
 
+  const caricaStoricoFreeze = async ({
+    cantiereIdCorrente,
+    freezeIdDaSelezionare,
+  }: {
+    cantiereIdCorrente: string;
+    freezeIdDaSelezionare?: string | null;
+  }): Promise<string | null> => {
+    const freezeAggiornati =
+      await loadSalFreezeMensili({
+        cantiereId: cantiereIdCorrente,
+      });
+
+    setFreezeList(freezeAggiornati);
+
+    if (freezeAggiornati.length === 0) {
+      setFreezeSelezionatoId("");
+      setFreezeDettaglio(null);
+      return null;
+    }
+
+    const freezeIdValido =
+      freezeIdDaSelezionare &&
+      freezeAggiornati.some(
+        (freeze) => freeze.id === freezeIdDaSelezionare
+      )
+        ? freezeIdDaSelezionare
+        : freezeAggiornati[0].id;
+
+    setFreezeSelezionatoId(freezeIdValido);
+
+    return freezeIdValido;
+  };
+
   useEffect(() => {
     let attivo = true;
 
@@ -614,27 +647,31 @@ export default function BackofficeSalFreezePage() {
 
       const freezeIdCreato =
         isRecord(payload) &&
-        isRecord(payload.freeze) &&
-        typeof payload.freeze.id === "string"
-          ? payload.freeze.id
-          : null;
+        typeof payload.freezeId === "string"
+          ? payload.freezeId
+          : isRecord(payload) &&
+              isRecord(payload.freeze) &&
+              typeof payload.freeze.id === "string"
+            ? payload.freeze.id
+            : null;
 
-      const freezeAggiornati = await loadSalFreezeMensili(
-        {
-          cantiereId,
-        }
-      );
+      const freezeIdSelezionato = await caricaStoricoFreeze({
+        cantiereIdCorrente: cantiereId,
+        freezeIdDaSelezionare: freezeIdCreato,
+      });
 
-      setFreezeList(freezeAggiornati);
+      if (freezeIdSelezionato) {
+        const dettaglioCreato =
+          await loadSalFreezeDettaglio({
+            freezeId: freezeIdSelezionato,
+          });
+
+        setFreezeDettaglio(dettaglioCreato);
+      }
+
       setMessaggio(
         SAL_FREEZE_TESTI.MESSAGGI.FREEZE_CREATO
       );
-
-      if (freezeIdCreato) {
-        setFreezeSelezionatoId(freezeIdCreato);
-      } else if (freezeAggiornati.length > 0) {
-        setFreezeSelezionatoId(freezeAggiornati[0].id);
-      }
 
       setNote("");
       setSelectedPhotoIds([]);
@@ -830,19 +867,20 @@ export default function BackofficeSalFreezePage() {
         );
       }
 
-      const [freezeAggiornati, dettaglioAggiornato] =
-        await Promise.all([
-          loadSalFreezeMensili({
-            cantiereId,
-          }),
-          loadSalFreezeDettaglio({
-            freezeId:
-              freezeDettaglioDaMostrare.freeze.id,
-          }),
-        ]);
+      const freezeIdSelezionato = await caricaStoricoFreeze({
+        cantiereIdCorrente: cantiereId,
+        freezeIdDaSelezionare:
+          freezeDettaglioDaMostrare.freeze.id,
+      });
 
-      setFreezeList(freezeAggiornati);
-      setFreezeDettaglio(dettaglioAggiornato);
+      if (freezeIdSelezionato) {
+        const dettaglioAggiornato =
+          await loadSalFreezeDettaglio({
+            freezeId: freezeIdSelezionato,
+          });
+
+        setFreezeDettaglio(dettaglioAggiornato);
+      }
       setMessaggio(
         SAL_FREEZE_TESTI.MESSAGGI.FREEZE_ANNULLATO
       );
@@ -1179,7 +1217,7 @@ export default function BackofficeSalFreezePage() {
                   ? getFreezePeriodoLabel(
                       freezeDettaglioDaMostrare.freeze
                     )
-                  : SAL_FREEZE_TESTI.NESSUN_DETTAGLIO
+                  : undefined
               }
               action={
                 freezeDettaglioDaMostrare ? (

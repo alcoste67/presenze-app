@@ -408,6 +408,7 @@ export async function POST(
 
     return jsonOk({
       freeze,
+      freezeId: freeze.freezeId,
     });
   } catch (error: unknown) {
     const httpErrore = getErroreHttp(error);
