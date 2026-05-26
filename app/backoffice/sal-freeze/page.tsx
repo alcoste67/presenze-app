@@ -777,7 +777,17 @@ export default function BackofficeSalFreezePage() {
   };
 
   const handleEsportaPdf = async () => {
-    if (!freezeDettaglioDaMostrare || freezeSelezionatoAnnullato) {
+    const freezeId =
+      freezeDettaglioDaMostrare?.freeze.id || null;
+
+    console.log("[sal-period-pdf-click]", {
+      freezeId,
+    });
+
+    if (!freezeId || freezeSelezionatoAnnullato) {
+      setErroreExport(
+        "Seleziona un SAL periodo prima di esportare"
+      );
       return;
     }
 
@@ -799,8 +809,20 @@ export default function BackofficeSalFreezePage() {
         );
       }
 
+      const cantiereNomePdf =
+        cantiereSelezionato?.nome ||
+        freezeDettaglioDaMostrare?.freeze.cantiere_id ||
+        "";
+      const pdfUrl =
+        `${API_ROUTES.REPORT_SAL_FREEZE_PDF}?${SAL_FREEZE_EXPORT.QUERY.FREEZE_ID}=${encodeURIComponent(freezeId)}&${SAL_FREEZE_EXPORT.QUERY.CANTIERE_NOME}=${encodeURIComponent(cantiereNomePdf)}`;
+
+      console.log("[sal-period-pdf-url]", {
+        freezeId,
+        url: pdfUrl,
+      });
+
       const response = await fetch(
-        `${API_ROUTES.REPORT_SAL_FREEZE_PDF}?${SAL_FREEZE_EXPORT.QUERY.FREEZE_ID}=${encodeURIComponent(freezeDettaglioDaMostrare.freeze.id)}&${SAL_FREEZE_EXPORT.QUERY.CANTIERE_NOME}=${encodeURIComponent(cantiereSelezionato?.nome || freezeDettaglioDaMostrare.freeze.cantiere_id)}`,
+        pdfUrl,
         {
           headers: {
             [API_HEADERS.AUTHORIZATION]:
@@ -810,6 +832,13 @@ export default function BackofficeSalFreezePage() {
       );
       const contentType =
         response.headers.get("content-type") || "";
+
+      console.log("[sal-period-pdf-response]", {
+        freezeId,
+        status: response.status,
+        redirected: response.redirected,
+        contentType,
+      });
 
       if (
         response.redirected ||
@@ -822,7 +851,7 @@ export default function BackofficeSalFreezePage() {
           });
 
         console.error("[sal-period-export-error]", {
-          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          freezeId,
           type: "pdf",
           status: response.status,
           contentType,
@@ -842,7 +871,7 @@ export default function BackofficeSalFreezePage() {
           });
 
         console.error("[sal-period-export-error]", {
-          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          freezeId,
           type: "pdf",
           status: response.status,
           contentType,
