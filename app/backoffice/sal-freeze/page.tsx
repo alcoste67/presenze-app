@@ -115,16 +115,12 @@ function getMessaggioApi(
   return null;
 }
 
-function getMessaggioErroreExport(
-  payload: unknown
+function getMessaggioErroreExportFallback(
+  tipo: "pdf" | "excel"
 ) {
-  const messaggioApi = getMessaggioApi(payload);
-
-  if (messaggioApi) {
-    return messaggioApi;
-  }
-
-  return SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_FALLITA;
+  return tipo === "pdf"
+    ? SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_PDF_FALLITA
+    : SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_EXCEL_FALLITA;
 }
 
 function getNomeFilePdf(response: Response) {
@@ -729,22 +725,38 @@ export default function BackofficeSalFreezePage() {
           },
         }
       );
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      if (
+        response.redirected ||
+        !contentType.includes("application/pdf")
+      ) {
+        console.error("[sal-period-export-error]", {
+          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          type: "pdf",
+          status: response.status,
+          contentType,
+        });
+
+        setErroreExport(
+          getMessaggioErroreExportFallback("pdf")
+        );
+        return;
+      }
 
       if (!response.ok) {
-        const payload = await response
-          .text()
-          .then((text) => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              return text;
-            }
-          })
-          .catch(() => null);
+        console.error("[sal-period-export-error]", {
+          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          type: "pdf",
+          status: response.status,
+          contentType,
+        });
 
-        throw new Error(
-          getMessaggioErroreExport(payload)
+        setErroreExport(
+          getMessaggioErroreExportFallback("pdf")
         );
+        return;
       }
 
       scaricaBlobPdf({
@@ -800,22 +812,40 @@ export default function BackofficeSalFreezePage() {
           },
         }
       );
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      if (
+        response.redirected ||
+        !contentType.includes(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+      ) {
+        console.error("[sal-period-export-error]", {
+          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          type: "excel",
+          status: response.status,
+          contentType,
+        });
+
+        setErroreExport(
+          getMessaggioErroreExportFallback("excel")
+        );
+        return;
+      }
 
       if (!response.ok) {
-        const payload = await response
-          .text()
-          .then((text) => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              return text;
-            }
-          })
-          .catch(() => null);
+        console.error("[sal-period-export-error]", {
+          freezeId: freezeDettaglioDaMostrare.freeze.id,
+          type: "excel",
+          status: response.status,
+          contentType,
+        });
 
-        throw new Error(
-          getMessaggioErroreExport(payload)
+        setErroreExport(
+          getMessaggioErroreExportFallback("excel")
         );
+        return;
       }
 
       const url = URL.createObjectURL(await response.blob());

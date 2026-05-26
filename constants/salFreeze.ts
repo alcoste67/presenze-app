@@ -103,8 +103,8 @@ export const SAL_FREEZE_TESTI = {
     GENERICO: "Errore caricamento SAL periodo",
     INPUT_NON_VALIDO: "Input non valido",
     ACCESSO_NEGATO: "Accesso non autorizzato",
-    ESPORTAZIONE_FALLITA:
-      "Errore esportazione SAL periodo",
+    ESPORTAZIONE_PDF_FALLITA: "Errore export PDF",
+    ESPORTAZIONE_EXCEL_FALLITA: "Errore export Excel",
     FREEZE_NON_TROVATO: "SAL periodo non trovato",
     FREEZE_ESISTENTE:
       "SAL periodo gia esistente per il periodo selezionato",
