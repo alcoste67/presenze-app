@@ -66,18 +66,29 @@ async function aggiungiPreviewFoto({
 }): Promise<SalFreezeFotoPreview[]> {
   return Promise.all(
     foto.map(async (item) => {
+      const directPreview = getPreviewUrlDaSnapshot(
+        item.storage_path_snapshot
+      );
+
+      if (directPreview) {
+        return {
+          ...item,
+          preview_url: directPreview,
+        };
+      }
+
       const storage = estraiStoragePath(
         item.storage_path_snapshot
       );
 
       if (!storage) {
-        const directPreview = getPreviewUrlDaSnapshot(
-          item.storage_path_snapshot
-        );
+        console.warn("[sal-freeze-export-photo-warning]", {
+          storagePathSnapshot: item.storage_path_snapshot,
+        });
 
         return {
           ...item,
-          preview_url: directPreview,
+          preview_url: null,
         };
       }
 

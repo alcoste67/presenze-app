@@ -30,10 +30,16 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
-function jsonErrore(error: string, status: number) {
+function jsonErrore(
+  step: string,
+  errorMessage: string,
+  status: number
+) {
   return Response.json(
     {
-      error,
+      success: false,
+      step,
+      errorMessage,
     },
     {
       status,
@@ -171,6 +177,7 @@ export async function GET(
 
   if (!accessToken) {
     return jsonErrore(
+      "auth",
       SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
       HTTP_STATUS.UNAUTHORIZED
     );
@@ -183,6 +190,7 @@ export async function GET(
 
   if (authError || !user?.email) {
     return jsonErrore(
+      "auth",
       SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
       HTTP_STATUS.UNAUTHORIZED
     );
@@ -198,6 +206,7 @@ export async function GET(
 
   if (!utenteAdmin && !utenteResponsabile) {
     return jsonErrore(
+      "admin_check",
       SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
       HTTP_STATUS.FORBIDDEN
     );
@@ -212,6 +221,7 @@ export async function GET(
 
   if (!freezeId) {
     return jsonErrore(
+      "input",
       SAL_FREEZE_TESTI.ERRORI.INPUT_NON_VALIDO,
       HTTP_STATUS.BAD_REQUEST
     );
@@ -225,6 +235,7 @@ export async function GET(
 
     if (!freezeExport) {
       return jsonErrore(
+        "freeze_not_found",
         SAL_FREEZE_TESTI.ERRORI.FREEZE_NON_TROVATO,
         HTTP_STATUS.NOT_FOUND
       );
@@ -260,9 +271,19 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    console.error("Errore export Excel freeze SAL", error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : SAL_FREEZE_TESTI.ERRORI.GENERICO;
+
+    console.error("[sal-period-excel-export-error]", {
+      freezeId,
+      errorMessage,
+    });
+
     return jsonErrore(
-      SAL_FREEZE_TESTI.ERRORI.GENERICO,
+      "unexpected",
+      errorMessage,
       HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
   }
