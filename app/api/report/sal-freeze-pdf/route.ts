@@ -702,6 +702,9 @@ export async function GET(
   console.log("[sal-period-pdf-start]", {
     freezeId,
   });
+  console.log("[sal-period-pdf-auth-header]", {
+    hasAuthHeader: !!accessToken,
+  });
 
   if (!accessToken) {
     return jsonErrore(

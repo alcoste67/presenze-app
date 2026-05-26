@@ -700,7 +700,13 @@ export default function BackofficeSalFreezePage() {
         throw error;
       }
 
-      const accessToken = data.session?.access_token;
+      const session = data.session;
+      const accessToken = session?.access_token;
+
+      console.log("[sal-period-pdf-auth]", {
+        hasSession: !!session,
+        hasToken: !!session?.access_token,
+      });
 
       if (!accessToken) {
         throw new Error(
