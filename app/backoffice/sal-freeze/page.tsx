@@ -1343,7 +1343,7 @@ export default function BackofficeSalFreezePage() {
                     {SAL_TESTI.CARICAMENTO}
                   </p>
                 ) : recentPhotos.length > 0 ? (
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
                     {recentPhotos.map((foto) => {
                       const selezionata =
                         selectedPhotoIds.includes(
@@ -1357,9 +1357,9 @@ export default function BackofficeSalFreezePage() {
                       return (
                         <label
                           key={foto.id}
-                          className={`w-full max-w-full overflow-hidden rounded-xl border transition-colors duration-200 ease-out ${selezionata ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong"}`}
+                          className={`w-full max-w-[160px] overflow-hidden rounded-xl border transition-colors duration-200 ease-out ${selezionata ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong"}`}
                         >
-                          <div className="flex gap-3 p-3">
+                          <div className="flex flex-col gap-2 p-3">
                             <input
                               type="checkbox"
                               checked={selezionata}
@@ -1369,12 +1369,16 @@ export default function BackofficeSalFreezePage() {
                               className="mt-1 h-4 w-4 rounded border-industrial-border text-industrial-orange"
                             />
 
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0">
                               <div
-                                className="overflow-hidden rounded-lg bg-industrial-bg-soft"
+                                className="flex overflow-hidden rounded-lg bg-industrial-bg-soft"
                                 style={{
-                                  maxWidth: "100%",
-                                  height: "200px",
+                                  width: "160px",
+                                  height: "120px",
+                                  maxWidth: "160px",
+                                  maxHeight: "120px",
+                                  alignItems: "center",
+                                  justifyContent: "center",
                                 }}
                               >
                                 {previewUrl ? (
@@ -1384,7 +1388,7 @@ export default function BackofficeSalFreezePage() {
                                       foto.descrizione ||
                                       SAL_FREEZE_TESTI.FOTO_RECENTI
                                     }
-                                    className="block h-full w-full object-cover"
+                                    className="block h-auto max-h-full w-auto max-w-full object-contain"
                                   />
                                 ) : (
                                   <div className="flex h-full items-center justify-center rounded-lg bg-industrial-bg-soft px-3 text-center text-xs text-industrial-muted">
