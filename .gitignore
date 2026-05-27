@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database dumps and logs (sensitive data)
+schema_prod.sql
+schema_prod.sql.bak
+data_prod.sql
+data_prod_wrapped.sql
+schema_apply.log
+data_apply.log
+*.dump
