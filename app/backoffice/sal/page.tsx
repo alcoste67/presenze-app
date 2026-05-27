@@ -553,22 +553,22 @@ export default function BackofficeSalPage() {
   const loading = loadingCantieri || loadingSal;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">
+    <main className="min-h-screen overflow-x-hidden bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold sm:text-3xl">
               {SAL_TESTI.TITOLO}
             </h1>
           </div>
 
-          <div className="flex gap-4 text-sm font-semibold">
+          <div className="grid w-full gap-2 text-sm font-semibold sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex">
             {cantiereId ? (
               <button
                 type="button"
                 onClick={handleEsportaPdf}
                 disabled={loadingPdf}
-                className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
+                className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active md:w-auto"
               >
                 {loadingPdf
                   ? SAL_TESTI.CARICAMENTO
@@ -578,20 +578,20 @@ export default function BackofficeSalPage() {
               <button
                 type="button"
                 disabled
-                className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-2 text-industrial-muted-strong"
+                className="w-full rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-2 text-industrial-muted-strong md:w-auto"
               >
                 {SAL_TESTI.ESPORTA_PDF}
               </button>
             )}
             <Link
               href="/backoffice"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              className="w-full rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-center text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
             >
               {SAL_TESTI.BACKOFFICE}
             </Link>
             <Link
               href="/"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              className="w-full rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-center text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
             >
               {SAL_TESTI.TIMBRATURE}
             </Link>
@@ -604,7 +604,7 @@ export default function BackofficeSalPage() {
           </p>
         )}
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
           <label className="block max-w-xl">
             <span className="mb-1 block text-sm font-medium text-industrial-muted">
               {SAL_TESTI.CANTIERE}
@@ -634,10 +634,10 @@ export default function BackofficeSalPage() {
           </label>
         </section>
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-lg font-semibold sm:text-xl">
                 {SAL_FREEZE_TESTI.TITOLO}
               </h2>
               <p className="mt-1 text-sm text-industrial-muted">
@@ -645,17 +645,17 @@ export default function BackofficeSalPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex">
               <Link
                 href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active"
+                className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-center text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active md:w-auto"
               >
                 {SAL_FREEZE_TESTI.CREA_FREEZE}
               </Link>
 
               <Link
                 href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+                className="w-full rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-center text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
               >
                 {SAL_FREEZE_TESTI.LISTA_FREEZE}
               </Link>
@@ -663,7 +663,7 @@ export default function BackofficeSalPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">
@@ -744,7 +744,7 @@ export default function BackofficeSalPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
               <FileInputPicker
                 label={SAL_TESTI.CARICA_FOTO}
@@ -769,7 +769,7 @@ export default function BackofficeSalPage() {
                 fotoDaCaricare.length === 0 ||
                 !cantiereId
               }
-              className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+              className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
             >
               {salvataggioFoto
                 ? SAL_TESTI.CARICAMENTO
@@ -900,8 +900,8 @@ export default function BackofficeSalPage() {
           )}
 
         {!loading && sal && (
-          <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
               <p className="text-sm font-medium text-industrial-muted">
                 {
                   SAL_TESTI.AVANZAMENTO_TOTALE
@@ -926,9 +926,9 @@ export default function BackofficeSalPage() {
             </section>
 
             <section>
-              <h2 className="mb-4 text-xl font-semibold">
-                {SAL_TESTI.LAVORAZIONI_ATTIVE}
-              </h2>
+            <h2 className="mb-4 text-lg font-semibold sm:text-xl">
+              {SAL_TESTI.LAVORAZIONI_ATTIVE}
+            </h2>
 
               {sal.lavorazioni.length === 0 ? (
                 <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">

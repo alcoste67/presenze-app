@@ -338,6 +338,75 @@ function FreezeBadge({
   );
 }
 
+function FreezeLavorazioneCard({
+  lavorazione,
+}: {
+  lavorazione: SalFreezeDettaglio["lavorazioni"][number];
+}) {
+  return (
+    <article className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-industrial-text">
+            {lavorazione.lavorazione_nome_snapshot}
+          </p>
+          <p className="mt-1 text-xs text-industrial-muted">
+            {SAL_FREEZE_TESTI.PERCENTUALE_PRECEDENTE}:{" "}
+            {lavorazione.percentuale_precedente}%
+          </p>
+          <p className="mt-1 text-xs text-industrial-muted">
+            {SAL_FREEZE_TESTI.PERCENTUALE_ATTUALE}:{" "}
+            {lavorazione.percentuale_attuale}%
+          </p>
+          <p className="mt-1 text-xs text-industrial-muted">
+            {SAL_FREEZE_TESTI.ORE_UOMO}:{" "}
+            {formattaOreUomo(
+              lavorazione.ore_uomo_minuti
+            )}
+          </p>
+        </div>
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${getDeltaClassName(
+            lavorazione.delta_percentuale
+          )}`}
+        >
+          {formattaDeltaPercentuale(
+            lavorazione.delta_percentuale
+          )}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function FreezeMacchinarioCard({
+  macchinario,
+}: {
+  macchinario: SalFreezeDettaglio["macchinari"][number];
+}) {
+  return (
+    <article className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-4">
+      <div className="grid gap-2 text-sm">
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-semibold text-industrial-text">
+            {macchinario.tipo_macchinario_snapshot}
+          </p>
+          <p className="text-xs text-industrial-muted">
+            {macchinario.ore_utilizzo}
+          </p>
+        </div>
+        <p className="text-sm text-industrial-muted">
+          {macchinario.descrizione_snapshot}
+        </p>
+        <p className="text-xs text-industrial-muted-strong">
+          {macchinario.note}
+        </p>
+      </div>
+    </article>
+  );
+}
+
 export default function BackofficeSalFreezePage() {
   const [cantieri, setCantieri] = useState<
     CantiereBackoffice[]
@@ -1237,7 +1306,7 @@ export default function BackofficeSalFreezePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
+      <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
         <div className="mx-auto max-w-7xl text-sm text-industrial-muted">
           {SAL_TESTI.CARICAMENTO}
         </div>
@@ -1246,14 +1315,14 @@ export default function BackofficeSalFreezePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
+    <main className="min-h-screen overflow-x-hidden bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-industrial-muted-strong">
               {SAL_FREEZE_TESTI.BACKOFFICE}
             </p>
-            <h1 className="mt-2 text-3xl font-bold">
+            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
               {SAL_FREEZE_TESTI.TITOLO}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-industrial-muted">
@@ -1263,7 +1332,7 @@ export default function BackofficeSalFreezePage() {
 
           <Link
             href={APP_ROUTES.BACKOFFICE}
-            className="rounded-xl border border-industrial-border bg-industrial-control px-4 py-3 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+            className="w-full rounded-xl border border-industrial-border bg-industrial-control px-4 py-3 text-center text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
           >
             {SAL_FREEZE_TESTI.BACKOFFICE}
           </Link>
@@ -1287,7 +1356,7 @@ export default function BackofficeSalFreezePage() {
           </div>
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <SectionCard
               title={SAL_FREEZE_TESTI.CANTIERE}
@@ -1751,7 +1820,7 @@ export default function BackofficeSalFreezePage() {
               }
               action={
                 freezeDettaglioDaMostrare ? (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid w-full gap-2 sm:grid-cols-2 lg:flex lg:w-auto">
                     <FreezeBadge
                       annullato={freezeSelezionatoAnnullato}
                     />
@@ -1764,7 +1833,7 @@ export default function BackofficeSalFreezePage() {
                             void handleEsportaPdf()
                           }
                           disabled={loadingPdf}
-                          className="inline-flex h-10 items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                          className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
                         >
                           {loadingPdf
                             ? SAL_TESTI.CARICAMENTO
@@ -1777,7 +1846,7 @@ export default function BackofficeSalFreezePage() {
                             void handleEsportaExcel()
                           }
                           disabled={loadingExcel}
-                          className="inline-flex h-10 items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                          className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
                         >
                           {loadingExcel
                             ? SAL_TESTI.CARICAMENTO
@@ -1794,7 +1863,7 @@ export default function BackofficeSalFreezePage() {
                           void handleAnnullaFreeze()
                         }
                         disabled={salvataggio}
-                        className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition-colors duration-200 ease-out hover:border-red-300 hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition-colors duration-200 ease-out hover:border-red-300 hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                       >
                         {SAL_FREEZE_TESTI.ANNULLA_FREEZE}
                       </button>
@@ -1857,7 +1926,7 @@ export default function BackofficeSalFreezePage() {
                   ) : null}
 
                   <div className="overflow-hidden rounded-xl border border-industrial-border-soft">
-                    <div className="overflow-x-auto">
+                    <div className="hidden overflow-x-auto md:block">
                       <table className="min-w-full border-collapse text-left text-sm">
                         <thead className="bg-industrial-bg-soft text-xs uppercase tracking-[0.2em] text-industrial-muted-strong">
                           <tr>
@@ -1919,6 +1988,17 @@ export default function BackofficeSalFreezePage() {
                           )}
                         </tbody>
                       </table>
+                    </div>
+
+                    <div className="grid gap-3 p-3 md:hidden">
+                      {freezeDettaglioDaMostrare.lavorazioni.map(
+                        (lavorazione) => (
+                          <FreezeLavorazioneCard
+                            key={lavorazione.id}
+                            lavorazione={lavorazione}
+                          />
+                        )
+                      )}
                     </div>
                   </div>
 
@@ -1998,7 +2078,7 @@ export default function BackofficeSalFreezePage() {
 
                     {freezeDettaglioDaMostrare.macchinari.length > 0 ? (
                       <div className="mt-3 overflow-hidden rounded-xl border border-industrial-border-soft">
-                        <div className="overflow-x-auto">
+                        <div className="hidden overflow-x-auto md:block">
                           <table className="min-w-full border-collapse text-left text-sm">
                             <thead className="bg-industrial-bg-soft text-xs uppercase tracking-[0.2em] text-industrial-muted-strong">
                               <tr>
@@ -2044,6 +2124,17 @@ export default function BackofficeSalFreezePage() {
                               )}
                             </tbody>
                           </table>
+                        </div>
+
+                        <div className="grid gap-3 p-3 md:hidden">
+                          {freezeDettaglioDaMostrare.macchinari.map(
+                            (macchinario) => (
+                              <FreezeMacchinarioCard
+                                key={macchinario.id}
+                                macchinario={macchinario}
+                              />
+                            )
+                          )}
                         </div>
                       </div>
                     ) : (
