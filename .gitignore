@@ -52,3 +52,6 @@ data_apply.log
 # Supabase CLI temp folder
 supabase/.temp/
 supabase/.DS_Store
+auth_data.sql
+auth_data_wrapped.sql
+auth_apply.log
