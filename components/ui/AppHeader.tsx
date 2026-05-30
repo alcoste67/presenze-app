@@ -1,6 +1,13 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { LogOut } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { Button } from './Button'
+import { useToast } from './Toast'
 import { cn } from '@/lib/utils'
 
 export interface AppHeaderProps {
@@ -9,6 +16,31 @@ export interface AppHeaderProps {
 }
 
 export function AppHeader({ actions, className }: AppHeaderProps) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const router = useRouter()
+  const toast = useToast()
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setIsLoggedIn(Boolean(session?.user))
+      }
+    )
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      toast.success('Disconnesso')
+      router.push('/')
+    } catch {
+      // best-effort: session already invalidated server-side
+    }
+  }
+
+  const hasRight = Boolean(actions) || isLoggedIn
+
   return (
     <header
       className={cn(
@@ -30,7 +62,22 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
           priority
         />
       </Link>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+
+      {hasRight && (
+        <div className="flex items-center gap-2">
+          {actions}
+          {isLoggedIn && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<LogOut className="h-4 w-4" />}
+              onClick={handleLogout}
+            >
+              <span className="hidden sm:inline">Esci</span>
+            </Button>
+          )}
+        </div>
+      )}
     </header>
   )
 }

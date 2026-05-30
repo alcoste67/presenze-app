@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+  Home,
+  Pencil,
+  Plus,
+  Power,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import {
@@ -14,26 +18,47 @@ import {
   TIPO_CONTEGGIO_ORE,
   TIPO_CONTEGGIO_ORE_TESTI,
 } from "@/constants/tipoConteggioOre";
+import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
+import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
+import { APP_ROUTES } from "@/constants/routes";
+
 import { aggiornaDipendente } from "@/services/dipendenti/aggiornaDipendente";
 import { creaDipendente } from "@/services/dipendenti/creaDipendente";
 import { eliminaDipendenteSeVuoto } from "@/services/dipendenti/eliminaDipendenteSeVuoto";
 import { loadDipendenti } from "@/services/dipendenti/loadDipendenti";
+
 import {
-  Dipendente,
-  DipendenteInput,
-  RuoloDipendente,
-  TipoConteggioOre,
+  type Dipendente,
+  type DipendenteInput,
+  type RuoloDipendente,
+  type TipoConteggioOre,
 } from "@/types/dipendenti";
 
-const LABEL_RUOLI_DIPENDENTE: Record<
-  RuoloDipendente,
-  string
-> = {
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const LABEL_RUOLI_DIPENDENTE: Record<RuoloDipendente, string> = {
   [RUOLI_DIPENDENTE.OPERAIO]: "Operaio",
-  [RUOLI_DIPENDENTE.RESPONSABILE]:
-    "Responsabile",
+  [RUOLI_DIPENDENTE.RESPONSABILE]: "Responsabile",
   [RUOLI_DIPENDENTE.UFFICIO]: "Ufficio",
   [RUOLI_DIPENDENTE.ADMIN]: "Admin",
+};
+
+const RUOLO_BADGE_VARIANT: Record<RuoloDipendente, BadgeProps["variant"]> = {
+  [RUOLI_DIPENDENTE.ADMIN]: "brand",
+  [RUOLI_DIPENDENTE.RESPONSABILE]: "info",
+  [RUOLI_DIPENDENTE.OPERAIO]: "success",
+  [RUOLI_DIPENDENTE.UFFICIO]: "muted",
 };
 
 const FORM_INIZIALE: DipendenteInput = {
@@ -42,722 +67,558 @@ const FORM_INIZIALE: DipendenteInput = {
   email: "",
   ruolo: RUOLI_DIPENDENTE.OPERAIO,
   attivo: true,
-  tipo_conteggio_ore:
-    TIPO_CONTEGGIO_ORE.REALE,
+  tipo_conteggio_ore: TIPO_CONTEGGIO_ORE.REALE,
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Errore gestione dipendenti";
+  return error instanceof Error ? error.message : "Errore gestione dipendenti";
 }
 
-function preparaDipendente(
-  dipendente: DipendenteInput
-): DipendenteInput {
+function preparaDipendente(dipendente: DipendenteInput): DipendenteInput {
   return {
     nome: dipendente.nome.trim(),
     cognome: dipendente.cognome.trim(),
     email: dipendente.email.trim(),
     ruolo: dipendente.ruolo,
     attivo: dipendente.attivo,
-    tipo_conteggio_ore:
-      dipendente.tipo_conteggio_ore,
+    tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
   };
 }
 
-function confrontaDipendenti(
-  primo: Dipendente,
-  secondo: Dipendente
-) {
-  const confrontoCognome =
-    primo.cognome.localeCompare(
-      secondo.cognome
-    );
-
-  if (confrontoCognome !== 0) {
-    return confrontoCognome;
-  }
-
-  return primo.nome.localeCompare(
-    secondo.nome
-  );
+function confrontaDipendenti(primo: Dipendente, secondo: Dipendente) {
+  const confrontoCognome = primo.cognome.localeCompare(secondo.cognome);
+  if (confrontoCognome !== 0) return confrontoCognome;
+  return primo.nome.localeCompare(secondo.nome);
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BackofficeDipendentiPage() {
-  const [dipendenti, setDipendenti] =
-    useState<Dipendente[]>([]);
+  const toast = useToast();
 
-  const [form, setForm] =
-    useState<DipendenteInput>(
-      FORM_INIZIALE
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+  const [form, setForm] = useState<DipendenteInput>(FORM_INIZIALE);
+  const [dipendenteInModificaId, setDipendenteInModificaId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [ricerca, setRicerca] = useState("");
+  const [confirmDeleteDipendente, setConfirmDeleteDipendente] = useState<Dipendente | null>(null);
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const dipendentiFiltrati = useMemo(() => {
+    const q = ricerca.trim().toLowerCase();
+    if (!q) return dipendenti;
+    return dipendenti.filter((d) =>
+      `${d.nome} ${d.cognome} ${d.email}`.toLowerCase().includes(q)
     );
+  }, [dipendenti, ricerca]);
 
-  const [
-    dipendenteInModificaId,
-    setDipendenteInModificaId,
-  ] = useState<string | null>(null);
+  const formTitolo = dipendenteInModificaId ? "Modifica dipendente" : "Nuovo dipendente";
 
-  const [loading, setLoading] =
-    useState(true);
-  const [salvataggio, setSalvataggio] =
-    useState(false);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
-  const [messaggio, setMessaggio] =
-    useState<string | null>(null);
+  // ── Init ───────────────────────────────────────────────────────────────────
 
-  const caricaDipendenti = useCallback(
-    async () => {
-      try {
-        setLoading(true);
-        setErrore(null);
-
-        const dati = await loadDipendenti();
-
-        setDipendenti(dati);
-      } catch (error: unknown) {
-        setErrore(getMessaggioErrore(error));
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const caricaDipendenti = useCallback(async () => {
+    try {
+      setLoading(true);
+      const dati = await loadDipendenti();
+      setDipendenti(dati);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let attivo = true;
 
-    const caricaDipendentiIniziali =
-      async () => {
-        try {
-          const dati =
-            await loadDipendenti();
-
-          if (!attivo) {
-            return;
-          }
-
-          setDipendenti(dati);
-        } catch (error: unknown) {
-          if (!attivo) {
-            return;
-          }
-
-          setErrore(
-            getMessaggioErrore(error)
-          );
-        } finally {
-          if (attivo) {
-            setLoading(false);
-          }
-        }
-      };
+    const caricaDipendentiIniziali = async () => {
+      try {
+        const dati = await loadDipendenti();
+        if (!attivo) return;
+        setDipendenti(dati);
+      } catch (error: unknown) {
+        if (!attivo) return;
+        toast.error(getMessaggioErrore(error));
+      } finally {
+        if (attivo) setLoading(false);
+      }
+    };
 
     void caricaDipendentiIniziali();
 
     return () => {
       attivo = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const resetForm = () => {
     setForm(FORM_INIZIALE);
     setDipendenteInModificaId(null);
   };
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const payload =
-      preparaDipendente(form);
+    const payload = preparaDipendente(form);
 
     if (!payload.nome) {
-      alert("Inserisci il nome");
+      toast.error("Inserisci il nome");
       return;
     }
 
     if (!payload.cognome) {
-      alert("Inserisci il cognome");
+      toast.error("Inserisci il cognome");
       return;
     }
 
     if (!payload.email) {
-      alert("Inserisci l'email");
+      toast.error("Inserisci l'email");
       return;
     }
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
       if (dipendenteInModificaId) {
-        const dipendenteAggiornato =
-          await aggiornaDipendente({
-            dipendenteId:
-              dipendenteInModificaId,
-            dipendente: payload,
-          });
+        const dipendenteAggiornato = await aggiornaDipendente({
+          dipendenteId: dipendenteInModificaId,
+          dipendente: payload,
+        });
 
-        setDipendenti(
-          (dipendentiCorrenti) =>
-            dipendentiCorrenti
-              .map((dipendente) =>
-                dipendente.id ===
-                dipendenteAggiornato.id
-                  ? dipendenteAggiornato
-                  : dipendente
-              )
-              .sort(confrontaDipendenti)
+        setDipendenti((correnti) =>
+          correnti
+            .map((d) => (d.id === dipendenteAggiornato.id ? dipendenteAggiornato : d))
+            .sort(confrontaDipendenti)
         );
 
-        setMessaggio(
-          "Dipendente aggiornato"
-        );
+        toast.success("Dipendente aggiornato");
       } else {
-        const nuovoDipendente =
-          await creaDipendente(payload);
+        const nuovoDipendente = await creaDipendente(payload);
 
-        setDipendenti(
-          (dipendentiCorrenti) =>
-            [
-              ...dipendentiCorrenti,
-              nuovoDipendente,
-            ].sort(confrontaDipendenti)
+        setDipendenti((correnti) =>
+          [...correnti, nuovoDipendente].sort(confrontaDipendenti)
         );
 
-        setMessaggio(
-          "Dipendente creato"
-        );
+        toast.success("Dipendente creato");
       }
 
       resetForm();
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const avviaModifica = (
-    dipendente: Dipendente
-  ) => {
-    setDipendenteInModificaId(
-      dipendente.id
-    );
+  const avviaModifica = (dipendente: Dipendente) => {
+    setDipendenteInModificaId(dipendente.id);
     setForm({
       nome: dipendente.nome,
       cognome: dipendente.cognome,
       email: dipendente.email,
       ruolo: dipendente.ruolo,
       attivo: dipendente.attivo,
-      tipo_conteggio_ore:
-        dipendente.tipo_conteggio_ore,
+      tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
     });
-    setErrore(null);
-    setMessaggio(null);
   };
 
-  const toggleAttivo = async (
-    dipendente: Dipendente
-  ) => {
+  const toggleAttivo = async (dipendente: Dipendente) => {
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      const dipendenteAggiornato =
-        await aggiornaDipendente({
-          dipendenteId: dipendente.id,
-          dipendente: {
-            nome: dipendente.nome,
-            cognome: dipendente.cognome,
-            email: dipendente.email,
-            ruolo: dipendente.ruolo,
-            attivo: !dipendente.attivo,
-            tipo_conteggio_ore:
-              dipendente.tipo_conteggio_ore,
-          },
-        });
+      const dipendenteAggiornato = await aggiornaDipendente({
+        dipendenteId: dipendente.id,
+        dipendente: {
+          nome: dipendente.nome,
+          cognome: dipendente.cognome,
+          email: dipendente.email,
+          ruolo: dipendente.ruolo,
+          attivo: !dipendente.attivo,
+          tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
+        },
+      });
 
-      setDipendenti(
-        (dipendentiCorrenti) =>
-          dipendentiCorrenti
-            .map((dipendenteCorrente) =>
-              dipendenteCorrente.id ===
-              dipendenteAggiornato.id
-                ? dipendenteAggiornato
-                : dipendenteCorrente
-            )
-            .sort(confrontaDipendenti)
+      setDipendenti((correnti) =>
+        correnti
+          .map((d) => (d.id === dipendenteAggiornato.id ? dipendenteAggiornato : d))
+          .sort(confrontaDipendenti)
       );
 
-      if (
-        dipendenteInModificaId ===
-        dipendenteAggiornato.id
-      ) {
+      if (dipendenteInModificaId === dipendenteAggiornato.id) {
         setForm({
           nome: dipendenteAggiornato.nome,
-          cognome:
-            dipendenteAggiornato.cognome,
+          cognome: dipendenteAggiornato.cognome,
           email: dipendenteAggiornato.email,
           ruolo: dipendenteAggiornato.ruolo,
-          attivo:
-            dipendenteAggiornato.attivo,
-          tipo_conteggio_ore:
-            dipendenteAggiornato.tipo_conteggio_ore,
+          attivo: dipendenteAggiornato.attivo,
+          tipo_conteggio_ore: dipendenteAggiornato.tipo_conteggio_ore,
         });
       }
 
-      setMessaggio(
-        dipendenteAggiornato.attivo
-          ? "Dipendente attivato"
-          : "Dipendente disattivato"
+      toast.success(
+        dipendenteAggiornato.attivo ? "Dipendente attivato" : "Dipendente disattivato"
       );
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const eliminaDipendente = async (
-    dipendente: Dipendente
-  ) => {
+  const confirmElimina = (dipendente: Dipendente) => {
     if (dipendente.attivo) {
-      setErrore(
-        "Disattiva il dipendente prima di eliminarlo"
-      );
-
+      toast.error("Disattiva il dipendente prima di eliminarlo");
       return;
     }
+    setConfirmDeleteDipendente(dipendente);
+  };
 
-    const confermato = window.confirm(
-      `Eliminare definitivamente il dipendente ${dipendente.cognome} ${dipendente.nome}?`
-    );
-
-    if (!confermato) {
-      return;
-    }
+  const eseguiElimina = async () => {
+    if (!confirmDeleteDipendente) return;
+    const dipendente = confirmDeleteDipendente;
+    setConfirmDeleteDipendente(null);
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      await eliminaDipendenteSeVuoto(
-        dipendente.id
-      );
+      await eliminaDipendenteSeVuoto(dipendente.id);
 
-      if (
-        dipendenteInModificaId ===
-        dipendente.id
-      ) {
+      if (dipendenteInModificaId === dipendente.id) {
         resetForm();
       }
 
       await caricaDipendenti();
 
-      setMessaggio(
-        "Dipendente eliminato"
-      );
+      toast.success("Dipendente eliminato");
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const formTitolo = dipendenteInModificaId
-    ? "Modifica dipendente"
-    : "Nuovo dipendente";
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">
-              Dipendenti
-            </h1>
-          </div>
-
-          <div className="flex gap-4 text-sm font-semibold">
-            <Link
-              href="/backoffice"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              Back-office
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            <Link href={APP_ROUTES.BACKOFFICE}>
+              <Button variant="secondary" size="sm">
+                {PRODUTTIVITA_TESTI.BACKOFFICE}
+              </Button>
             </Link>
-            <Link
-              href="/"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              Timbrature
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
+              </Button>
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
-            {errore}
-          </p>
-        )}
+      <main className="mx-auto max-w-[1000px] px-6 py-6">
+        {/* Breadcrumb */}
+        <nav
+          aria-label="breadcrumb"
+          className="mb-5 flex items-center gap-1.5 text-sm text-text-muted"
+        >
+          <Link
+            href={APP_ROUTES.HOME}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link
+            href={APP_ROUTES.BACKOFFICE}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            {PRODUTTIVITA_TESTI.BACKOFFICE}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">Dipendenti</span>
+        </nav>
 
-        {messaggio && (
-          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
-            {messaggio}
-          </p>
-        )}
+        {/* Titolo */}
+        <h1 className="font-heading text-2xl font-medium text-text-primary">Dipendenti</h1>
+        <p className="mt-1 text-sm text-text-muted">Gestione anagrafica e ruoli</p>
 
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <h2 className="mb-4 text-xl font-semibold">
+        {/* Grid 2 colonne */}
+        <div className="mt-6 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+
+          {/* ── Colonna sinistra: Form ── */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
               {formTitolo}
             </h2>
 
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-4"
-            >
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Nome
-                </span>
-                <input
-                  value={form.nome}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        nome: event.target.value,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Input
+                label="Nome"
+                value={form.nome}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, nome: e.target.value }))
+                }
+                disabled={salvataggio}
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Cognome
-                </span>
-                <input
-                  value={form.cognome}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        cognome:
-                          event.target.value,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+              <Input
+                label="Cognome"
+                value={form.cognome}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cognome: e.target.value }))
+                }
+                disabled={salvataggio}
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Email
-                </span>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        email: event.target.value,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+              <Input
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, email: e.target.value }))
+                }
+                disabled={salvataggio}
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Ruolo
-                </span>
-                <select
-                  value={form.ruolo}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        ruolo: event.target
-                          .value as RuoloDipendente,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                >
-                  {Object.values(
-                    RUOLI_DIPENDENTE
-                  ).map((ruolo) => (
-                    <option
-                      key={ruolo}
-                      value={ruolo}
-                    >
-                      {
-                        LABEL_RUOLI_DIPENDENTE[
-                          ruolo
-                        ]
-                      }
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label="Ruolo"
+                value={form.ruolo}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, ruolo: e.target.value as RuoloDipendente }))
+                }
+                disabled={salvataggio}
+              >
+                {Object.values(RUOLI_DIPENDENTE).map((ruolo) => (
+                  <option key={ruolo} value={ruolo}>
+                    {LABEL_RUOLI_DIPENDENTE[ruolo]}
+                  </option>
+                ))}
+              </Select>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {
-                    TIPO_CONTEGGIO_ORE_TESTI.LABEL
-                  }
-                </span>
-                <select
-                  value={form.tipo_conteggio_ore}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        tipo_conteggio_ore:
-                          event.target
-                            .value as TipoConteggioOre,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                >
-                  {Object.values(
-                    TIPO_CONTEGGIO_ORE
-                  ).map((tipoConteggioOre) => (
-                    <option
-                      key={tipoConteggioOre}
-                      value={tipoConteggioOre}
-                    >
-                      {
-                        LABEL_TIPO_CONTEGGIO_ORE[
-                          tipoConteggioOre
-                        ]
-                      }
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label={TIPO_CONTEGGIO_ORE_TESTI.LABEL}
+                value={form.tipo_conteggio_ore}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    tipo_conteggio_ore: e.target.value as TipoConteggioOre,
+                  }))
+                }
+                disabled={salvataggio}
+              >
+                {Object.values(TIPO_CONTEGGIO_ORE).map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {LABEL_TIPO_CONTEGGIO_ORE[tipo]}
+                  </option>
+                ))}
+              </Select>
 
-              <label className="flex items-center gap-3 text-sm font-medium text-industrial-muted">
+              <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.attivo}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        attivo:
-                          event.target.checked,
-                      })
-                    )
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, attivo: e.target.checked }))
                   }
                   disabled={salvataggio}
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-brand-500"
                 />
                 Attivo
               </label>
 
-              <div className="flex flex-wrap gap-3">
-                <button
+              <div className="flex gap-2 pt-1">
+                <Button
                   type="submit"
-                  disabled={salvataggio}
-                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
+                  loading={salvataggio}
+                  icon={!salvataggio ? <Plus className="h-4 w-4" /> : undefined}
+                  className="flex-1"
                 >
-                  {salvataggio
-                    ? "Salvataggio..."
-                    : "Salva"}
-                </button>
+                  {dipendenteInModificaId ? "Salva modifiche" : "Aggiungi dipendente"}
+                </Button>
 
                 {dipendenteInModificaId && (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
                     onClick={resetForm}
                     disabled={salvataggio}
-                    className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                   >
                     Annulla
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold">
-                Lista dipendenti
-              </h2>
+          {/* ── Colonna destra: Lista ── */}
+          <Card className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div>
+                <h2 className="font-heading text-lg font-medium text-text-primary">
+                  Lista dipendenti
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {dipendenti.length} dipendenti totali
+                </p>
+              </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void caricaDipendenti()
-                }
-                disabled={loading || salvataggio}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-              >
-                Aggiorna
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                  <input
+                    value={ricerca}
+                    onChange={(e) => setRicerca(e.target.value)}
+                    placeholder="Cerca per nome o email..."
+                    className="h-9 pl-8 pr-3 text-sm border border-border rounded-md bg-bg-card text-text-primary placeholder:text-text-subtle outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors duration-150"
+                  />
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void caricaDipendenti()}
+                  disabled={loading || salvataggio}
+                >
+                  Aggiorna
+                </Button>
+              </div>
             </div>
 
             {loading && (
-              <p className="text-industrial-muted">
-                Caricamento...
+              <p className="text-sm text-text-muted py-4">Caricamento...</p>
+            )}
+
+            {!loading && dipendentiFiltrati.length === 0 && (
+              <p className="text-sm text-text-muted py-4">
+                {ricerca ? "Nessun dipendente trovato" : "Nessun dipendente"}
               </p>
             )}
 
-            {!loading &&
-              dipendenti.length === 0 && (
-                <p className="text-industrial-muted">
-                  Nessun dipendente
-                </p>
-              )}
+            {!loading && dipendentiFiltrati.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        Dipendente
+                      </th>
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        Ruolo
+                      </th>
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        Ore
+                      </th>
+                      <th className="py-2.5 text-right text-xs font-medium text-text-muted" />
+                    </tr>
+                  </thead>
 
-            {!loading &&
-              dipendenti.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-industrial-border-soft text-industrial-muted">
-                        <th className="py-3 pr-4 font-semibold">
-                          Dipendente
-                        </th>
-                        <th className="py-3 pr-4 font-semibold">
-                          Email
-                        </th>
-                        <th className="py-3 pr-4 font-semibold">
-                          Ruolo
-                        </th>
-                        <th className="py-3 pr-4 font-semibold">
-                          {
-                            TIPO_CONTEGGIO_ORE_TESTI.LABEL
-                          }
-                        </th>
-                        <th className="py-3 pr-4 font-semibold">
-                          Stato
-                        </th>
-                        <th className="py-3 text-right font-semibold">
-                          Azioni
-                        </th>
-                      </tr>
-                    </thead>
+                  <tbody>
+                    {dipendentiFiltrati.map((d) => (
+                      <tr
+                        key={d.id}
+                        className={cn(
+                          "group border-b border-border last:border-b-0",
+                          "transition-colors duration-150 hover:bg-bg-base"
+                        )}
+                      >
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar
+                              name={`${d.nome} ${d.cognome}`}
+                              size="sm"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium text-text-primary truncate">
+                                {d.nome} {d.cognome}
+                              </p>
+                              <p className="text-xs text-text-muted truncate">
+                                {d.email}
+                              </p>
+                              {!d.attivo && (
+                                <Badge variant="muted" size="sm" className="mt-0.5">
+                                  Non attivo
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </td>
 
-                    <tbody>
-                      {dipendenti.map(
-                        (dipendente) => (
-                          <tr
-                            key={dipendente.id}
-                            className="border-b border-industrial-border-soft last:border-b-0"
-                          >
-                            <td className="py-4 pr-4 font-semibold">
-                              {dipendente.cognome}{" "}
-                              {dipendente.nome}
-                            </td>
-                            <td className="py-4 pr-4 text-industrial-muted">
-                              {dipendente.email}
-                            </td>
-                            <td className="py-4 pr-4 text-industrial-muted">
-                              {
-                                LABEL_RUOLI_DIPENDENTE[
-                                  dipendente.ruolo
-                                ]
-                              }
-                            </td>
-                            <td className="py-4 pr-4 text-industrial-muted">
-                              {
-                                LABEL_TIPO_CONTEGGIO_ORE[
-                                  dipendente
-                                    .tipo_conteggio_ore
-                                ]
-                              }
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span
-                                className={
-                                  dipendente.attivo
-                                    ? "rounded-full bg-industrial-success-bg px-3 py-1 text-xs font-semibold text-industrial-success-text"
-                                    : "rounded-full bg-industrial-bg-soft px-3 py-1 text-xs font-semibold text-industrial-muted"
-                                }
+                        <td className="py-3 pr-4">
+                          <Badge variant={RUOLO_BADGE_VARIANT[d.ruolo]} size="sm">
+                            {LABEL_RUOLI_DIPENDENTE[d.ruolo]}
+                          </Badge>
+                        </td>
+
+                        <td className="py-3 pr-4 text-text-muted">
+                          {LABEL_TIPO_CONTEGGIO_ORE[d.tipo_conteggio_ore]}
+                        </td>
+
+                        <td className="py-3">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label="Modifica"
+                              onClick={() => avviaModifica(d)}
+                              disabled={salvataggio}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label={d.attivo ? "Disattiva" : "Attiva"}
+                              onClick={() => void toggleAttivo(d)}
+                              disabled={salvataggio}
+                            >
+                              <Power className="h-4 w-4" />
+                            </Button>
+
+                            {!d.attivo && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-error-500 hover:text-error-500"
+                                aria-label="Elimina"
+                                onClick={() => confirmElimina(d)}
+                                disabled={salvataggio}
                               >
-                                {dipendente.attivo
-                                  ? "Attivo"
-                                  : "Non attivo"}
-                              </span>
-                            </td>
-                            <td className="py-4 text-right">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    avviaModifica(
-                                      dipendente
-                                    )
-                                  }
-                                  disabled={salvataggio}
-                                  className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-                                >
-                                  Modifica
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void toggleAttivo(
-                                      dipendente
-                                    )
-                                  }
-                                  disabled={salvataggio}
-                                  className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-                                >
-                                  {dipendente.attivo
-                                    ? "Disattiva"
-                                    : "Attiva"}
-                                </button>
-
-                                {!dipendente.attivo && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void eliminaDipendente(
-                                        dipendente
-                                      )
-                                    }
-                                    disabled={salvataggio}
-                                    className="rounded-lg border border-industrial-danger-border px-3 py-2 font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-                                  >
-                                    Elimina
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-          </section>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
-      </div>
-    </main>
+      </main>
+
+      {confirmDeleteDipendente && (
+        <ConfirmDialog
+          title="Elimina dipendente"
+          message={`Eliminare definitivamente ${confirmDeleteDipendente.cognome} ${confirmDeleteDipendente.nome}?`}
+          confirmLabel="Elimina"
+          onConfirm={() => void eseguiElimina()}
+          onCancel={() => setConfirmDeleteDipendente(null)}
+        />
+      )}
+    </div>
   );
 }

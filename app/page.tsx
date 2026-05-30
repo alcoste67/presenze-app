@@ -20,7 +20,6 @@ import {
   Building2,
   ClipboardList,
   History,
-  LogOut,
   Pause,
   Repeat,
 } from "lucide-react";
@@ -1093,24 +1092,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-dvh bg-bg-base">
-      <AppHeader
-        actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<LogOut className="h-4 w-4" />}
-            onClick={async () => {
-              try {
-                await esciAuth();
-              } catch (error: unknown) {
-                toast.error(getMessaggioErroreAuth(error));
-              }
-            }}
-          >
-            {TIMBRATURE_TESTI.UI.LOGOUT}
-          </Button>
-        }
-      />
+      <AppHeader />
 
       <main className="mx-auto max-w-[640px] px-5 py-5 md:px-6 flex flex-col gap-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
 
