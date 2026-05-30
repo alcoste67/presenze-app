@@ -2,24 +2,30 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Home, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
-import {
-  MACCHINARI_TESTI,
-  TIPI_MACCHINARIO,
-} from "@/constants/macchinari";
+import { MACCHINARI_TESTI, TIPI_MACCHINARIO } from "@/constants/macchinari";
+
 import { aggiornaMacchinario } from "@/services/macchinari/aggiornaMacchinario";
 import { creaMacchinario } from "@/services/macchinari/creaMacchinario";
 import { eliminaMacchinario } from "@/services/macchinari/eliminaMacchinario";
 import { loadMacchinariAdmin } from "@/services/macchinari/loadMacchinariAdmin";
-import type {
-  Macchinario,
-  MacchinarioInput,
-} from "@/types/macchinari";
+
+import type { Macchinario, MacchinarioInput } from "@/types/macchinari";
+
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type MacchinarioForm = {
   nome: string;
@@ -29,6 +35,8 @@ type MacchinarioForm = {
   attivo: boolean;
 };
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const FORM_INIZIALE: MacchinarioForm = {
   nome: "",
   tipo: "",
@@ -37,24 +45,16 @@ const FORM_INIZIALE: MacchinarioForm = {
   attivo: true,
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : MACCHINARI_TESTI.ERRORI.GENERICO;
+  return error instanceof Error ? error.message : MACCHINARI_TESTI.ERRORI.GENERICO;
 }
 
 function parseNumeroDecimale(value: string) {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const numero = Number(
-    value.trim().replace(",", ".")
-  );
-
-  return Number.isFinite(numero) && numero >= 0
-    ? numero
-    : null;
+  if (!value.trim()) return null;
+  const numero = Number(value.trim().replace(",", "."));
+  return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
 function getTipoLabel(tipo: MacchinarioInput["tipo"]) {
@@ -65,477 +65,456 @@ function preparaPayload(
   form: MacchinarioForm
 ): { payload: MacchinarioInput } | { errore: string } {
   const nome = form.nome.trim();
-
-  if (!nome) {
-    return {
-      errore:
-        MACCHINARI_TESTI.ERRORI.NOME_OBBLIGATORIO,
-    };
-  }
-
-  if (!form.tipo) {
-    return {
-      errore:
-        MACCHINARI_TESTI.ERRORI
-          .TIPO_ANAGRAFICA_OBBLIGATORIO,
-    };
-  }
-
+  if (!nome) return { errore: MACCHINARI_TESTI.ERRORI.NOME_OBBLIGATORIO };
+  if (!form.tipo) return { errore: MACCHINARI_TESTI.ERRORI.TIPO_ANAGRAFICA_OBBLIGATORIO };
   return {
     payload: {
       nome,
       tipo: form.tipo,
       descrizione: form.descrizione.trim(),
-      costo_orario:
-        parseNumeroDecimale(form.costo_orario),
+      costo_orario: parseNumeroDecimale(form.costo_orario),
       attivo: form.attivo,
     },
   };
 }
 
+function formatCostoOrario(costo: number | null): string {
+  if (costo === null) return "—";
+  return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(costo);
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BackofficeMacchinariPage() {
-  const [macchinari, setMacchinari] = useState<
-    Macchinario[]
-  >([]);
-  const [form, setForm] =
-    useState<MacchinarioForm>(FORM_INIZIALE);
-  const [
-    macchinarioInModificaId,
-    setMacchinarioInModificaId,
-  ] = useState<string | null>(null);
+  const toast = useToast();
+
+  const [macchinari, setMacchinari] = useState<Macchinario[]>([]);
+  const [form, setForm] = useState<MacchinarioForm>(FORM_INIZIALE);
+  const [macchinarioInModificaId, setMacchinarioInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [salvataggio, setSalvataggio] =
-    useState(false);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
-  const [messaggio, setMessaggio] = useState<
-    string | null
-  >(null);
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [ricerca, setRicerca] = useState("");
+  const [confirmDeleteMacchinario, setConfirmDeleteMacchinario] = useState<Macchinario | null>(null);
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const macchinariFiltrarti = useMemo(() => {
+    const q = ricerca.trim().toLowerCase();
+    if (!q) return macchinari;
+    return macchinari.filter((m) =>
+      `${m.nome} ${getTipoLabel(m.tipo)}`.toLowerCase().includes(q)
+    );
+  }, [macchinari, ricerca]);
+
+  const formTitolo = macchinarioInModificaId ? "Modifica macchinario" : "Nuovo macchinario";
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  const caricaMacchinari = useCallback(async () => {
+    try {
+      setLoading(true);
+      const dati = await loadMacchinariAdmin();
+      setMacchinari(dati);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let attivo = true;
 
-    const caricaMacchinari = async () => {
+    const init = async () => {
       try {
         const dati = await loadMacchinariAdmin();
-
-        if (!attivo) {
-          return;
-        }
-
+        if (!attivo) return;
         setMacchinari(dati);
       } catch (error: unknown) {
-        if (attivo) {
-          setErrore(getMessaggioErrore(error));
-        }
+        if (attivo) toast.error(getMessaggioErrore(error));
       } finally {
-        if (attivo) {
-          setLoading(false);
-        }
+        if (attivo) setLoading(false);
       }
     };
 
-    void caricaMacchinari();
+    void init();
+    return () => { attivo = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    return () => {
-      attivo = false;
-    };
-  }, []);
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const resetForm = () => {
     setForm(FORM_INIZIALE);
     setMacchinarioInModificaId(null);
   };
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const risultato = preparaPayload(form);
 
     if ("errore" in risultato) {
-      setErrore(risultato.errore);
+      toast.error(risultato.errore);
       return;
     }
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
       if (macchinarioInModificaId) {
-        const macchinarioAggiornato =
-          await aggiornaMacchinario({
-            macchinarioId:
-              macchinarioInModificaId,
-            macchinario: risultato.payload,
-          });
+        const aggiornato = await aggiornaMacchinario({
+          macchinarioId: macchinarioInModificaId,
+          macchinario: risultato.payload,
+        });
 
         setMacchinari((correnti) =>
-          correnti.map((item) =>
-            item.id === macchinarioAggiornato.id
-              ? macchinarioAggiornato
-              : item
-          )
+          correnti.map((m) => (m.id === aggiornato.id ? aggiornato : m))
         );
 
-        setMessaggio(
-          MACCHINARI_TESTI.MESSAGGI
-            .MACCHINARIO_AGGIORNATO
-        );
+        toast.success(MACCHINARI_TESTI.MESSAGGI.MACCHINARIO_AGGIORNATO);
       } else {
-        const nuovoMacchinario =
-          await creaMacchinario({
-            macchinario: risultato.payload,
-          });
-
-        setMacchinari((correnti) => [
-          nuovoMacchinario,
-          ...correnti,
-        ]);
-
-        setMessaggio(
-          MACCHINARI_TESTI.MESSAGGI
-            .MACCHINARIO_CREATO
-        );
+        const nuovo = await creaMacchinario({ macchinario: risultato.payload });
+        setMacchinari((correnti) => [nuovo, ...correnti]);
+        toast.success(MACCHINARI_TESTI.MESSAGGI.MACCHINARIO_CREATO);
       }
 
       resetForm();
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const avviaModifica = (
-    macchinario: Macchinario
-  ) => {
+  const avviaModifica = (macchinario: Macchinario) => {
     setMacchinarioInModificaId(macchinario.id);
     setForm({
       nome: macchinario.nome,
       tipo: macchinario.tipo,
       descrizione: macchinario.descrizione,
-      costo_orario:
-        macchinario.costo_orario === null
-          ? ""
-          : String(macchinario.costo_orario),
+      costo_orario: macchinario.costo_orario === null ? "" : String(macchinario.costo_orario),
       attivo: macchinario.attivo,
     });
-    setErrore(null);
-    setMessaggio(null);
   };
 
-  const handleElimina = async (
-    macchinario: Macchinario
-  ) => {
-    if (
-      !window.confirm(
-        `Eliminare ${macchinario.nome}?`
-      )
-    ) {
-      return;
-    }
+  const confirmElimina = (macchinario: Macchinario) => {
+    setConfirmDeleteMacchinario(macchinario);
+  };
+
+  const eseguiElimina = async () => {
+    if (!confirmDeleteMacchinario) return;
+    const macchinario = confirmDeleteMacchinario;
+    setConfirmDeleteMacchinario(null);
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      await eliminaMacchinario({
-        macchinarioId: macchinario.id,
-      });
+      await eliminaMacchinario({ macchinarioId: macchinario.id });
 
-      setMacchinari((correnti) =>
-        correnti.filter(
-          (item) => item.id !== macchinario.id
-        )
-      );
+      setMacchinari((correnti) => correnti.filter((m) => m.id !== macchinario.id));
 
-      setMessaggio(
-        MACCHINARI_TESTI.MESSAGGI
-          .MACCHINARIO_ELIMINATO
-      );
+      toast.success(MACCHINARI_TESTI.MESSAGGI.MACCHINARIO_ELIMINATO);
 
       if (macchinarioInModificaId === macchinario.id) {
         resetForm();
       }
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">
-              {MACCHINARI_TESTI.ANAGRAFICA_TITOLO}
-            </h1>
-            <p className="mt-1 text-sm text-industrial-muted">
-              {MACCHINARI_TESTI.ANAGRAFICA_CARD_DESCRIZIONE}
-            </p>
-          </div>
-
-          <div className="flex gap-4 text-sm font-semibold">
-            <Link
-              href={APP_ROUTES.BACKOFFICE}
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              {MACCHINARI_TESTI.BACKOFFICE}
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            <Link href={APP_ROUTES.BACKOFFICE}>
+              <Button variant="secondary" size="sm">
+                {MACCHINARI_TESTI.BACKOFFICE}
+              </Button>
             </Link>
-            <Link
-              href="/"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              {MACCHINARI_TESTI.TIMBRATURE}
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                {MACCHINARI_TESTI.TIMBRATURE}
+              </Button>
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
-            {errore}
-          </p>
-        )}
-
-        {messaggio && (
-          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
-            {messaggio}
-          </p>
-        )}
-
-        <section className="mb-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]"
+      <main className="mx-auto max-w-[1000px] px-6 py-6">
+        {/* Breadcrumb */}
+        <nav
+          aria-label="breadcrumb"
+          className="mb-5 flex items-center gap-1.5 text-sm text-text-muted"
+        >
+          <Link
+            href={APP_ROUTES.HOME}
+            className="hover:text-text-primary transition-colors duration-150"
           >
-            <div className="grid gap-4">
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.NOME}
-                </span>
-                <input
-                  type="text"
-                  value={form.nome}
-                  onChange={(event) =>
-                    setForm((corrente) => ({
-                      ...corrente,
-                      nome: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link
+            href={APP_ROUTES.BACKOFFICE}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            {MACCHINARI_TESTI.BACKOFFICE}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">
+            {MACCHINARI_TESTI.ANAGRAFICA_TITOLO}
+          </span>
+        </nav>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.TIPO}
-                </span>
-                <select
-                  value={form.tipo}
-                  onChange={(event) =>
-                    setForm((corrente) => ({
-                      ...corrente,
-                      tipo: event.target
-                        .value as MacchinarioInput["tipo"] | "",
-                    }))
-                  }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                >
-                  <option value="">
-                    {MACCHINARI_TESTI.TIPO}
+        {/* Titolo */}
+        <h1 className="font-heading text-2xl font-medium text-text-primary">
+          {MACCHINARI_TESTI.ANAGRAFICA_TITOLO}
+        </h1>
+        <p className="mt-1 text-sm text-text-muted">
+          {MACCHINARI_TESTI.ANAGRAFICA_CARD_DESCRIZIONE}
+        </p>
+
+        {/* Grid 2 colonne */}
+        <div className="mt-6 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+
+          {/* ── Colonna sinistra: Form ── */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
+              {formTitolo}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Input
+                label={MACCHINARI_TESTI.NOME}
+                type="text"
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                disabled={salvataggio}
+              />
+
+              <Select
+                label={MACCHINARI_TESTI.TIPO}
+                value={form.tipo}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    tipo: e.target.value as MacchinarioInput["tipo"] | "",
+                  }))
+                }
+                disabled={salvataggio}
+              >
+                <option value="">{MACCHINARI_TESTI.TIPO}</option>
+                {Object.values(TIPI_MACCHINARIO).map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {getTipoLabel(tipo)}
                   </option>
-                  {Object.values(TIPI_MACCHINARIO).map(
-                    (tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {getTipoLabel(tipo)}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
+                ))}
+              </Select>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-text-primary">
                   {MACCHINARI_TESTI.DESCRIZIONE}
-                </span>
+                </label>
                 <textarea
                   value={form.descrizione}
-                  onChange={(event) =>
-                    setForm((corrente) => ({
-                      ...corrente,
-                      descrizione:
-                        event.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, descrizione: e.target.value }))}
+                  disabled={salvataggio}
                   rows={3}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle disabled:text-text-muted resize-none"
                 />
-              </label>
+              </div>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.COSTO_ORARIO}
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.costo_orario}
-                  onChange={(event) =>
-                    setForm((corrente) => ({
-                      ...corrente,
-                      costo_orario:
-                        event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+              <Input
+                label={MACCHINARI_TESTI.COSTO_ORARIO}
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.costo_orario}
+                onChange={(e) => setForm((f) => ({ ...f, costo_orario: e.target.value }))}
+                disabled={salvataggio}
+              />
 
-              <label className="flex items-center gap-3 rounded-lg border border-industrial-border bg-industrial-control p-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.attivo}
-                  onChange={(event) =>
-                    setForm((corrente) => ({
-                      ...corrente,
-                      attivo: event.target.checked,
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-industrial-border text-industrial-orange focus:ring-industrial-orange"
+                  onChange={(e) => setForm((f) => ({ ...f, attivo: e.target.checked }))}
+                  disabled={salvataggio}
+                  className="h-4 w-4 accent-brand-500"
                 />
-                <span className="text-sm text-industrial-text">
-                  {MACCHINARI_TESTI.ATTIVO}
-                </span>
+                {MACCHINARI_TESTI.ATTIVO}
               </label>
-            </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={salvataggio || loading}
-                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
-              >
-                {salvataggio
-                  ? MACCHINARI_TESTI.SALVATAGGIO
-                  : macchinarioInModificaId
-                    ? MACCHINARI_TESTI.MODIFICA
-                    : MACCHINARI_TESTI.AGGIUNGI}
-              </button>
-
-              {macchinarioInModificaId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="submit"
+                  loading={salvataggio}
+                  disabled={loading}
+                  icon={!salvataggio ? <Plus className="h-4 w-4" /> : undefined}
+                  className="flex-1"
                 >
-                  {MACCHINARI_TESTI.ANNULLA}
-                </button>
-              )}
-            </div>
-          </form>
+                  {macchinarioInModificaId ? "Salva modifiche" : "Aggiungi macchinario"}
+                </Button>
 
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <div className="mb-4 flex items-start justify-between gap-3">
+                {macchinarioInModificaId && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={resetForm}
+                    disabled={salvataggio}
+                  >
+                    {MACCHINARI_TESTI.ANNULLA}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </Card>
+
+          {/* ── Colonna destra: Lista ── */}
+          <Card className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
               <div>
-                <h2 className="text-xl font-semibold">
+                <h2 className="font-heading text-lg font-medium text-text-primary">
                   {MACCHINARI_TESTI.LISTA_ANAGRAFICA}
                 </h2>
-                <p className="mt-1 text-sm text-industrial-muted">
-                  {loading
-                    ? MACCHINARI_TESTI.CARICAMENTO
-                    : `${macchinari.length} macchinari`}
+                <p className="text-xs text-text-muted mt-0.5">
+                  {macchinari.length} macchinari totali
                 </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                  <input
+                    value={ricerca}
+                    onChange={(e) => setRicerca(e.target.value)}
+                    placeholder="Cerca macchinario..."
+                    className="h-9 pl-8 pr-3 text-sm border border-border rounded-md bg-bg-card text-text-primary placeholder:text-text-subtle outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors duration-150"
+                  />
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void caricaMacchinari()}
+                  disabled={loading || salvataggio}
+                >
+                  Aggiorna
+                </Button>
               </div>
             </div>
 
-            {!loading && macchinari.length === 0 && (
-              <p className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 text-sm text-industrial-muted">
-                {MACCHINARI_TESTI.NESSUNO_ANAGRAFICA}
+            {loading && (
+              <p className="text-sm text-text-muted py-4">{MACCHINARI_TESTI.CARICAMENTO}</p>
+            )}
+
+            {!loading && macchinariFiltrarti.length === 0 && (
+              <p className="text-sm text-text-muted py-4">
+                {ricerca ? "Nessun macchinario trovato" : MACCHINARI_TESTI.NESSUNO_ANAGRAFICA}
               </p>
             )}
 
-            {macchinari.length > 0 && (
-              <div className="space-y-3">
-                {macchinari.map((macchinario) => (
-                  <article
-                    key={macchinario.id}
-                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold text-industrial-text">
-                          {macchinario.nome}
-                        </h3>
-                        <p className="mt-1 text-sm text-industrial-muted">
-                          {getTipoLabel(macchinario.tipo)}
-                        </p>
-                        {macchinario.descrizione && (
-                          <p className="mt-1 text-sm text-industrial-muted">
-                            {macchinario.descrizione}
-                          </p>
+            {!loading && macchinariFiltrarti.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        Macchinario
+                      </th>
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        {MACCHINARI_TESTI.COSTO_ORARIO}
+                      </th>
+                      <th className="py-2.5 text-right text-xs font-medium text-text-muted" />
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {macchinariFiltrarti.map((m) => (
+                      <tr
+                        key={m.id}
+                        className={cn(
+                          "group border-b border-border last:border-b-0",
+                          "transition-colors duration-150 hover:bg-bg-base"
                         )}
-                        <p className="mt-1 text-xs text-industrial-muted">
-                          {macchinario.attivo
-                            ? MACCHINARI_TESTI.ATTIVO
-                            : MACCHINARI_TESTI.DISATTIVO}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-industrial-text">
-                          {macchinario.costo_orario === null
-                            ? "-"
-                            : new Intl.NumberFormat(
-                                "it-IT",
-                                {
-                                  style: "currency",
-                                  currency: "EUR",
-                                }
-                              ).format(
-                                macchinario.costo_orario
-                              )}
-                        </p>
-                        <p className="mt-1 text-xs text-industrial-muted">
-                          {MACCHINARI_TESTI.COSTO_ORARIO_VISIBILE}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          avviaModifica(macchinario)
-                        }
-                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
                       >
-                        {MACCHINARI_TESTI.MODIFICA}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleElimina(macchinario)
-                        }
-                        className="rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-2 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
-                      >
-                        {MACCHINARI_TESTI.ELIMINA}
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                        <td className="py-3 pr-4 min-w-[160px]">
+                          <p className="font-medium text-text-primary">{m.nome}</p>
+                          <p className="text-xs text-text-muted mt-0.5">
+                            {getTipoLabel(m.tipo)}
+                          </p>
+                          {m.descrizione && (
+                            <p className="text-xs text-text-subtle mt-0.5 truncate max-w-[200px]">
+                              {m.descrizione}
+                            </p>
+                          )}
+                          {!m.attivo && (
+                            <Badge variant="muted" size="sm" className="mt-0.5">
+                              {MACCHINARI_TESTI.DISATTIVO}
+                            </Badge>
+                          )}
+                        </td>
+
+                        <td className="py-3 pr-4">
+                          <p className="font-medium text-text-primary">
+                            {formatCostoOrario(m.costo_orario)}
+                          </p>
+                          {m.costo_orario !== null && (
+                            <p className="text-xs text-text-muted mt-0.5">
+                              {MACCHINARI_TESTI.COSTO_ORARIO_VISIBILE}
+                            </p>
+                          )}
+                        </td>
+
+                        <td className="py-3">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label={MACCHINARI_TESTI.MODIFICA}
+                              onClick={() => avviaModifica(m)}
+                              disabled={salvataggio}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-error-500 hover:text-error-500"
+                              aria-label={MACCHINARI_TESTI.ELIMINA}
+                              onClick={() => confirmElimina(m)}
+                              disabled={salvataggio}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </section>
-        </section>
-      </div>
-    </main>
+          </Card>
+        </div>
+      </main>
+
+      {confirmDeleteMacchinario && (
+        <ConfirmDialog
+          title={MACCHINARI_TESTI.ELIMINA}
+          message={`Eliminare ${confirmDeleteMacchinario.nome}?`}
+          confirmLabel={MACCHINARI_TESTI.ELIMINA}
+          onConfirm={() => void eseguiElimina()}
+          onCancel={() => setConfirmDeleteMacchinario(null)}
+        />
+      )}
+    </div>
   );
 }

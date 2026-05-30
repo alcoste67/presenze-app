@@ -2,20 +2,33 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Home, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
+
+import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
+import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
+import { APP_ROUTES } from "@/constants/routes";
 
 import { aggiornaCantiere } from "@/services/cantieri/aggiornaCantiere";
 import { creaCantiere } from "@/services/cantieri/creaCantiere";
 import { eliminaCantiereSeVuoto } from "@/services/cantieri/eliminaCantiereSeVuoto";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+
 import {
-  CantiereBackoffice,
-  CantiereInput,
+  type CantiereBackoffice,
+  type CantiereInput,
 } from "@/types/cantieri";
+
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const FORM_INIZIALE: CantiereInput = {
   nome: "",
@@ -24,15 +37,13 @@ const FORM_INIZIALE: CantiereInput = {
   attivo: true,
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Errore gestione cantieri";
+  return error instanceof Error ? error.message : "Errore gestione cantieri";
 }
 
-function preparaCantiere(
-  cantiere: CantiereInput
-): CantiereInput {
+function preparaCantiere(cantiere: CantiereInput): CantiereInput {
   return {
     nome: cantiere.nome.trim(),
     indirizzo: cantiere.indirizzo.trim(),
@@ -41,151 +52,120 @@ function preparaCantiere(
   };
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BackofficeCantieriPage() {
-  const [cantieri, setCantieri] = useState<
-    CantiereBackoffice[]
-  >([]);
+  const toast = useToast();
 
-  const [form, setForm] =
-    useState<CantiereInput>(FORM_INIZIALE);
+  const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [form, setForm] = useState<CantiereInput>(FORM_INIZIALE);
+  const [cantiereInModificaId, setCantiereInModificaId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [ricerca, setRicerca] = useState("");
+  const [confirmDeleteCantiere, setConfirmDeleteCantiere] = useState<CantiereBackoffice | null>(null);
 
-  const [
-    cantiereInModificaId,
-    setCantiereInModificaId,
-  ] = useState<string | null>(null);
+  // ── Derived ────────────────────────────────────────────────────────────────
 
-  const [loading, setLoading] =
-    useState(true);
-  const [salvataggio, setSalvataggio] =
-    useState(false);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
-  const [messaggio, setMessaggio] =
-    useState<string | null>(null);
+  const cantieriFiltrati = useMemo(() => {
+    const q = ricerca.trim().toLowerCase();
+    if (!q) return cantieri;
+    return cantieri.filter((c) =>
+      `${c.nome} ${c.indirizzo}`.toLowerCase().includes(q)
+    );
+  }, [cantieri, ricerca]);
 
-  const caricaCantieri = useCallback(
-    async () => {
-      try {
-        setLoading(true);
-        setErrore(null);
+  const formTitolo = cantiereInModificaId ? "Modifica cantiere" : "Nuovo cantiere";
 
-        const dati =
-          await loadCantieriBackoffice();
+  // ── Init ───────────────────────────────────────────────────────────────────
 
-        setCantieri(dati);
-      } catch (error: unknown) {
-        setErrore(getMessaggioErrore(error));
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const caricaCantieri = useCallback(async () => {
+    try {
+      setLoading(true);
+      const dati = await loadCantieriBackoffice();
+      setCantieri(dati);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let attivo = true;
 
-    const caricaCantieriIniziali =
-      async () => {
-        try {
-          const dati =
-            await loadCantieriBackoffice();
-
-          if (!attivo) {
-            return;
-          }
-
-          setCantieri(dati);
-        } catch (error: unknown) {
-          if (!attivo) {
-            return;
-          }
-
-          setErrore(
-            getMessaggioErrore(error)
-          );
-        } finally {
-          if (attivo) {
-            setLoading(false);
-          }
-        }
-      };
+    const caricaCantieriIniziali = async () => {
+      try {
+        const dati = await loadCantieriBackoffice();
+        if (!attivo) return;
+        setCantieri(dati);
+      } catch (error: unknown) {
+        if (!attivo) return;
+        toast.error(getMessaggioErrore(error));
+      } finally {
+        if (attivo) setLoading(false);
+      }
+    };
 
     void caricaCantieriIniziali();
 
     return () => {
       attivo = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const resetForm = () => {
     setForm(FORM_INIZIALE);
     setCantiereInModificaId(null);
   };
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const payload = preparaCantiere(form);
 
     if (!payload.nome) {
-      alert("Inserisci il nome del cantiere");
+      toast.error("Inserisci il nome del cantiere");
       return;
     }
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
       if (cantiereInModificaId) {
-        const cantiereAggiornato =
-          await aggiornaCantiere({
-            cantiereId:
-              cantiereInModificaId,
-            cantiere: payload,
-          });
+        const cantiereAggiornato = await aggiornaCantiere({
+          cantiereId: cantiereInModificaId,
+          cantiere: payload,
+        });
 
-        setCantieri((cantieriCorrenti) =>
-          cantieriCorrenti.map((cantiere) =>
-            cantiere.id ===
-            cantiereAggiornato.id
-              ? cantiereAggiornato
-              : cantiere
+        setCantieri((correnti) =>
+          correnti.map((c) =>
+            c.id === cantiereAggiornato.id ? cantiereAggiornato : c
           )
         );
 
-        setMessaggio(
-          "Cantiere aggiornato"
-        );
+        toast.success("Cantiere aggiornato");
       } else {
-        const nuovoCantiere =
-          await creaCantiere(payload);
+        const nuovoCantiere = await creaCantiere(payload);
 
-        setCantieri((cantieriCorrenti) =>
-          [...cantieriCorrenti, nuovoCantiere].sort(
-            (a, b) =>
-              a.nome.localeCompare(b.nome)
-          )
+        setCantieri((correnti) =>
+          [...correnti, nuovoCantiere].sort((a, b) => a.nome.localeCompare(b.nome))
         );
 
-        setMessaggio("Cantiere creato");
+        toast.success("Cantiere creato");
       }
 
       resetForm();
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const avviaModifica = (
-    cantiere: CantiereBackoffice
-  ) => {
+  const avviaModifica = (cantiere: CantiereBackoffice) => {
     setCantiereInModificaId(cantiere.id);
     setForm({
       nome: cantiere.nome,
@@ -193,392 +173,326 @@ export default function BackofficeCantieriPage() {
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
     });
-    setErrore(null);
-    setMessaggio(null);
   };
 
-  const toggleAttivo = async (
-    cantiere: CantiereBackoffice
-  ) => {
+  const toggleAttivo = async (cantiere: CantiereBackoffice) => {
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      const cantiereAggiornato =
-        await aggiornaCantiere({
-          cantiereId: cantiere.id,
-          cantiere: {
-            nome: cantiere.nome,
-            indirizzo: cantiere.indirizzo,
-            lavorazioni:
-              cantiere.lavorazioni,
-            attivo: !cantiere.attivo,
-          },
-        });
+      const cantiereAggiornato = await aggiornaCantiere({
+        cantiereId: cantiere.id,
+        cantiere: {
+          nome: cantiere.nome,
+          indirizzo: cantiere.indirizzo,
+          lavorazioni: cantiere.lavorazioni,
+          attivo: !cantiere.attivo,
+        },
+      });
 
-      setCantieri((cantieriCorrenti) =>
-        cantieriCorrenti.map(
-          (cantiereCorrente) =>
-            cantiereCorrente.id ===
-            cantiereAggiornato.id
-              ? cantiereAggiornato
-              : cantiereCorrente
+      setCantieri((correnti) =>
+        correnti.map((c) =>
+          c.id === cantiereAggiornato.id ? cantiereAggiornato : c
         )
       );
 
-      if (
-        cantiereInModificaId ===
-        cantiereAggiornato.id
-      ) {
+      if (cantiereInModificaId === cantiereAggiornato.id) {
         setForm({
           nome: cantiereAggiornato.nome,
-          indirizzo:
-            cantiereAggiornato.indirizzo,
-          lavorazioni:
-            cantiereAggiornato.lavorazioni,
+          indirizzo: cantiereAggiornato.indirizzo,
+          lavorazioni: cantiereAggiornato.lavorazioni,
           attivo: cantiereAggiornato.attivo,
         });
       }
 
-      setMessaggio(
-        cantiereAggiornato.attivo
-          ? "Cantiere attivato"
-          : "Cantiere disattivato"
+      toast.success(
+        cantiereAggiornato.attivo ? "Cantiere attivato" : "Cantiere disattivato"
       );
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const eliminaCantiere = async (
-    cantiere: CantiereBackoffice
-  ) => {
+  const confirmElimina = (cantiere: CantiereBackoffice) => {
     if (cantiere.attivo) {
-      setErrore(
-        "Disattiva il cantiere prima di eliminarlo"
-      );
-
+      toast.error("Disattiva il cantiere prima di eliminarlo");
       return;
     }
+    setConfirmDeleteCantiere(cantiere);
+  };
 
-    const confermato = window.confirm(
-      `Eliminare definitivamente il cantiere "${cantiere.nome}"?`
-    );
-
-    if (!confermato) {
-      return;
-    }
+  const eseguiElimina = async () => {
+    if (!confirmDeleteCantiere) return;
+    const cantiere = confirmDeleteCantiere;
+    setConfirmDeleteCantiere(null);
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      await eliminaCantiereSeVuoto(
-        cantiere.id
-      );
+      await eliminaCantiereSeVuoto(cantiere.id);
 
-      if (
-        cantiereInModificaId === cantiere.id
-      ) {
+      if (cantiereInModificaId === cantiere.id) {
         resetForm();
       }
 
       await caricaCantieri();
 
-      setMessaggio("Cantiere eliminato");
+      toast.success("Cantiere eliminato");
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const formTitolo = cantiereInModificaId
-    ? "Modifica cantiere"
-    : "Nuovo cantiere";
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">
-              Cantieri
-            </h1>
-          </div>
-
-          <div className="flex gap-4 text-sm font-semibold">
-            <Link
-              href="/backoffice"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              Back-office
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            <Link href={APP_ROUTES.BACKOFFICE}>
+              <Button variant="secondary" size="sm">
+                {PRODUTTIVITA_TESTI.BACKOFFICE}
+              </Button>
             </Link>
-            <Link
-              href="/"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              Timbrature
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
+              </Button>
             </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
-            {errore}
-          </p>
-        )}
+      <main className="mx-auto max-w-[1000px] px-6 py-6">
+        {/* Breadcrumb */}
+        <nav
+          aria-label="breadcrumb"
+          className="mb-5 flex items-center gap-1.5 text-sm text-text-muted"
+        >
+          <Link
+            href={APP_ROUTES.HOME}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link
+            href={APP_ROUTES.BACKOFFICE}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            {PRODUTTIVITA_TESTI.BACKOFFICE}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">Cantieri</span>
+        </nav>
 
-        {messaggio && (
-          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
-            {messaggio}
-          </p>
-        )}
+        {/* Titolo */}
+        <h1 className="font-heading text-2xl font-medium text-text-primary">Cantieri</h1>
+        <p className="mt-1 text-sm text-text-muted">Gestione anagrafica cantieri</p>
 
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <h2 className="mb-4 text-xl font-semibold">
+        {/* Grid 2 colonne */}
+        <div className="mt-6 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+
+          {/* ── Colonna sinistra: Form ── */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
               {formTitolo}
             </h2>
 
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-4"
-            >
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Nome
-                </span>
-                <input
-                  value={form.nome}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        nome: event.target.value,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Input
+                label="Nome"
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                disabled={salvataggio}
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  Indirizzo
-                </span>
-                <input
-                  value={form.indirizzo}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        indirizzo:
-                          event.target.value,
-                      })
-                    )
-                  }
-                  disabled={salvataggio}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                />
-              </label>
+              <Input
+                label="Indirizzo"
+                value={form.indirizzo}
+                onChange={(e) => setForm((f) => ({ ...f, indirizzo: e.target.value }))}
+                disabled={salvataggio}
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-text-primary">
                   Lavorazioni
-                </span>
+                </label>
                 <textarea
                   value={form.lavorazioni}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        lavorazioni:
-                          event.target.value,
-                      })
-                    )
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, lavorazioni: e.target.value }))
                   }
                   disabled={salvataggio}
                   rows={4}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle disabled:text-text-muted resize-none"
                 />
-              </label>
+              </div>
 
-              <label className="flex items-center gap-3 text-sm font-medium text-industrial-muted">
+              <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.attivo}
-                  onChange={(event) =>
-                    setForm(
-                      (formCorrente) => ({
-                        ...formCorrente,
-                        attivo:
-                          event.target.checked,
-                      })
-                    )
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, attivo: e.target.checked }))}
                   disabled={salvataggio}
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-brand-500"
                 />
                 Attivo
               </label>
 
-              <div className="flex flex-wrap gap-3">
-                <button
+              <div className="flex gap-2 pt-1">
+                <Button
                   type="submit"
-                  disabled={salvataggio}
-                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:bg-industrial-border disabled:text-industrial-muted"
+                  loading={salvataggio}
+                  icon={!salvataggio ? <Plus className="h-4 w-4" /> : undefined}
+                  className="flex-1"
                 >
-                  {salvataggio
-                    ? "Salvataggio..."
-                    : "Salva"}
-                </button>
+                  {cantiereInModificaId ? "Salva modifiche" : "Aggiungi cantiere"}
+                </Button>
 
                 {cantiereInModificaId && (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
                     onClick={resetForm}
                     disabled={salvataggio}
-                    className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                   >
                     Annulla
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold">
-                Lista cantieri
-              </h2>
+          {/* ── Colonna destra: Lista ── */}
+          <Card className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div>
+                <h2 className="font-heading text-lg font-medium text-text-primary">
+                  Lista cantieri
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {cantieri.length} cantieri totali
+                </p>
+              </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void caricaCantieri()
-                }
-                disabled={loading || salvataggio}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-              >
-                Aggiorna
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                  <input
+                    value={ricerca}
+                    onChange={(e) => setRicerca(e.target.value)}
+                    placeholder="Cerca cantiere..."
+                    className="h-9 pl-8 pr-3 text-sm border border-border rounded-md bg-bg-card text-text-primary placeholder:text-text-subtle outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors duration-150"
+                  />
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void caricaCantieri()}
+                  disabled={loading || salvataggio}
+                >
+                  Aggiorna
+                </Button>
+              </div>
             </div>
 
             {loading && (
-              <p className="text-industrial-muted">
-                Caricamento...
+              <p className="text-sm text-text-muted py-4">Caricamento...</p>
+            )}
+
+            {!loading && cantieriFiltrati.length === 0 && (
+              <p className="text-sm text-text-muted py-4">
+                {ricerca ? "Nessun cantiere trovato" : "Nessun cantiere"}
               </p>
             )}
 
-            {!loading && cantieri.length === 0 && (
-              <p className="text-industrial-muted">
-                Nessun cantiere
-              </p>
-            )}
-
-            {!loading && cantieri.length > 0 && (
+            {!loading && cantieriFiltrati.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-sm">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-industrial-border-soft text-industrial-muted">
-                      <th className="py-3 pr-4 font-semibold">
-                        Nome
+                    <tr className="border-b border-border">
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                        Cantiere
                       </th>
-                      <th className="py-3 pr-4 font-semibold">
-                        Indirizzo
-                      </th>
-                      <th className="py-3 pr-4 font-semibold">
+                      <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
                         Lavorazioni
                       </th>
-                      <th className="py-3 pr-4 font-semibold">
-                        Stato
-                      </th>
-                      <th className="py-3 text-right font-semibold">
-                        Azioni
-                      </th>
+                      <th className="py-2.5 text-right text-xs font-medium text-text-muted" />
                     </tr>
                   </thead>
 
                   <tbody>
-                    {cantieri.map((cantiere) => (
+                    {cantieriFiltrati.map((c) => (
                       <tr
-                        key={cantiere.id}
-                        className="border-b border-industrial-border-soft last:border-b-0"
+                        key={c.id}
+                        className={cn(
+                          "group border-b border-border last:border-b-0",
+                          "transition-colors duration-150 hover:bg-bg-base"
+                        )}
                       >
-                        <td className="py-4 pr-4 font-semibold">
-                          {cantiere.nome}
+                        <td className="py-3 pr-4 min-w-[160px]">
+                          <p className="font-medium text-text-primary">{c.nome}</p>
+                          {c.indirizzo && (
+                            <p className="text-xs text-text-muted mt-0.5">{c.indirizzo}</p>
+                          )}
+                          {!c.attivo && (
+                            <Badge variant="muted" size="sm" className="mt-0.5">
+                              Non attivo
+                            </Badge>
+                          )}
                         </td>
-                        <td className="py-4 pr-4 text-industrial-muted">
-                          {cantiere.indirizzo ||
-                            "-"}
-                        </td>
-                        <td className="max-w-xs py-4 pr-4 text-industrial-muted">
-                          {cantiere.lavorazioni ||
-                            "-"}
-                        </td>
-                        <td className="py-4 pr-4">
-                          <span
-                            className={
-                              cantiere.attivo
-                                ? "rounded-full bg-industrial-success-bg px-3 py-1 text-xs font-semibold text-industrial-success-text"
-                                : "rounded-full bg-industrial-bg-soft px-3 py-1 text-xs font-semibold text-industrial-muted"
-                            }
-                          >
-                            {cantiere.attivo
-                              ? "Attivo"
-                              : "Non attivo"}
-                          </span>
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                avviaModifica(
-                                  cantiere
-                                )
-                              }
-                              disabled={salvataggio}
-                              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-                            >
-                              Modifica
-                            </button>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void toggleAttivo(
-                                  cantiere
-                                )
-                              }
-                              disabled={salvataggio}
-                              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
-                            >
-                              {cantiere.attivo
-                                ? "Disattiva"
-                                : "Attiva"}
-                            </button>
+                        <td className="py-3 pr-4 max-w-[220px]">
+                          {c.lavorazioni ? (
+                            <p className="text-text-muted truncate" title={c.lavorazioni}>
+                              {c.lavorazioni}
+                            </p>
+                          ) : (
+                            <span className="text-text-subtle">—</span>
+                          )}
+                        </td>
 
-                            {!cantiere.attivo && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void eliminaCantiere(
-                                    cantiere
-                                  )
-                                }
+                        <td className="py-3">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label="Modifica"
+                              onClick={() => avviaModifica(c)}
+                              disabled={salvataggio}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              aria-label={c.attivo ? "Disattiva" : "Attiva"}
+                              onClick={() => void toggleAttivo(c)}
+                              disabled={salvataggio}
+                            >
+                              <Power className="h-4 w-4" />
+                            </Button>
+
+                            {!c.attivo && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-error-500 hover:text-error-500"
+                                aria-label="Elimina"
+                                onClick={() => confirmElimina(c)}
                                 disabled={salvataggio}
-                                className="rounded-lg border border-industrial-danger-border px-3 py-2 font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:text-industrial-muted-strong"
                               >
-                                Elimina
-                              </button>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -588,9 +502,19 @@ export default function BackofficeCantieriPage() {
                 </table>
               </div>
             )}
-          </section>
+          </Card>
         </div>
-      </div>
-    </main>
+      </main>
+
+      {confirmDeleteCantiere && (
+        <ConfirmDialog
+          title="Elimina cantiere"
+          message={`Eliminare definitivamente il cantiere "${confirmDeleteCantiere.nome}"?`}
+          confirmLabel="Elimina"
+          onConfirm={() => void eseguiElimina()}
+          onCancel={() => setConfirmDeleteCantiere(null)}
+        />
+      )}
+    </div>
   );
 }
