@@ -55,3 +55,6 @@ supabase/.DS_Store
 auth_data.sql
 auth_data_wrapped.sql
 auth_apply.log
+
+# Backup pre-restyle (locali)
+*.backup-pre-restyle

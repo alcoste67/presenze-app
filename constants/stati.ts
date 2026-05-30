@@ -40,7 +40,7 @@ export const TIMBRATURE_TESTI = {
     ENTRATA:
       "Avvia il turno sul cantiere selezionato",
     PAUSA:
-      "Sospendi temporaneamente il lavoro",
+      "Sospendi il turno temporaneamente",
     RIENTRO:
       "Riprendi il turno dopo la pausa",
     USCITA:
