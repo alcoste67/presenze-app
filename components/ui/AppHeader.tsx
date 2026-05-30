@@ -68,7 +68,7 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
           {actions}
           {isLoggedIn && (
             <Button
-              variant="ghost"
+              variant="secondary"
               size="sm"
               icon={<LogOut className="h-4 w-4" />}
               onClick={handleLogout}
