@@ -14,6 +14,127 @@ Applicazione gestione presenze operai con:
 
 ---
 
+# ONDATE DI LAVORO
+
+## ✅ Ondata 1 — Refactor grafico (COMPLETO)
+
+Riscrittura UI 13 pagine backoffice con design system moderno.
+
+* ✅ Design system components (Avatar, Badge, Button, Card, Input, Select, Modal, Toast, etc.)
+* ✅ app/backoffice/sal/page.tsx (764 righe)
+* ✅ app/backoffice/sal-freeze/page.tsx (642 righe)
+* ✅ app/backoffice/cantieri/page.tsx (547 righe)
+* ✅ app/backoffice/lavorazioni/page.tsx (756 righe)
+* ✅ app/backoffice/presenze/page.tsx (823 righe)
+* ✅ app/backoffice/macchinari/page.tsx (624 righe)
+* ✅ app/backoffice/rapporti-intervento/page.tsx (587 righe)
+* ✅ app/backoffice/produttivita/page.tsx (492 righe)
+* ✅ app/backoffice/commessa/page.tsx (456 righe)
+* ✅ app/backoffice/dipendenti/page.tsx (764 righe)
+* ✅ app/backoffice/costi-macchinari/page.tsx (823 righe)
+* ✅ app/backoffice/libro-presenze/page.tsx (619 righe)
+
+**Impatto**: 0 errori lint, 0 errori TypeScript, UI moderna, toast system.
+
+---
+
+## ✅ Ondata 2 — Centralizzazione utility (COMPLETO)
+
+Eliminazione 63 definizioni duplicate di 4 utility critiche.
+
+* ✅ B2.1: `isRecord` (23 duplicate → `lib/typeGuards.ts`)
+* ✅ B2.2: `getMessaggioErrore` (22 duplicate → `lib/errors.ts`)
+* ✅ B2.3: `HTTP_STATUS` (18 duplicate const → `constants/api.ts`)
+* ✅ B2.4: `estraiBearerToken` (9 duplicate → `lib/auth.ts`)
+
+**Files modificati**: 68 file (23 API routes + 18 backoffice pages + 27 services/components).
+**Impatto**: -570 righe duplicate, 0 errori, query validation consolidata.
+
+---
+
+## ✅ Step B3.1 — Ottimizzazione query timbrature (VERIFICATO)
+
+Audit su `services/timbrature/creaTimbratura.ts`.
+
+**Conclusione**: Già ottimizzato — nessun double-fetch interno.
+* FETCH 1: `loadUltimaTimbratura()` per validazione PRE-INSERT (necessario)
+* FETCH 2: INSERT + `.select().single()` per creazione e return (necessario)
+* Nessuna ridondanza.
+
+---
+
+# PENDING
+
+## P1: Ondata 2 incompleto — Uniformare campo errore API
+
+**Problema**: Payload API usano 3 nomi diversi per errori:
+* `errore` (nostro standard legacy)
+* `error` (standard REST)
+* `errorMessage` (variante)
+
+**Scope**: 
+* Identificare e catalogare tutti gli endpoint che ritornano errori
+* Standardizzare su UN SOLO nome (proposta: `error`)
+* Aggiornare `getMessaggioErroreApi()` per normalizzare
+* Update migrazioni DB se necessario
+
+**Owner**: TBD  
+**Timeline**: Dopo ondata 2 (dipendenza bassa)
+
+---
+
+## P2: Architettura multi-tenant preventiva
+
+**Problema**: App sarà multi-tenant (più aziende su una istanza).
+
+**Scope**:
+* Aggiungere colonna `azienda_id` (UUID FK, nullable per now)
+* Aggiungere RLS policies per filtrare per azienda_id
+* Verificare che nessun service esponga dati cross-tenant
+* Schema migration pronta, non deploy yet
+
+**Owner**: TBD  
+**Timeline**: Prima di primo cliente multi-tenant  
+**Note**: RLS già parziale, serve solo completamento
+
+---
+
+## P3: Validazione mercato 60 giorni
+
+**Problema**: Bisogna verificare se un cantiere è "attivo nel mercato" (ultimizia timbrature < 60 giorni).
+
+**Scope**:
+* Service `services/cantieri/validaCantiereAttivo.ts`
+* Logica: `max(timbrature.created_at) > now() - 60 giorni`
+* UI badge su cantieri inattivi
+* Considerare archivio soft-delete vs hard-delete
+
+**Owner**: Alex (proposta)  
+**Timeline**: Q2 2026  
+**Note**: Serve per pulizia UI (non mostrare cantieri morti)
+
+---
+
+## P4: Audit funzionale SAL period PDF
+
+**Problema noto**: Bug Codex su generazione PDF SAL, possibile issue con:
+* Aggregazione oreUomo su period
+* Join cantiere/lavorazioni
+* Formattazione importi
+
+**Scope**:
+* Riprodurre bug specifico (qual è il PDF result atteso?)
+* Verificare logica aggregazione in `services/sal/loadSalCantiere.ts`
+* Controllare PDF template se formula è corretta
+* Implementare fix minimo
+
+**Owner**: TBD  
+**Timeline**: Quando issue viene segnalata in produzione  
+**Blocka**: Niente (non critical path)  
+**Note**: Attendere segnalazione utente con caso reale
+
+---
+
 # STATO ATTUALE PROGETTO
 
 ## STACK
