@@ -8,6 +8,12 @@ import {
   useMemo,
   useState,
 } from "react";
+import {
+  CalendarRange,
+  Download,
+  Home,
+  Trash2,
+} from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { API_HEADERS } from "@/constants/api";
@@ -24,9 +30,19 @@ import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   SalLavorazioneFoto,
   SalCantiere,
-  SalLavorazione,
   StatoSalLavorazione,
 } from "@/types/sal";
+
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function getMessaggioErrore(error: unknown) {
   return error instanceof Error
@@ -107,25 +123,25 @@ function getStatoLabel(
   return SAL_TESTI.STATI.IN_CORSO;
 }
 
-function getStatoClassName(
+function getStatoBadgeVariant(
   stato: StatoSalLavorazione
 ) {
   if (stato === SAL_STATI.NON_INIZIATA) {
-    return "bg-industrial-bg-soft text-industrial-muted";
+    return "muted";
   }
 
   if (stato === SAL_STATI.COMPLETATA) {
-    return "bg-industrial-success-bg text-industrial-success-text";
+    return "success";
   }
 
-  return "bg-industrial-orange-soft text-industrial-orange-hover";
+  return "warning";
 }
 
 function formattaOreUomo(minutiTotali: number) {
   const ore = Math.floor(minutiTotali / 60);
   const minuti = minutiTotali % 60;
 
-  return `${ore}${SAL_TESTI.UNITA_ORA} ${minuti}${SAL_TESTI.UNITA_MINUTO}`;
+  return `${ore}h ${minuti}m`;
 }
 
 function formattaDataIso(data: Date) {
@@ -155,71 +171,27 @@ function formattaDataBreve(data: string) {
   );
 }
 
-function BarraProgresso({
-  percentuale,
-}: {
-  percentuale: number;
-}) {
-  return (
-    <div className="h-3 w-full overflow-hidden rounded-full bg-industrial-border-soft">
-      <div
-        className="h-full rounded-full bg-industrial-orange"
-        style={{
-          width: `${percentuale}%`,
-        }}
-      />
-    </div>
-  );
+function getProgressBarClass(percentuale: number) {
+  if (percentuale === 0) {
+    return "bg-border";
+  }
+  if (percentuale <= 30) {
+    return "bg-warning-500";
+  }
+  if (percentuale <= 70) {
+    return "bg-info-500";
+  }
+  if (percentuale < 100) {
+    return "bg-brand-500";
+  }
+  return "bg-success-500";
 }
 
-function RigaLavorazione({
-  lavorazione,
-}: {
-  lavorazione: SalLavorazione;
-}) {
-  return (
-    <li className="rounded-lg border border-industrial-border-soft bg-industrial-surface p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-industrial-text">
-            {lavorazione.nome}
-          </h3>
-          <p className="mt-1 text-sm text-industrial-muted">
-            {SAL_TESTI.PERCENTUALE}:{" "}
-            {
-              lavorazione.percentuale_completamento
-            }
-            %
-          </p>
-          <p className="mt-1 text-sm text-industrial-muted">
-            {SAL_TESTI.ORE_UOMO}:{" "}
-            {formattaOreUomo(
-              lavorazione.oreUomoMinuti
-            )}
-          </p>
-        </div>
-
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatoClassName(
-            lavorazione.stato
-          )}`}
-        >
-          {getStatoLabel(lavorazione.stato)}
-        </span>
-      </div>
-
-      <div className="mt-4">
-        <BarraProgresso
-          percentuale={
-            lavorazione.percentuale_completamento
-          }
-        />
-      </div>
-    </li>
-  );
-}
+// ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function BackofficeSalPage() {
+  const toast = useToast();
+
   const [cantieri, setCantieri] = useState<
     CantiereBackoffice[]
   >([]);
@@ -253,9 +225,6 @@ export default function BackofficeSalPage() {
     useState(false);
   const [loadingPdf, setLoadingPdf] =
     useState(false);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
 
   const lavorazioniById = useMemo(
     () =>
@@ -283,9 +252,7 @@ export default function BackofficeSalPage() {
         setCantieri(dati);
       } catch (error: unknown) {
         if (attivo) {
-          setErrore(
-            getMessaggioErrore(error)
-          );
+          toast.error(getMessaggioErrore(error));
         }
       } finally {
         if (attivo) {
@@ -299,7 +266,7 @@ export default function BackofficeSalPage() {
     return () => {
       attivo = false;
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     let attivo = true;
@@ -316,7 +283,6 @@ export default function BackofficeSalPage() {
       try {
         setLoadingSal(true);
         setLoadingFoto(true);
-        setErrore(null);
 
         const [salCaricato, fotoCaricate] =
           await Promise.all([
@@ -336,9 +302,7 @@ export default function BackofficeSalPage() {
         setFotoLavorazioni(fotoCaricate);
       } catch (error: unknown) {
         if (attivo) {
-          setErrore(
-            getMessaggioErrore(error)
-          );
+          toast.error(getMessaggioErrore(error));
         }
       } finally {
         if (attivo) {
@@ -353,13 +317,12 @@ export default function BackofficeSalPage() {
     return () => {
       attivo = false;
     };
-  }, [cantiereId, dataRiferimento]);
+  }, [cantiereId, dataRiferimento, toast]);
 
   const handleCantiereChange = (
     nextCantiereId: string
   ) => {
     setCantiereId(nextCantiereId);
-    setErrore(null);
     setFotoDaCaricare([]);
     setFotoDescrizione("");
     setFotoLavorazioneId("");
@@ -441,7 +404,7 @@ export default function BackofficeSalPage() {
       ]);
       event.target.value = "";
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     }
   };
 
@@ -465,7 +428,6 @@ export default function BackofficeSalPage() {
 
     try {
       setSalvataggioFoto(true);
-      setErrore(null);
 
       const fotoSalvate =
         await creaSalLavorazioniFoto({
@@ -490,8 +452,9 @@ export default function BackofficeSalPage() {
       setFotoDaCaricare([]);
       setFotoDescrizione("");
       setFotoLavorazioneId("");
+      toast.success("Foto caricate con successo");
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggioFoto(false);
     }
@@ -504,7 +467,6 @@ export default function BackofficeSalPage() {
 
     try {
       setLoadingPdf(true);
-      setErrore(null);
 
       const { data, error } =
         await supabase.auth.getSession();
@@ -543,8 +505,9 @@ export default function BackofficeSalPage() {
         blob: await response.blob(),
         nomeFile: getNomeFilePdf(response),
       });
+      toast.success("PDF scaricato");
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setLoadingPdf(false);
     }
@@ -553,162 +516,245 @@ export default function BackofficeSalPage() {
   const loading = loadingCantieri || loadingSal;
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              {SAL_TESTI.TITOLO}
-            </h1>
-          </div>
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            <Link href={APP_ROUTES.BACKOFFICE}>
+              <Button variant="secondary" size="sm">
+                Back-office
+              </Button>
+            </Link>
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                Timbrature
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
-          <div className="grid w-full gap-2 text-sm font-semibold sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex">
-            {cantiereId ? (
-              <button
-                type="button"
-                onClick={handleEsportaPdf}
-                disabled={loadingPdf}
-                className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active md:w-auto"
-              >
-                {loadingPdf
-                  ? SAL_TESTI.CARICAMENTO
-                  : SAL_TESTI.ESPORTA_PDF}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="w-full rounded-lg border border-industrial-border-soft bg-industrial-surface-strong px-3 py-2 text-industrial-muted-strong md:w-auto"
-              >
-                {SAL_TESTI.ESPORTA_PDF}
-              </button>
-            )}
-            <Link
-              href="/backoffice"
-              className="w-full rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-center text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
-            >
-              {SAL_TESTI.BACKOFFICE}
-            </Link>
-            <Link
-              href="/"
-              className="w-full rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-center text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
-            >
-              {SAL_TESTI.TIMBRATURE}
-            </Link>
-          </div>
+      <main className="mx-auto max-w-[1200px] px-6 py-6 space-y-6">
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-text-muted">
+          <Link href={APP_ROUTES.HOME} className="hover:text-text-primary transition-colors duration-150">
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link href={APP_ROUTES.BACKOFFICE} className="hover:text-text-primary transition-colors duration-150">
+            Back-office
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">{SAL_TESTI.TITOLO}</span>
+        </nav>
+
+        {/* Titolo + Esporta PDF */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-heading text-2xl font-medium text-text-primary">
+            {SAL_TESTI.TITOLO}
+          </h1>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download className="h-4 w-4" />}
+            onClick={() => void handleEsportaPdf()}
+            loading={loadingPdf}
+            disabled={!cantiereId}
+          >
+            Esporta PDF
+          </Button>
         </div>
 
-        {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
-            {errore}
-          </p>
+        {/* Selezione Cantiere */}
+        <Card className="p-5">
+          <Select
+            label={SAL_TESTI.CANTIERE}
+            value={cantiereId}
+            onChange={(e) =>
+              handleCantiereChange(e.target.value)
+            }
+            disabled={loadingCantieri}
+          >
+            <option value="">
+              {SAL_TESTI.SELEZIONA_CANTIERE}
+            </option>
+            {cantieri.map((cantiere) => (
+              <option
+                key={cantiere.id}
+                value={cantiere.id}
+              >
+                {cantiere.nome}
+              </option>
+            ))}
+          </Select>
+        </Card>
+
+        {/* SAL Freeze Info Card */}
+        <Card className="border-info-500/30 bg-info-50 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <CalendarRange className="h-6 w-6 text-info-500 mt-0.5" />
+              </div>
+              <div>
+                <h2 className="font-medium text-text-primary">
+                  SAL Periodico
+                </h2>
+                <p className="text-sm text-text-muted mt-1">
+                  Hai bisogno di un consolidato periodico? Crea e gestisci i freeze SAL.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+              <Link href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}>
+                <Button variant="primary" size="sm">
+                  {SAL_FREEZE_TESTI.CREA_FREEZE}
+                </Button>
+              </Link>
+              <Link href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}>
+                <Button variant="secondary" size="sm">
+                  {SAL_FREEZE_TESTI.LISTA_FREEZE}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </Card>
+
+        {loading && (
+          <Card className="p-5">
+            <p className="text-text-muted">{SAL_TESTI.CARICAMENTO}</p>
+          </Card>
         )}
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
-          <label className="block max-w-xl">
-            <span className="mb-1 block text-sm font-medium text-industrial-muted">
-              {SAL_TESTI.CANTIERE}
-            </span>
-            <select
-              value={cantiereId}
-              onChange={(event) =>
-                handleCantiereChange(
-                  event.target.value
-                )
-              }
-              disabled={loadingCantieri}
-              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-            >
-              <option value="">
-                {SAL_TESTI.SELEZIONA_CANTIERE}
-              </option>
-              {cantieri.map((cantiere) => (
-                <option
-                  key={cantiere.id}
-                  value={cantiere.id}
-                >
-                  {cantiere.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-        </section>
+        {!loadingCantieri && cantieri.length === 0 && (
+          <Card className="p-5">
+            <p className="text-text-muted">{SAL_TESTI.NESSUN_CANTIERE}</p>
+          </Card>
+        )}
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold sm:text-xl">
-                {SAL_FREEZE_TESTI.TITOLO}
+        {!loading && sal && (
+          <>
+            {/* KPI Section - 4 mini cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-4">
+                <p className="text-xs text-text-muted mb-1">Avanzamento</p>
+                <p className="text-3xl font-semibold text-text-primary">
+                  {sal.avanzamentoTotale}%
+                </p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-xs text-text-muted mb-1">Ore uomo</p>
+                <p className="text-3xl font-semibold text-text-primary">
+                  {formattaOreUomo(sal.oreUomoTotaliMinuti)}
+                </p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-xs text-text-muted mb-1">Completate</p>
+                <p className="text-3xl font-semibold text-success-500">
+                  {sal.lavorazioni.filter(
+                    (l) => l.stato === SAL_STATI.COMPLETATA
+                  ).length}
+                </p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-xs text-text-muted mb-1">In corso</p>
+                <p className="text-3xl font-semibold text-brand-500">
+                  {sal.lavorazioni.filter(
+                    (l) => l.stato === SAL_STATI.IN_CORSO
+                  ).length}
+                </p>
+              </Card>
+            </div>
+
+            {/* Lavorazioni List */}
+            <div className="space-y-4">
+              <h2 className="font-heading text-lg font-medium text-text-primary">
+                {SAL_TESTI.LAVORAZIONI_ATTIVE}
               </h2>
-              <p className="mt-1 text-sm text-industrial-muted">
-                {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
-              </p>
+
+              {sal.lavorazioni.length === 0 ? (
+                <Card className="p-5">
+                  <p className="text-text-muted">
+                    {SAL_TESTI.NESSUNA_LAVORAZIONE}
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {sal.lavorazioni.map((lavorazione) => (
+                    <Card
+                      key={lavorazione.id}
+                      className="p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <h3 className="font-medium text-text-primary">
+                            {lavorazione.nome}
+                          </h3>
+                          <p className="text-xs text-text-muted mt-1">
+                            Percentuale: {lavorazione.percentuale_completamento}% • Ore: {formattaOreUomo(lavorazione.oreUomoMinuti)}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={getStatoBadgeVariant(
+                            lavorazione.stato
+                          )}
+                          size="sm"
+                        >
+                          {getStatoLabel(lavorazione.stato)}
+                        </Badge>
+                      </div>
+
+                      {/* Progress bar con colori dinamici */}
+                      <div className="h-2 w-full rounded-full bg-border overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            getProgressBarClass(
+                              lavorazione.percentuale_completamento
+                            )
+                          )}
+                          style={{
+                            width: `${lavorazione.percentuale_completamento}%`,
+                          }}
+                        />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
+          </>
+        )}
 
-            <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex">
-              <Link
-                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-2 text-center text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active md:w-auto"
-              >
-                {SAL_FREEZE_TESTI.CREA_FREEZE}
-              </Link>
+        {/* Foto Lavorazioni Section */}
+        <div className="space-y-6">
+          {/* Carica nuove foto */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
+              Carica nuove foto
+            </h2>
 
-              <Link
-                href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}
-                className="w-full rounded-lg border border-industrial-border bg-industrial-control px-4 py-2 text-center text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
-              >
-                {SAL_FREEZE_TESTI.LISTA_FREEZE}
-              </Link>
-            </div>
-          </div>
-        </section>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label={SAL_TESTI.DATA_RIFERIMENTO}
+                  type="date"
+                  value={dataRiferimento}
+                  onChange={(e) =>
+                    handleDataRiferimentoChange(e.target.value)
+                  }
+                />
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">
-                {SAL_TESTI.FOTO_LAVORAZIONI}
-              </h2>
-              <p className="mt-1 text-sm text-industrial-muted">
-                {SAL_TESTI.FOTO_CARICATE}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                {SAL_TESTI.DATA_RIFERIMENTO}
-              </span>
-              <input
-                type="date"
-                value={dataRiferimento}
-                onChange={(event) =>
-                  handleDataRiferimentoChange(
-                    event.target.value
-                  )
-                }
-                className="form-field"
-              />
-            </label>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {SAL_TESTI.SELEZIONA_LAVORAZIONE}
-                </span>
-                <select
+                <Select
+                  label={SAL_TESTI.SELEZIONA_LAVORAZIONE}
                   value={fotoLavorazioneId}
-                  onChange={(event) =>
-                    setFotoLavorazioneId(
-                      event.target.value
-                    )
+                  onChange={(e) =>
+                    setFotoLavorazioneId(e.target.value)
                   }
                   disabled={
                     loadingSal ||
                     sal?.lavorazioni.length === 0
                   }
-                  className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                 >
                   <option value="">
                     {SAL_TESTI.SELEZIONA_LAVORAZIONE}
@@ -723,85 +769,77 @@ export default function BackofficeSalPage() {
                       </option>
                     )
                   )}
-                </select>
-              </label>
+                </Select>
+              </div>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-text-primary">
                   {SAL_TESTI.DESCRIZIONE_FOTO}
-                </span>
+                </label>
                 <textarea
                   value={fotoDescrizione}
-                  onChange={(event) =>
-                    setFotoDescrizione(
-                      event.target.value
-                    )
+                  onChange={(e) =>
+                    setFotoDescrizione(e.target.value)
                   }
-                  rows={3}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  rows={2}
+                  className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 resize-none"
+                  placeholder="Descrizione della foto (opzionale)"
                 />
-              </label>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <FileInputPicker
+                    label={SAL_TESTI.CARICA_FOTO}
+                    buttonLabel={SAL_TESTI.AGGIUNGI_FOTO}
+                    emptyLabel={
+                      SAL_TESTI.NESSUNA_FOTO_SELEZIONATA
+                    }
+                    selectedFileNames={fotoDaCaricare.map(
+                      (foto) => foto.fileName
+                    )}
+                    accept="image/*"
+                    multiple
+                    onChange={handleFotoInputChange}
+                  />
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSalvaFoto}
+                  loading={salvataggioFoto}
+                  disabled={
+                    salvataggioFoto ||
+                    fotoDaCaricare.length === 0 ||
+                    !cantiereId
+                  }
+                  className="h-fit"
+                >
+                  Salva foto
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <FileInputPicker
-                label={SAL_TESTI.CARICA_FOTO}
-                buttonLabel={SAL_TESTI.AGGIUNGI_FOTO}
-                emptyLabel={
-                  SAL_TESTI.NESSUNA_FOTO_SELEZIONATA
-                }
-                selectedFileNames={fotoDaCaricare.map(
-                  (foto) => foto.fileName
-                )}
-                accept="image/*"
-                multiple
-                onChange={handleFotoInputChange}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSalvaFoto}
-              disabled={
-                salvataggioFoto ||
-                fotoDaCaricare.length === 0 ||
-                !cantiereId
-              }
-              className="w-full rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
-            >
-              {salvataggioFoto
-                ? SAL_TESTI.CARICAMENTO
-                : SAL_TESTI.AGGIUNGI_FOTO}
-            </button>
-          </div>
-
-          {fotoDaCaricare.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-3 text-sm font-medium text-industrial-muted">
-                {
-                  SAL_TESTI.ANTEPRIMA_FOTO_SELEZIONATE
-                }
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {fotoDaCaricare.map((foto) => (
-                  <div
-                    key={foto.localId}
-                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-3"
-                  >
-                    <Image
-                      src={foto.immagine_data_url}
-                      alt={foto.fileName}
-                      width={640}
-                      height={360}
-                      unoptimized
-                      className="h-40 w-full rounded-md object-cover"
-                    />
-                    <div className="mt-3 flex items-start justify-between gap-2">
-                      <p className="text-xs text-industrial-muted">
-                        {foto.fileName}
-                      </p>
+            {/* Anteprima foto in coda */}
+            {fotoDaCaricare.length > 0 && (
+              <div className="mt-5 space-y-3">
+                <p className="text-sm font-medium text-text-muted">
+                  Anteprima foto selezionate
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {fotoDaCaricare.map((foto) => (
+                    <div
+                      key={foto.localId}
+                      className="relative group"
+                    >
+                      <Image
+                        src={foto.immagine_data_url}
+                        alt={foto.fileName}
+                        width={160}
+                        height={160}
+                        className="h-40 w-full rounded-md border border-border object-cover"
+                      />
                       <button
                         type="button"
                         onClick={() =>
@@ -809,24 +847,28 @@ export default function BackofficeSalPage() {
                             foto.localId
                           )
                         }
-                        className="text-xs font-semibold text-industrial-orange transition-colors duration-200 ease-out hover:text-industrial-orange-hover"
+                        className="absolute top-1 right-1 p-1 rounded bg-error-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        {SAL_TESTI.RIMUOVI}
+                        <Trash2 className="h-3 w-3" />
                       </button>
+                      <p className="text-xs text-text-muted mt-1 truncate">
+                        {foto.fileName}
+                      </p>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </Card>
 
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-base font-semibold">
+          {/* Galleria recente */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-lg font-medium text-text-primary">
                 {SAL_TESTI.GALLERIA_RECENTE}
-              </h3>
+              </h2>
               {loadingFoto && (
-                <span className="text-sm text-industrial-muted">
+                <span className="text-xs text-text-muted">
                   {SAL_TESTI.CARICAMENTO}
                 </span>
               )}
@@ -834,32 +876,31 @@ export default function BackofficeSalPage() {
 
             {!loadingFoto &&
               fotoLavorazioni.length === 0 && (
-                <p className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 text-sm text-industrial-muted">
+                <p className="text-sm text-text-muted">
                   {SAL_TESTI.NESSUNA_FOTO}
                 </p>
               )}
 
             {fotoLavorazioni.length > 0 && (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {fotoLavorazioni.map((foto) => (
                   <article
                     key={foto.id}
-                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-3"
+                    className="space-y-2"
                   >
                     <Image
                       src={foto.immagine_data_url}
                       alt={foto.descrizione || foto.id}
-                      width={640}
-                      height={360}
-                      unoptimized
-                      className="h-44 w-full rounded-md object-cover"
+                      width={200}
+                      height={200}
+                      className="h-40 w-full rounded-md border border-border object-cover"
                     />
-                    <div className="mt-3 space-y-1">
-                      <p className="text-sm font-medium text-industrial-text">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-text-primary line-clamp-2">
                         {foto.descrizione ||
-                          SAL_TESTI.DESCRIZIONE_FOTO}
+                          "(senza descrizione)"}
                       </p>
-                      <p className="text-xs text-industrial-muted">
+                      <p className="text-xs text-text-muted">
                         {formattaDataBreve(
                           foto.data_riferimento
                         )}
@@ -869,8 +910,7 @@ export default function BackofficeSalPage() {
                           ) && (
                             <>
                               {" "}
-                              -{" "}
-                              {
+                              • {
                                 lavorazioniById.get(
                                   foto.lavorazione_id
                                 )?.nome
@@ -883,76 +923,9 @@ export default function BackofficeSalPage() {
                 ))}
               </div>
             )}
-          </div>
-        </section>
-
-        {loading && (
-          <p className="text-industrial-muted">
-            {SAL_TESTI.CARICAMENTO}
-          </p>
-        )}
-
-        {!loadingCantieri &&
-          cantieri.length === 0 && (
-            <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-              {SAL_TESTI.NESSUN_CANTIERE}
-            </p>
-          )}
-
-        {!loading && sal && (
-        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 text-industrial-text shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
-              <p className="text-sm font-medium text-industrial-muted">
-                {
-                  SAL_TESTI.AVANZAMENTO_TOTALE
-                }
-              </p>
-              <p className="mt-3 text-4xl font-bold">
-                {sal.avanzamentoTotale}%
-              </p>
-              <p className="mt-3 text-sm font-medium text-industrial-muted">
-                {SAL_TESTI.ORE_UOMO_TOTALI}:{" "}
-                {formattaOreUomo(
-                  sal.oreUomoTotaliMinuti
-                )}
-              </p>
-              <div className="mt-4">
-                <BarraProgresso
-                  percentuale={
-                    sal.avanzamentoTotale
-                  }
-                />
-              </div>
-            </section>
-
-            <section>
-            <h2 className="mb-4 text-lg font-semibold sm:text-xl">
-              {SAL_TESTI.LAVORAZIONI_ATTIVE}
-            </h2>
-
-              {sal.lavorazioni.length === 0 ? (
-                <p className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 text-industrial-muted shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-                  {
-                    SAL_TESTI.NESSUNA_LAVORAZIONE
-                  }
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {sal.lavorazioni.map(
-                    (lavorazione) => (
-                      <RigaLavorazione
-                        key={lavorazione.id}
-                        lavorazione={lavorazione}
-                      />
-                    )
-                  )}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
-
-      </div>
-    </main>
+          </Card>
+        </div>
+      </main>
+    </div>
   );
 }
