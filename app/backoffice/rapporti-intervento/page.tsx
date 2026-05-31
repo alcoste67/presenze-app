@@ -2,16 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type {
-  ChangeEvent,
-  FormEvent,
-} from "react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, Download, Home, Plus, Search, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
@@ -24,6 +17,7 @@ import {
   RAPPORTI_INTERVENTO_TESTI,
 } from "@/constants/rapportiIntervento";
 import { APP_ROUTES } from "@/constants/routes";
+
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
@@ -40,6 +34,7 @@ import {
   formatMinutiOreInput,
   parseOreMinutiInput,
 } from "@/services/rapportiIntervento/oreMinuti";
+
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type { Dipendente } from "@/types/dipendenti";
 import type {
@@ -50,33 +45,38 @@ import type {
   RapportoInterventoMaterialeInput,
   RapportoInterventoOperatoreInput,
 } from "@/types/rapportiIntervento";
+
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
 import { SelectOperatore } from "./SelectOperatore";
 
-type LavorazioneForm =
-  RapportoInterventoLavorazioneInput & {
-    localId: string;
-    ore_uomo_input: string;
-  };
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type LavorazioneForm = RapportoInterventoLavorazioneInput & {
+  localId: string;
+  ore_uomo_input: string;
+};
 
 type FotoForm = RapportoInterventoFotoInput & {
   localId: string;
   fileName: string;
 };
 
-type OperatoreForm = Omit<
-  RapportoInterventoOperatoreInput,
-  "ore_minuti"
-> & {
+type OperatoreForm = Omit<RapportoInterventoOperatoreInput, "ore_minuti"> & {
   localId: string;
   ricerca_operatore: string;
   ore_input: string;
   ore_minuti: number;
 };
 
-type MaterialeForm = Omit<
-  RapportoInterventoMaterialeInput,
-  "quantita"
-> & {
+type MaterialeForm = Omit<RapportoInterventoMaterialeInput, "quantita"> & {
   localId: string;
   quantita: string;
 };
@@ -95,6 +95,8 @@ type RapportoForm = {
   firma_cliente_nome: string;
 };
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const FORM_INIZIALE: RapportoForm = {
   cantiere_id: "",
   data_intervento: "",
@@ -109,106 +111,66 @@ const FORM_INIZIALE: RapportoForm = {
   firma_cliente_nome: "",
 };
 
+// ─── Helpers (preservati identici) ────────────────────────────────────────────
+
 function getLocalId() {
-  if (
-    typeof crypto !== "undefined" &&
-    "randomUUID" in crypto
-  ) {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
-
   return `${Date.now()}-${Math.random()}`;
 }
 
 function getMessaggioErrore(error: unknown) {
   return error instanceof Error
     ? error.message
-    : RAPPORTI_INTERVENTO_TESTI.ERRORI
-        .GENERICO;
+    : RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO;
 }
 
-function getNomeDipendente(
-  dipendente: Dipendente
-) {
+function getNomeDipendente(dipendente: Dipendente) {
   return `${dipendente.nome} ${dipendente.cognome}`.trim();
 }
 
-function getLabelDipendente(
-  dipendente: Dipendente
-) {
+function getLabelDipendente(dipendente: Dipendente) {
   return `${getNomeDipendente(dipendente)} - ${dipendente.email}`;
 }
 
 function formattaData(data: string) {
-  if (!data) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat(
-    RAPPORTI_INTERVENTO_PDF.LOCALE
-  ).format(new Date(`${data}T00:00:00`));
-}
-
-function getNumeroIntero(
-  value: string
-): number | null {
-  const numero = Number(value.trim());
-
-  if (!Number.isInteger(numero) || numero < 0) {
-    return null;
-  }
-
-  return numero;
-}
-
-function getNumeroDecimale(
-  value: string
-): number | null {
-  const numero = Number(
-    value.trim().replace(",", ".")
+  if (!data) return "";
+  return new Intl.DateTimeFormat(RAPPORTI_INTERVENTO_PDF.LOCALE).format(
+    new Date(`${data}T00:00:00`)
   );
+}
 
-  if (!Number.isFinite(numero) || numero < 0) {
-    return null;
-  }
-
+function getNumeroIntero(value: string): number | null {
+  const numero = Number(value.trim());
+  if (!Number.isInteger(numero) || numero < 0) return null;
   return numero;
 }
 
-function isFirmaValida(
-  firmaDataUrl: string | null
-) {
+function getNumeroDecimale(value: string): number | null {
+  const numero = Number(value.trim().replace(",", "."));
+  if (!Number.isFinite(numero) || numero < 0) return null;
+  return numero;
+}
+
+function isFirmaValida(firmaDataUrl: string | null) {
   return (
     !firmaDataUrl ||
-    firmaDataUrl.length <=
-      RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI
+    firmaDataUrl.length <= RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI
   );
 }
 
 function isFotoValida(fotoDataUrl: string) {
   return (
     fotoDataUrl.startsWith("data:image/") &&
-    fotoDataUrl.length <=
-      RAPPORTI_INTERVENTO_LIMITI.FOTO_MAX_DATA_URL_CARATTERI
+    fotoDataUrl.length <= RAPPORTI_INTERVENTO_LIMITI.FOTO_MAX_DATA_URL_CARATTERI
   );
 }
 
-function getStatoClassName(
-  stato: RapportoIntervento["stato"]
-) {
-  if (
-    stato === RAPPORTI_INTERVENTO_STATI.FIRMATO
-  ) {
-    return "bg-industrial-success-bg text-industrial-success-text";
-  }
-
-  if (
-    stato === RAPPORTI_INTERVENTO_STATI.ANNULLATO
-  ) {
-    return "bg-industrial-danger-bg text-industrial-danger-text";
-  }
-
-  return "bg-industrial-warning-bg text-industrial-warning-text";
+function getStatoBadgeVariant(stato: RapportoIntervento["stato"]): BadgeProps["variant"] {
+  if (stato === RAPPORTI_INTERVENTO_STATI.FIRMATO) return "success";
+  if (stato === RAPPORTI_INTERVENTO_STATI.ANNULLATO) return "error";
+  return "warning";
 }
 
 function scaricaBlobPdf({
@@ -219,9 +181,7 @@ function scaricaBlobPdf({
   nomeFile: string;
 }) {
   const url = URL.createObjectURL(blob);
-  const link =
-    document.createElement("a");
-
+  const link = document.createElement("a");
   link.href = url;
   link.download = nomeFile;
   document.body.appendChild(link);
@@ -232,85 +192,45 @@ function scaricaBlobPdf({
 
 function normalizzaLavorazioni(
   lavorazioni: LavorazioneForm[]
-):
-  | {
-      lavorazioni: RapportoInterventoLavorazioneInput[];
-    }
-  | { errore: string } {
+): { lavorazioni: RapportoInterventoLavorazioneInput[] } | { errore: string } {
   if (lavorazioni.length === 0) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .LAVORAZIONE_OBBLIGATORIA,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.LAVORAZIONE_OBBLIGATORIA };
   }
 
-  const lavorazioniNormalizzate: RapportoInterventoLavorazioneInput[] =
-    [];
+  const lavorazioniNormalizzate: RapportoInterventoLavorazioneInput[] = [];
 
-  for (const [
-    index,
-    lavorazione,
-  ] of lavorazioni.entries()) {
-    const descrizione =
-      lavorazione.descrizione_snapshot
-        .trim()
-        .replace(/\s+/g, " ");
+  for (const [index, lavorazione] of lavorazioni.entries()) {
+    const descrizione = lavorazione.descrizione_snapshot.trim().replace(/\s+/g, " ");
 
     if (!descrizione) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .DESCRIZIONE_OBBLIGATORIA,
-      };
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.DESCRIZIONE_OBBLIGATORIA };
     }
 
-    if (
-      !lavorazione.ore_uomo_input.trim()
-    ) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .ORE_NON_VALIDE,
-      };
+    if (!lavorazione.ore_uomo_input.trim()) {
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.ORE_NON_VALIDE };
     }
 
-    const oreUomoMinuti =
-      parseOreMinutiInput(
-        lavorazione.ore_uomo_input
-      );
+    const oreUomoMinuti = parseOreMinutiInput(lavorazione.ore_uomo_input);
 
     if (oreUomoMinuti === null) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .FORMATO_ORE_NON_VALIDO,
-      };
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FORMATO_ORE_NON_VALIDO };
     }
 
     lavorazioniNormalizzate.push({
-      lavorazione_id:
-        lavorazione.lavorazione_id,
+      lavorazione_id: lavorazione.lavorazione_id,
       descrizione_snapshot: descrizione,
       ore_uomo_minuti: oreUomoMinuti,
       ordine: index + 1,
     });
   }
 
-  return {
-    lavorazioni: lavorazioniNormalizzate,
-  };
+  return { lavorazioni: lavorazioniNormalizzate };
 }
 
 function normalizzaFoto(
   foto: FotoForm[]
-):
-  | {
-      foto: RapportoInterventoFotoInput[];
-    }
-  | { errore: string } {
-  const fotoNormalizzate: RapportoInterventoFotoInput[] =
-    [];
+): { foto: RapportoInterventoFotoInput[] } | { errore: string } {
+  const fotoNormalizzate: RapportoInterventoFotoInput[] = [];
 
   for (const [index, immagine] of foto.entries()) {
     if (!isFotoValida(immagine.immagine_data_url)) {
@@ -318,166 +238,91 @@ function normalizzaFoto(
         errore:
           immagine.immagine_data_url.length >
           RAPPORTI_INTERVENTO_LIMITI.FOTO_MAX_DATA_URL_CARATTERI
-            ? RAPPORTI_INTERVENTO_TESTI.ERRORI
-                .FOTO_TROPPO_GRANDE
-            : RAPPORTI_INTERVENTO_TESTI.ERRORI
-                .FOTO_NON_VALIDA,
+            ? RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_TROPPO_GRANDE
+            : RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_NON_VALIDA,
       };
     }
 
     fotoNormalizzate.push({
-      immagine_data_url:
-        immagine.immagine_data_url,
-      descrizione:
-        immagine.descrizione.trim(),
+      immagine_data_url: immagine.immagine_data_url,
+      descrizione: immagine.descrizione.trim(),
       ordine: index + 1,
     });
   }
 
-  return {
-    foto: fotoNormalizzate,
-  };
+  return { foto: fotoNormalizzate };
 }
 
 function normalizzaOperatori(
   operatori: OperatoreForm[]
-):
-  | {
-      operatori: RapportoInterventoOperatoreInput[];
-    }
-  | { errore: string } {
+): { operatori: RapportoInterventoOperatoreInput[] } | { errore: string } {
   if (operatori.length === 0) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .OPERATORE_OBBLIGATORIO,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.OPERATORE_OBBLIGATORIO };
   }
 
   const dipendentiIds = new Set<string>();
-  const operatoriNormalizzati: RapportoInterventoOperatoreInput[] =
-    [];
+  const operatoriNormalizzati: RapportoInterventoOperatoreInput[] = [];
 
-  for (const [
-    index,
-    operatore,
-  ] of operatori.entries()) {
-    if (
-      !operatore.dipendente_id ||
-      !operatore.nome_snapshot.trim()
-    ) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .OPERATORE_NON_VALIDO,
-      };
+  for (const [index, operatore] of operatori.entries()) {
+    if (!operatore.dipendente_id || !operatore.nome_snapshot.trim()) {
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.OPERATORE_NON_VALIDO };
     }
 
-    if (
-      dipendentiIds.has(
-        operatore.dipendente_id
-      )
-    ) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .OPERATORE_DUPLICATO,
-      };
+    if (dipendentiIds.has(operatore.dipendente_id)) {
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.OPERATORE_DUPLICATO };
     }
 
-    dipendentiIds.add(
-      operatore.dipendente_id
-    );
+    dipendentiIds.add(operatore.dipendente_id);
 
     if (!operatore.ore_input.trim()) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .ORE_OPERATORE_NON_VALIDE,
-      };
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.ORE_OPERATORE_NON_VALIDE };
     }
 
-    const oreMinuti =
-      parseOreMinutiInput(
-        operatore.ore_input
-      );
+    const oreMinuti = parseOreMinutiInput(operatore.ore_input);
 
     if (oreMinuti === null) {
-      return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .FORMATO_ORE_NON_VALIDO,
-      };
+      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FORMATO_ORE_NON_VALIDO };
     }
 
     operatoriNormalizzati.push({
-      dipendente_id:
-        operatore.dipendente_id,
-      nome_snapshot:
-        operatore.nome_snapshot
-          .trim()
-          .replace(/\s+/g, " "),
-      email_snapshot:
-        operatore.email_snapshot,
+      dipendente_id: operatore.dipendente_id,
+      nome_snapshot: operatore.nome_snapshot.trim().replace(/\s+/g, " "),
+      email_snapshot: operatore.email_snapshot,
       ore_minuti: oreMinuti,
       ordine: index + 1,
     });
   }
 
-  return {
-    operatori: operatoriNormalizzati,
-  };
+  return { operatori: operatoriNormalizzati };
 }
 
 function normalizzaMateriali(
   materiali: MaterialeForm[]
-):
-  | {
-      materiali: RapportoInterventoMaterialeInput[];
-    }
-  | { errore: string } {
-  const materialiNormalizzati: RapportoInterventoMaterialeInput[] =
-    [];
+): { materiali: RapportoInterventoMaterialeInput[] } | { errore: string } {
+  const materialiNormalizzati: RapportoInterventoMaterialeInput[] = [];
 
-  for (const [
-    index,
-    materiale,
-  ] of materiali.entries()) {
-    const descrizione =
-      materiale.descrizione
-        .trim()
-        .replace(/\s+/g, " ");
+  for (const [index, materiale] of materiali.entries()) {
+    const descrizione = materiale.descrizione.trim().replace(/\s+/g, " ");
 
     if (!descrizione) {
       return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .MATERIALE_DESCRIZIONE_OBBLIGATORIA,
+        errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.MATERIALE_DESCRIZIONE_OBBLIGATORIA,
       };
     }
 
-    const quantita = getNumeroDecimale(
-      materiale.quantita
-    );
+    const quantita = getNumeroDecimale(materiale.quantita);
 
     if (quantita === null) {
       return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .MATERIALE_QUANTITA_NON_VALIDA,
+        errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.MATERIALE_QUANTITA_NON_VALIDA,
       };
     }
 
-    const unitaMisura =
-      materiale.unita_misura
-        .trim()
-        .replace(/\s+/g, " ");
+    const unitaMisura = materiale.unita_misura.trim().replace(/\s+/g, " ");
 
     if (!unitaMisura) {
       return {
-        errore:
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .MATERIALE_UNITA_OBBLIGATORIA,
+        errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.MATERIALE_UNITA_OBBLIGATORIA,
       };
     }
 
@@ -489,9 +334,7 @@ function normalizzaMateriali(
     });
   }
 
-  return {
-    materiali: materialiNormalizzati,
-  };
+  return { materiali: materialiNormalizzati };
 }
 
 function preparaPayload({
@@ -506,256 +349,163 @@ function preparaPayload({
   operatori: OperatoreForm[];
   foto: FotoForm[];
   materiali: MaterialeForm[];
-}):
-  | { payload: RapportoInterventoInput }
-  | { errore: string } {
+}): { payload: RapportoInterventoInput } | { errore: string } {
   if (!form.cantiere_id) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .CANTIERE_OBBLIGATORIO,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.CANTIERE_OBBLIGATORIO };
   }
 
   if (!form.data_intervento) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .DATA_OBBLIGATORIA,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.DATA_OBBLIGATORIA };
   }
 
-  const cliente =
-    form.cliente_committente.trim();
-
+  const cliente = form.cliente_committente.trim();
   if (!cliente) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .CLIENTE_OBBLIGATORIO,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.CLIENTE_OBBLIGATORIO };
   }
 
-  const responsabile =
-    form.responsabile_nome.trim();
-
+  const responsabile = form.responsabile_nome.trim();
   if (!responsabile) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .RESPONSABILE_OBBLIGATORIO,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.RESPONSABILE_OBBLIGATORIO };
   }
 
-  const viaggioMinuti = getNumeroIntero(
-    form.viaggio_minuti
-  );
-
+  const viaggioMinuti = getNumeroIntero(form.viaggio_minuti);
   if (viaggioMinuti === null) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .VIAGGIO_NON_VALIDO,
-    };
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.VIAGGIO_NON_VALIDO };
   }
 
-  if (
-    !isFirmaValida(
-      form.firma_responsabile_data_url
-    ) ||
-    !isFirmaValida(
-      form.firma_cliente_data_url
-    )
-  ) {
-    return {
-      errore:
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .FIRMA_TROPPO_GRANDE,
-    };
+  if (!isFirmaValida(form.firma_responsabile_data_url) || !isFirmaValida(form.firma_cliente_data_url)) {
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_TROPPO_GRANDE };
   }
 
-  const lavorazioniNormalizzate =
-    normalizzaLavorazioni(lavorazioni);
+  const lavorazioniNormalizzate = normalizzaLavorazioni(lavorazioni);
+  if ("errore" in lavorazioniNormalizzate) return lavorazioniNormalizzate;
 
-  if ("errore" in lavorazioniNormalizzate) {
-    return lavorazioniNormalizzate;
-  }
+  const operatoriNormalizzati = normalizzaOperatori(operatori);
+  if ("errore" in operatoriNormalizzati) return operatoriNormalizzati;
 
-  const operatoriNormalizzati =
-    normalizzaOperatori(operatori);
+  const fotoNormalizzate = normalizzaFoto(foto);
+  if ("errore" in fotoNormalizzate) return fotoNormalizzate;
 
-  if ("errore" in operatoriNormalizzati) {
-    return operatoriNormalizzati;
-  }
-
-  const fotoNormalizzate =
-    normalizzaFoto(foto);
-
-  if ("errore" in fotoNormalizzate) {
-    return fotoNormalizzate;
-  }
-
-  const materialiNormalizzati =
-    normalizzaMateriali(materiali);
-
-  if ("errore" in materialiNormalizzati) {
-    return materialiNormalizzati;
-  }
+  const materialiNormalizzati = normalizzaMateriali(materiali);
+  if ("errore" in materialiNormalizzati) return materialiNormalizzati;
 
   return {
     payload: {
       cantiere_id: form.cantiere_id,
-      data_intervento:
-        form.data_intervento,
+      data_intervento: form.data_intervento,
       cliente_committente: cliente,
       responsabile_nome: responsabile,
       viaggio_minuti: viaggioMinuti,
-      diritto_uscita:
-        form.diritto_uscita,
+      diritto_uscita: form.diritto_uscita,
       note: form.note.trim(),
-      firma_responsabile_data_url:
-        form.firma_responsabile_data_url,
-      firma_responsabile_nome:
-        form.firma_responsabile_data_url
-          ? form.firma_responsabile_nome.trim() ||
-            responsabile
-          : null,
-      firma_cliente_data_url:
-        form.firma_cliente_data_url,
-      firma_cliente_nome:
-        form.firma_cliente_data_url
-          ? form.firma_cliente_nome.trim() ||
-            cliente
-          : null,
-      lavorazioni:
-        lavorazioniNormalizzate.lavorazioni,
-      operatori:
-        operatoriNormalizzati.operatori,
+      firma_responsabile_data_url: form.firma_responsabile_data_url,
+      firma_responsabile_nome: form.firma_responsabile_data_url
+        ? form.firma_responsabile_nome.trim() || responsabile
+        : null,
+      firma_cliente_data_url: form.firma_cliente_data_url,
+      firma_cliente_nome: form.firma_cliente_data_url
+        ? form.firma_cliente_nome.trim() || cliente
+        : null,
+      lavorazioni: lavorazioniNormalizzate.lavorazioni,
+      operatori: operatoriNormalizzati.operatori,
       foto: fotoNormalizzate.foto,
-      materiali:
-        materialiNormalizzati.materiali,
+      materiali: materialiNormalizzati.materiali,
     },
   };
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BackofficeRapportiInterventoPage() {
-  const [cantieri, setCantieri] = useState<
-    CantiereBackoffice[]
-  >([]);
-  const [dipendenti, setDipendenti] =
-    useState<Dipendente[]>([]);
-  const [rapporti, setRapporti] = useState<
-    RapportoIntervento[]
-  >([]);
-  const [form, setForm] =
-    useState<RapportoForm>(FORM_INIZIALE);
-  const [lavorazioni, setLavorazioni] =
-    useState<LavorazioneForm[]>([]);
-  const [operatori, setOperatori] =
-    useState<OperatoreForm[]>([]);
-  const [foto, setFoto] = useState<
-    FotoForm[]
-  >([]);
-  const [materiali, setMateriali] =
-    useState<MaterialeForm[]>([]);
-  const [
-    rapportoInModificaId,
-    setRapportoInModificaId,
-  ] = useState<string | null>(null);
-  const [readonly, setReadonly] =
-    useState(false);
-  const [loading, setLoading] =
-    useState(true);
-  const [utenteAdmin, setUtenteAdmin] =
-    useState(false);
-  const [loadingSnapshot, setLoadingSnapshot] =
-    useState(false);
-  const [salvataggio, setSalvataggio] =
-    useState(false);
-  const [pdfId, setPdfId] = useState<
-    string | null
-  >(null);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
-  const [messaggio, setMessaggio] =
-    useState<string | null>(null);
+  const toast = useToast();
+
+  const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
+  const [rapporti, setRapporti] = useState<RapportoIntervento[]>([]);
+  const [form, setForm] = useState<RapportoForm>(FORM_INIZIALE);
+  const [lavorazioni, setLavorazioni] = useState<LavorazioneForm[]>([]);
+  const [operatori, setOperatori] = useState<OperatoreForm[]>([]);
+  const [foto, setFoto] = useState<FotoForm[]>([]);
+  const [materiali, setMateriali] = useState<MaterialeForm[]>([]);
+  const [rapportoInModificaId, setRapportoInModificaId] = useState<string | null>(null);
+  const [readonly, setReadonly] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [utenteAdmin, setUtenteAdmin] = useState(false);
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false);
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [pdfId, setPdfId] = useState<string | null>(null);
+  const [ricercaRapporti, setRicercaRapporti] = useState("");
+  const [mostraListaRapporti, setMostraListaRapporti] = useState(false);
 
   const oreUomoRealiMinuti = useMemo(
     () =>
       operatori.reduce(
-        (totale, operatore) =>
-          totale +
-          (parseOreMinutiInput(
-            operatore.ore_input
-          ) || 0),
+        (totale, operatore) => totale + (parseOreMinutiInput(operatore.ore_input) || 0),
         0
       ),
     [operatori]
   );
 
-  const viaggioMinuti =
-    getNumeroIntero(form.viaggio_minuti) || 0;
-  const calcolo = calcolaOreFatturabili({
-    oreUomoRealiMinuti,
-    viaggioMinuti,
-  });
-  const caricaDati = useCallback(async ({
-    attivo = true,
-  }: {
-    attivo?: boolean;
-  } = {}) => {
-    try {
-      if (attivo) {
-        setLoading(true);
-        setErrore(null);
-      }
+  const viaggioMinuti = getNumeroIntero(form.viaggio_minuti) || 0;
+  const calcolo = calcolaOreFatturabili({ oreUomoRealiMinuti, viaggioMinuti });
 
-      const [
-        cantieriData,
-        dipendentiData,
-        rapportiData,
-      ] = await Promise.all([
-        loadCantieriBackoffice(),
-        loadDipendentiAttivi(),
-        loadRapportiIntervento(),
-      ]);
+  const rapportiFiltrati = useMemo(() => {
+    const q = ricercaRapporti.trim().toLowerCase();
+    if (!q) return rapporti.slice(0, 3);
+    return rapporti
+      .filter(
+        (r) =>
+          r.cantiere_nome_snapshot.toLowerCase().includes(q) ||
+          r.cliente_committente.toLowerCase().includes(q) ||
+          formattaData(r.data_intervento).toLowerCase().includes(q)
+      )
+      .slice(0, 3);
+  }, [rapporti, ricercaRapporti]);
 
-      if (!attivo) {
-        return;
-      }
+  const caricaDati = useCallback(
+    async ({ attivo = true }: { attivo?: boolean } = {}) => {
+      try {
+        if (attivo) {
+          setLoading(true);
+        }
 
-      setCantieri(cantieriData);
-      setDipendenti(dipendentiData);
-      setRapporti(rapportiData);
-    } catch (error: unknown) {
-      if (attivo) {
-        setErrore(getMessaggioErrore(error));
+        const [cantieriData, dipendentiData, rapportiData] = await Promise.all([
+          loadCantieriBackoffice(),
+          loadDipendentiAttivi(),
+          loadRapportiIntervento(),
+        ]);
+
+        if (!attivo) return;
+
+        setCantieri(cantieriData);
+        setDipendenti(dipendentiData);
+        setRapporti(rapportiData);
+      } catch (error: unknown) {
+        if (attivo) {
+          toast.error(getMessaggioErrore(error));
+        }
+      } finally {
+        if (attivo) {
+          setLoading(false);
+        }
       }
-    } finally {
-      if (attivo) {
-        setLoading(false);
-      }
-    }
-  }, []);
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   useEffect(() => {
     let attivo = true;
 
     const verificaRuolo = async () => {
       try {
         const user = await loadUtenteAuth();
-        const adminCorrente = user?.email
-          ? await isAdmin(user.email)
-          : false;
+        const adminCorrente = user?.email ? await isAdmin(user.email) : false;
 
         if (attivo) {
           setUtenteAdmin(adminCorrente);
         }
       } catch (error: unknown) {
-        console.error(
-          "Errore verifica ruolo rapporti intervento",
-          error
-        );
+        console.error("Errore verifica ruolo rapporti intervento", error);
 
         if (attivo) {
           setUtenteAdmin(false);
@@ -773,25 +523,18 @@ export default function BackofficeRapportiInterventoPage() {
   useEffect(() => {
     let attivo = true;
 
-    const caricaDatiIniziali =
-      async () => {
-        await caricaDati({
-          attivo,
-        });
-      };
+    const init = async () => {
+      await caricaDati({ attivo });
+    };
 
-    void caricaDatiIniziali();
+    void init();
 
     return () => {
       attivo = false;
     };
   }, [caricaDati]);
 
-  const resetForm = ({
-    mantieniMessaggio = false,
-  }: {
-    mantieniMessaggio?: boolean;
-  } = {}) => {
+  const resetForm = ({ mantieniMessaggio = false }: { mantieniMessaggio?: boolean } = {}) => {
     setForm(FORM_INIZIALE);
     setLavorazioni([]);
     setOperatori([]);
@@ -799,9 +542,8 @@ export default function BackofficeRapportiInterventoPage() {
     setMateriali([]);
     setRapportoInModificaId(null);
     setReadonly(false);
-    setErrore(null);
     if (!mantieniMessaggio) {
-      setMessaggio(null);
+      setMostraListaRapporti(false);
     }
   };
 
@@ -821,33 +563,21 @@ export default function BackofficeRapportiInterventoPage() {
     value,
   }: {
     localId: string;
-    field:
-      | "descrizione_snapshot"
-      | "ore_uomo_input";
+    field: "descrizione_snapshot" | "ore_uomo_input";
     value: string;
   }) => {
     setLavorazioni((lavorazioniCorrenti) =>
-      lavorazioniCorrenti.map(
-        (lavorazione) => {
-          if (lavorazione.localId !== localId) {
-            return lavorazione;
-          }
+      lavorazioniCorrenti.map((lavorazione) => {
+        if (lavorazione.localId !== localId) return lavorazione;
 
-          const minuti =
-            field === "ore_uomo_input"
-              ? parseOreMinutiInput(value)
-              : null;
+        const minuti = field === "ore_uomo_input" ? parseOreMinutiInput(value) : null;
 
-          return {
-            ...lavorazione,
-            [field]: value,
-            ore_uomo_minuti:
-              field === "ore_uomo_input"
-                ? minuti || 0
-                : lavorazione.ore_uomo_minuti,
-          };
-        }
-      )
+        return {
+          ...lavorazione,
+          [field]: value,
+          ore_uomo_minuti: field === "ore_uomo_input" ? minuti || 0 : lavorazione.ore_uomo_minuti,
+        };
+      })
     );
   };
 
@@ -860,20 +590,14 @@ export default function BackofficeRapportiInterventoPage() {
         descrizione_snapshot: "",
         ore_uomo_minuti: 0,
         ore_uomo_input: "",
-        ordine:
-          lavorazioniCorrenti.length + 1,
+        ordine: lavorazioniCorrenti.length + 1,
       },
     ]);
   };
 
-  const rimuoviLavorazione = (
-    localId: string
-  ) => {
+  const rimuoviLavorazione = (localId: string) => {
     setLavorazioni((lavorazioniCorrenti) =>
-      lavorazioniCorrenti.filter(
-        (lavorazione) =>
-          lavorazione.localId !== localId
-      )
+      lavorazioniCorrenti.filter((lavorazione) => lavorazione.localId !== localId)
     );
   };
 
@@ -902,13 +626,9 @@ export default function BackofficeRapportiInterventoPage() {
   }) => {
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
-        if (operatore.localId !== localId) {
-          return operatore;
-        }
+        if (operatore.localId !== localId) return operatore;
 
-        if (operatore.ricerca_operatore === ricerca) {
-          return operatore;
-        }
+        if (operatore.ricerca_operatore === ricerca) return operatore;
 
         return {
           ...operatore,
@@ -928,25 +648,17 @@ export default function BackofficeRapportiInterventoPage() {
     localId: string;
     dipendente: Dipendente;
   }) => {
-    const ricerca = getLabelDipendente(
-      dipendente
-    );
+    const ricerca = getLabelDipendente(dipendente);
 
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
-        if (operatore.localId !== localId) {
-          return operatore;
-        }
+        if (operatore.localId !== localId) return operatore;
 
         if (
-          operatore.dipendente_id ===
-            dipendente.id &&
-          operatore.ricerca_operatore ===
-            ricerca &&
-          operatore.nome_snapshot ===
-            getNomeDipendente(dipendente) &&
-          operatore.email_snapshot ===
-            dipendente.email
+          operatore.dipendente_id === dipendente.id &&
+          operatore.ricerca_operatore === ricerca &&
+          operatore.nome_snapshot === getNomeDipendente(dipendente) &&
+          operatore.email_snapshot === dipendente.email
         ) {
           return operatore;
         }
@@ -954,9 +666,7 @@ export default function BackofficeRapportiInterventoPage() {
         return {
           ...operatore,
           dipendente_id: dipendente.id,
-          nome_snapshot: getNomeDipendente(
-            dipendente
-          ),
+          nome_snapshot: getNomeDipendente(dipendente),
           email_snapshot: dipendente.email,
           ricerca_operatore: ricerca,
         };
@@ -964,31 +674,22 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
-  const handleOperatoreBlur = ({
-    localId,
-  }: {
-    localId: string;
-  }) => {
+  const handleOperatoreBlur = ({ localId }: { localId: string }) => {
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
-        if (operatore.localId !== localId) {
-          return operatore;
-        }
+        if (operatore.localId !== localId) return operatore;
 
         if (operatore.dipendente_id) {
           return {
             ...operatore,
             ricerca_operatore:
-              operatore.nome_snapshot &&
-              operatore.email_snapshot
+              operatore.nome_snapshot && operatore.email_snapshot
                 ? `${operatore.nome_snapshot} - ${operatore.email_snapshot}`
                 : operatore.nome_snapshot,
           };
         }
 
-        if (operatore.ricerca_operatore === "") {
-          return operatore;
-        }
+        if (operatore.ricerca_operatore === "") return operatore;
 
         return {
           ...operatore,
@@ -1007,12 +708,9 @@ export default function BackofficeRapportiInterventoPage() {
   }) => {
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
-        if (operatore.localId !== localId) {
-          return operatore;
-        }
+        if (operatore.localId !== localId) return operatore;
 
-        const minuti =
-          parseOreMinutiInput(value);
+        const minuti = parseOreMinutiInput(value);
 
         return {
           ...operatore,
@@ -1023,20 +721,13 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
-  const rimuoviOperatore = (
-    localId: string
-  ) => {
+  const rimuoviOperatore = (localId: string) => {
     setOperatori((operatoriCorrenti) =>
-      operatoriCorrenti.filter(
-        (operatore) =>
-          operatore.localId !== localId
-      )
+      operatoriCorrenti.filter((operatore) => operatore.localId !== localId)
     );
   };
 
-  const leggiFileComeDataUrl = (
-    file: File
-  ) =>
+  const leggiFileComeDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
 
@@ -1047,67 +738,47 @@ export default function BackofficeRapportiInterventoPage() {
         }
 
         reject(
-          new Error(
-            RAPPORTI_INTERVENTO_TESTI.ERRORI
-              .FOTO_NON_VALIDA
-          )
+          new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_NON_VALIDA)
         );
       };
 
       reader.onerror = () => {
         reject(
-          new Error(
-            RAPPORTI_INTERVENTO_TESTI.ERRORI
-              .FOTO_NON_VALIDA
-          )
+          new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_NON_VALIDA)
         );
       };
 
       reader.readAsDataURL(file);
     });
 
-  const handleFotoChange = async (
-    event: ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = Array.from(
-      event.target.files || []
-    );
+  const handleFotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
 
-    if (files.length === 0) {
-      return;
-    }
+    if (files.length === 0) return;
 
     try {
       const fotoDataUrl = await Promise.all(
         files.map(async (file) => {
           if (!file.type.startsWith("image/")) {
-            throw new Error(
-              RAPPORTI_INTERVENTO_TESTI.ERRORI
-                .FOTO_NON_VALIDA
-            );
+            throw new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_NON_VALIDA);
           }
 
           return leggiFileComeDataUrl(file);
         })
       );
 
-      const nuoveFoto = fotoDataUrl.map(
-        (immagineDataUrl, index) => ({
-          localId: getLocalId(),
-          immagine_data_url: immagineDataUrl,
-          descrizione: "",
-          ordine: foto.length + index + 1,
-          fileName: files[index]?.name || "",
-        })
-      );
+      const nuoveFoto = fotoDataUrl.map((immagineDataUrl, index) => ({
+        localId: getLocalId(),
+        immagine_data_url: immagineDataUrl,
+        descrizione: "",
+        ordine: foto.length + index + 1,
+        fileName: files[index]?.name || "",
+      }));
 
-      setFoto((fotoCorrenti) => [
-        ...fotoCorrenti,
-        ...nuoveFoto,
-      ]);
+      setFoto((fotoCorrenti) => [...fotoCorrenti, ...nuoveFoto]);
       event.target.value = "";
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     }
   };
 
@@ -1120,22 +791,14 @@ export default function BackofficeRapportiInterventoPage() {
   }) => {
     setFoto((fotoCorrenti) =>
       fotoCorrenti.map((immagine) =>
-        immagine.localId === localId
-          ? {
-              ...immagine,
-              descrizione,
-            }
-          : immagine
+        immagine.localId === localId ? { ...immagine, descrizione } : immagine
       )
     );
   };
 
   const rimuoviFoto = (localId: string) => {
     setFoto((fotoCorrenti) =>
-      fotoCorrenti.filter(
-        (immagine) =>
-          immagine.localId !== localId
-      )
+      fotoCorrenti.filter((immagine) => immagine.localId !== localId)
     );
   };
 
@@ -1147,8 +810,7 @@ export default function BackofficeRapportiInterventoPage() {
         descrizione: "",
         quantita: "1",
         unita_misura: "",
-        ordine:
-          materialiCorrenti.length + 1,
+        ordine: materialiCorrenti.length + 1,
       },
     ]);
   };
@@ -1159,220 +821,131 @@ export default function BackofficeRapportiInterventoPage() {
     value,
   }: {
     localId: string;
-    field:
-      | "descrizione"
-      | "quantita"
-      | "unita_misura";
+    field: "descrizione" | "quantita" | "unita_misura";
     value: string;
   }) => {
     setMateriali((materialiCorrenti) =>
       materialiCorrenti.map((materiale) =>
-        materiale.localId === localId
-          ? {
-              ...materiale,
-              [field]: value,
-            }
-          : materiale
+        materiale.localId === localId ? { ...materiale, [field]: value } : materiale
       )
     );
   };
 
-  const rimuoviMateriale = (
-    localId: string
-  ) => {
+  const rimuoviMateriale = (localId: string) => {
     setMateriali((materialiCorrenti) =>
-      materialiCorrenti.filter(
-        (materiale) =>
-          materiale.localId !== localId
-      )
+      materialiCorrenti.filter((materiale) => materiale.localId !== localId)
     );
   };
 
   const caricaSnapshot = async () => {
     if (!form.cantiere_id) {
-      setErrore(
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .CANTIERE_OBBLIGATORIO
-      );
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.CANTIERE_OBBLIGATORIO);
       return;
     }
 
     if (!form.data_intervento) {
-      setErrore(
-        RAPPORTI_INTERVENTO_TESTI.ERRORI
-          .DATA_OBBLIGATORIA
-      );
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.DATA_OBBLIGATORIA);
       return;
     }
 
     try {
       setLoadingSnapshot(true);
-      setErrore(null);
-      setMessaggio(null);
 
-      const snapshot =
-        await loadLavorazioniRapportoIntervento({
-          cantiereId: form.cantiere_id,
-          dataIntervento:
-            form.data_intervento,
-        });
+      const snapshot = await loadLavorazioniRapportoIntervento({
+        cantiereId: form.cantiere_id,
+        dataIntervento: form.data_intervento,
+      });
 
       setLavorazioni(
         snapshot.map((lavorazione) => ({
           ...lavorazione,
           localId: getLocalId(),
-          ore_uomo_input:
-            formatMinutiOreInput(
-              lavorazione.ore_uomo_minuti
-            ),
+          ore_uomo_input: formatMinutiOreInput(lavorazione.ore_uomo_minuti),
         }))
       );
-      setMessaggio(
-        RAPPORTI_INTERVENTO_TESTI.MESSAGGI
-          .SNAPSHOT_CARICATO
-      );
+      toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.SNAPSHOT_CARICATO);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setLoadingSnapshot(false);
     }
   };
 
-  const caricaRapportoInForm = async (
-    rapporto: RapportoIntervento
-  ) => {
+  const caricaRapportoInForm = async (rapporto: RapportoIntervento) => {
     try {
-      setErrore(null);
-      setMessaggio(null);
-
-      const rapportoCompleto =
-        await loadRapportoIntervento(
-          rapporto.id
-        );
+      const rapportoCompleto = await loadRapportoIntervento(rapporto.id);
 
       if (!rapportoCompleto) {
-        throw new Error(
-          RAPPORTI_INTERVENTO_TESTI.ERRORI
-            .RAPPORTO_NON_TROVATO
-        );
+        throw new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.RAPPORTO_NON_TROVATO);
       }
 
-      setRapportoInModificaId(
-        rapportoCompleto.id
-      );
-      setReadonly(
-        rapportoCompleto.stato ===
-          RAPPORTI_INTERVENTO_STATI.FIRMATO
-      );
+      setRapportoInModificaId(rapportoCompleto.id);
+      setReadonly(rapportoCompleto.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO);
       setForm({
-        cantiere_id:
-          rapportoCompleto.cantiere_id,
-        data_intervento:
-          rapportoCompleto.data_intervento,
-        cliente_committente:
-          rapportoCompleto.cliente_committente,
-        responsabile_nome:
-          rapportoCompleto.responsabile_nome,
-        viaggio_minuti: String(
-          rapportoCompleto.viaggio_minuti
-        ),
-        diritto_uscita:
-          rapportoCompleto.diritto_uscita,
+        cantiere_id: rapportoCompleto.cantiere_id,
+        data_intervento: rapportoCompleto.data_intervento,
+        cliente_committente: rapportoCompleto.cliente_committente,
+        responsabile_nome: rapportoCompleto.responsabile_nome,
+        viaggio_minuti: String(rapportoCompleto.viaggio_minuti),
+        diritto_uscita: rapportoCompleto.diritto_uscita,
         note: rapportoCompleto.note,
-        firma_responsabile_data_url:
-          rapportoCompleto.firma_responsabile_data_url,
-        firma_responsabile_nome:
-          rapportoCompleto.firma_responsabile_nome ||
-          "",
-        firma_cliente_data_url:
-          rapportoCompleto.firma_cliente_data_url,
-        firma_cliente_nome:
-          rapportoCompleto.firma_cliente_nome ||
-          "",
+        firma_responsabile_data_url: rapportoCompleto.firma_responsabile_data_url,
+        firma_responsabile_nome: rapportoCompleto.firma_responsabile_nome || "",
+        firma_cliente_data_url: rapportoCompleto.firma_cliente_data_url,
+        firma_cliente_nome: rapportoCompleto.firma_cliente_nome || "",
       });
       setLavorazioni(
-        rapportoCompleto.lavorazioni.map(
-          (lavorazione) => ({
-            localId: getLocalId(),
-            lavorazione_id:
-              lavorazione.lavorazione_id,
-            descrizione_snapshot:
-              lavorazione.descrizione_snapshot,
-            ore_uomo_minuti:
-              lavorazione.ore_uomo_minuti,
-            ore_uomo_input:
-              formatMinutiOreInput(
-                lavorazione.ore_uomo_minuti
-              ),
-            ordine: lavorazione.ordine,
-          })
-        )
+        rapportoCompleto.lavorazioni.map((lavorazione) => ({
+          localId: getLocalId(),
+          lavorazione_id: lavorazione.lavorazione_id,
+          descrizione_snapshot: lavorazione.descrizione_snapshot,
+          ore_uomo_minuti: lavorazione.ore_uomo_minuti,
+          ore_uomo_input: formatMinutiOreInput(lavorazione.ore_uomo_minuti),
+          ordine: lavorazione.ordine,
+        }))
       );
       setOperatori(
-        rapportoCompleto.operatori.map(
-          (operatore) => ({
-            localId: getLocalId(),
-            dipendente_id:
-              operatore.dipendente_id,
-            nome_snapshot:
-              operatore.nome_snapshot,
-            email_snapshot:
-              operatore.email_snapshot,
-            ricerca_operatore:
-              operatore.email_snapshot
-                ? `${operatore.nome_snapshot} - ${operatore.email_snapshot}`
-                : operatore.nome_snapshot,
-            ore_minuti:
-              operatore.ore_minuti,
-            ore_input:
-              formatMinutiOreInput(
-                operatore.ore_minuti
-              ),
-            ordine: operatore.ordine,
-          })
-        )
+        rapportoCompleto.operatori.map((operatore) => ({
+          localId: getLocalId(),
+          dipendente_id: operatore.dipendente_id,
+          nome_snapshot: operatore.nome_snapshot,
+          email_snapshot: operatore.email_snapshot,
+          ricerca_operatore: operatore.email_snapshot
+            ? `${operatore.nome_snapshot} - ${operatore.email_snapshot}`
+            : operatore.nome_snapshot,
+          ore_minuti: operatore.ore_minuti,
+          ore_input: formatMinutiOreInput(operatore.ore_minuti),
+          ordine: operatore.ordine,
+        }))
       );
       setFoto(
-        rapportoCompleto.foto.map(
-          (immagine) => ({
-            localId: getLocalId(),
-            immagine_data_url:
-              immagine.immagine_data_url,
-            descrizione:
-              immagine.descrizione,
-            ordine: immagine.ordine,
-            fileName: "",
-          })
-        )
+        rapportoCompleto.foto.map((immagine) => ({
+          localId: getLocalId(),
+          immagine_data_url: immagine.immagine_data_url,
+          descrizione: immagine.descrizione,
+          ordine: immagine.ordine,
+          fileName: "",
+        }))
       );
       setMateriali(
-        rapportoCompleto.materiali.map(
-          (materiale) => ({
-            localId: getLocalId(),
-            descrizione:
-              materiale.descrizione,
-            quantita: String(
-              materiale.quantita
-            ),
-            unita_misura:
-              materiale.unita_misura,
-            ordine: materiale.ordine,
-          })
-        )
+        rapportoCompleto.materiali.map((materiale) => ({
+          localId: getLocalId(),
+          descrizione: materiale.descrizione,
+          quantita: String(materiale.quantita),
+          unita_misura: materiale.unita_misura,
+          ordine: materiale.ordine,
+        }))
       );
+      setMostraListaRapporti(false);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     }
   };
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (readonly) {
-      return;
-    }
+    if (readonly) return;
 
     const preparazione = preparaPayload({
       form,
@@ -1383,713 +956,416 @@ export default function BackofficeRapportiInterventoPage() {
     });
 
     if ("errore" in preparazione) {
-      setErrore(preparazione.errore);
+      toast.error(preparazione.errore);
       return;
     }
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
       if (rapportoInModificaId) {
         await aggiornaRapportoIntervento({
-          rapportoInterventoId:
-            rapportoInModificaId,
+          rapportoInterventoId: rapportoInModificaId,
           rapporto: preparazione.payload,
         });
-        setMessaggio(
-          RAPPORTI_INTERVENTO_TESTI.MESSAGGI
-            .AGGIORNATO
-        );
+        toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.AGGIORNATO);
       } else {
-        await creaRapportoIntervento(
-          preparazione.payload
-        );
-        setMessaggio(
-          RAPPORTI_INTERVENTO_TESTI.MESSAGGI
-            .CREATO
-        );
+        await creaRapportoIntervento(preparazione.payload);
+        toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.CREATO);
       }
 
       await caricaDati();
-      resetForm({
-        mantieniMessaggio: true,
-      });
+      resetForm({ mantieniMessaggio: true });
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setSalvataggio(false);
     }
   };
 
-  const handlePdf = async (
-    rapportoInterventoId: string
-  ) => {
+  const handlePdf = async (rapportoInterventoId: string) => {
     try {
       setPdfId(rapportoInterventoId);
-      setErrore(null);
 
-      const pdf =
-        await fetchRapportoInterventoPdf(
-          rapportoInterventoId
-        );
+      const pdf = await fetchRapportoInterventoPdf(rapportoInterventoId);
 
       scaricaBlobPdf(pdf);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error));
     } finally {
       setPdfId(null);
     }
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            {utenteAdmin && (
+              <Link href={APP_ROUTES.BACKOFFICE}>
+                <Button variant="secondary" size="sm">
+                  {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
+                </Button>
+              </Link>
+            )}
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
+              </Button>
+            </Link>
+          </>
+        }
+      />
+
+      <main className="mx-auto max-w-[1400px] px-6 py-6">
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="mb-5 flex items-center gap-1.5 text-sm text-text-muted">
+          <Link href={APP_ROUTES.HOME} className="hover:text-text-primary transition-colors duration-150">
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          {utenteAdmin && (
+            <>
+              <Link href={APP_ROUTES.BACKOFFICE} className="hover:text-text-primary transition-colors duration-150">
+                {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
+              </Link>
+              <span>/</span>
+            </>
+          )}
+          <span className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.TITOLO}</span>
+        </nav>
+
+        {/* Titolo + bottone Nuovo */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
-            <h1 className="text-3xl font-bold">
+            <h1 className="font-heading text-2xl font-medium text-text-primary">
               {RAPPORTI_INTERVENTO_TESTI.TITOLO}
             </h1>
           </div>
-
-          <div className="flex gap-4 text-sm font-semibold">
-            {utenteAdmin && (
-              <Link
-                href={APP_ROUTES.BACKOFFICE}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-              >
-                {RAPPORTI_INTERVENTO_TESTI.BACKOFFICE}
-              </Link>
-            )}
-            <Link
-              href={APP_ROUTES.HOME}
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
-            >
-              {RAPPORTI_INTERVENTO_TESTI.TIMBRATURE}
-            </Link>
-          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => resetForm()}
+          >
+            {RAPPORTI_INTERVENTO_TESTI.NUOVO}
+          </Button>
         </div>
 
-        {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
-            {errore}
-          </p>
-        )}
+        {/* Grid responsive: form + lista (mobile: lista in alto, desktop: sidebar destra) */}
+        <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+          {/* ── Form principale ── */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
+              {rapportoInModificaId
+                ? readonly
+                  ? RAPPORTI_INTERVENTO_TESTI.VISUALIZZA
+                  : RAPPORTI_INTERVENTO_TESTI.MODIFICA
+                : RAPPORTI_INTERVENTO_TESTI.NUOVO}
+            </h2>
 
-        {messaggio && (
-          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
-            {messaggio}
-          </p>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">
-                {rapportoInModificaId
-                  ? readonly
-                    ? RAPPORTI_INTERVENTO_TESTI.VISUALIZZA
-                    : RAPPORTI_INTERVENTO_TESTI.MODIFICA
-                  : RAPPORTI_INTERVENTO_TESTI.NUOVO}
-              </h2>
-
-              <button
-                type="button"
-                onClick={() => resetForm()}
-                className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-              >
-                {RAPPORTI_INTERVENTO_TESTI.NUOVO}
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              className="grid gap-5"
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.CANTIERE
-                    }
-                  </span>
-                  <select
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Anagrafica */}
+              <section className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label={RAPPORTI_INTERVENTO_TESTI.CANTIERE}
                     value={form.cantiere_id}
-                    onChange={(
-                      event: ChangeEvent<HTMLSelectElement>
-                    ) =>
-                      handleFormChange(
-                        "cantiere_id",
-                        event.target.value
-                      )
-                    }
+                    onChange={(e) => handleFormChange("cantiere_id", e.target.value)}
                     disabled={readonly}
-                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   >
-                    <option value="">
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE
-                      }
-                    </option>
-                    {cantieri.map((cantiere) => (
-                      <option
-                        key={cantiere.id}
-                        value={cantiere.id}
-                      >
-                        {cantiere.nome}
-                      </option>
+                    <option value="">{RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE}</option>
+                    {cantieri.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
                     ))}
-                  </select>
-                </label>
+                  </Select>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO
-                    }
-                  </span>
-                  <input
+                  <Input
+                    label={RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO}
                     type="date"
                     value={form.data_intervento}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "data_intervento",
-                        event.target.value
-                      )
-                    }
+                    onChange={(e) => handleFormChange("data_intervento", e.target.value)}
                     disabled={readonly}
-                    className="form-field"
                   />
-                </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE
-                    }
-                  </span>
-                  <input
+                  <Input
+                    label={RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE}
                     type="text"
-                    value={
-                      form.cliente_committente
-                    }
-                    onChange={(event) =>
-                      handleFormChange(
-                        "cliente_committente",
-                        event.target.value
-                      )
-                    }
+                    value={form.cliente_committente}
+                    onChange={(e) => handleFormChange("cliente_committente", e.target.value)}
                     disabled={readonly}
-                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
-                </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.RESPONSABILE_NOME
-                    }
-                  </span>
-                  <input
+                  <Input
+                    label={RAPPORTI_INTERVENTO_TESTI.RESPONSABILE_NOME}
                     type="text"
                     value={form.responsabile_nome}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "responsabile_nome",
-                        event.target.value
-                      )
-                    }
+                    onChange={(e) => handleFormChange("responsabile_nome", e.target.value)}
                     disabled={readonly}
-                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
-                </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.VIAGGIO_MINUTI
-                    }
-                  </span>
-                  <input
+                  <Input
+                    label={RAPPORTI_INTERVENTO_TESTI.VIAGGIO_MINUTI}
                     type="number"
                     min="0"
-                    step="1"
                     value={form.viaggio_minuti}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "viaggio_minuti",
-                        event.target.value
-                      )
-                    }
+                    onChange={(e) => handleFormChange("viaggio_minuti", e.target.value)}
                     disabled={readonly}
-                    className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                   />
-                </label>
 
-                <label className="flex items-center gap-3 self-end rounded-lg border border-industrial-border bg-industrial-control p-3">
-                  <input
-                    type="checkbox"
-                    checked={
-                      form.diritto_uscita
-                    }
-                    onChange={(event) =>
-                      handleFormChange(
-                        "diritto_uscita",
-                        event.target.checked
-                      )
-                    }
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.diritto_uscita}
+                      onChange={(e) => handleFormChange("diritto_uscita", e.target.checked)}
+                      disabled={readonly}
+                      className="h-4 w-4 accent-brand-500"
+                    />
+                    {RAPPORTI_INTERVENTO_TESTI.DIRITTO_USCITA}
+                  </label>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-text-primary">
+                    {RAPPORTI_INTERVENTO_TESTI.NOTE}
+                  </label>
+                  <textarea
+                    value={form.note}
+                    onChange={(e) => handleFormChange("note", e.target.value)}
                     disabled={readonly}
-                    className="h-5 w-5 accent-industrial-orange"
+                    rows={3}
+                    className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle disabled:text-text-muted resize-none"
                   />
-                  <span className="text-sm font-medium text-industrial-text">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.DIRITTO_USCITA
-                    }
-                  </span>
-                </label>
-              </div>
+                </div>
+              </section>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {RAPPORTI_INTERVENTO_TESTI.NOTE}
-                </span>
-                <textarea
-                  value={form.note}
-                  onChange={(event) =>
-                    handleFormChange(
-                      "note",
-                      event.target.value
-                    )
-                  }
-                  disabled={readonly}
-                  rows={4}
-                  className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                />
-              </label>
-
-              <section>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.OPERATORI
-                    }
-                  </h3>
-
+              {/* Operatori (riga compatta) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</h3>
                   {!readonly && (
-                    <button
-                      type="button"
-                      onClick={aggiungiOperatore}
-                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-                    >
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE
-                      }
-                    </button>
+                    <Button variant="secondary" size="sm" onClick={aggiungiOperatore}>
+                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE}
+                    </Button>
                   )}
                 </div>
 
                 {operatori.length === 0 ? (
-                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE
-                    }
-                  </p>
+                  <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE}</p>
                 ) : (
-                  <div className="grid gap-3">
-                    {operatori.map((operatore) => (
-                      <div
-                        key={operatore.localId}
-                        className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_140px_auto]"
-                      >
-                        <SelectOperatore
-                          label={
-                            RAPPORTI_INTERVENTO_TESTI.OPERATORE
-                          }
-                          placeholder={
-                            RAPPORTI_INTERVENTO_TESTI.SELEZIONA_OPERATORE
-                          }
-                          noResultsLabel={
-                            RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE_TROVATO
-                          }
-                          value={
-                            operatore.ricerca_operatore
-                          }
-                          selectedId={
-                            operatore.dipendente_id
-                          }
-                          options={dipendenti}
-                          disabled={readonly}
-                          onSearchChange={(ricerca) =>
-                            handleOperatoreSearchChange(
-                              {
-                                localId:
-                                  operatore.localId,
-                                ricerca,
-                              }
-                            )
-                          }
-                          onSelect={(dipendente) =>
-                            handleOperatoreSelect({
-                              localId:
-                                operatore.localId,
-                              dipendente,
-                            })
-                          }
-                          onBlurInvalid={() =>
-                            handleOperatoreBlur({
-                              localId:
-                                operatore.localId,
-                            })
-                          }
-                        />
+                  <div className="space-y-2">
+                    {operatori.map((op) => (
+                      <div key={op.localId} className="flex flex-col sm:flex-row sm:items-end gap-2">
+                        <div className="flex-1 min-w-0">
+                          <SelectOperatore
+                            label={RAPPORTI_INTERVENTO_TESTI.OPERATORE}
+                            placeholder={RAPPORTI_INTERVENTO_TESTI.SELEZIONA_OPERATORE}
+                            noResultsLabel={RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE_TROVATO}
+                            value={op.ricerca_operatore}
+                            selectedId={op.dipendente_id}
+                            options={dipendenti}
+                            disabled={readonly}
+                            onSearchChange={(ricerca) =>
+                              handleOperatoreSearchChange({ localId: op.localId, ricerca })
+                            }
+                            onSelect={(dipendente) =>
+                              handleOperatoreSelect({ localId: op.localId, dipendente })
+                            }
+                            onBlurInvalid={() => handleOperatoreBlur({ localId: op.localId })}
+                          />
+                        </div>
 
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.ORE_OPERATORE
-                            }
-                          </span>
-                          <input
+                        <div className="w-full sm:w-24">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.ORE_OPERATORE}
                             type="text"
-                            value={
-                              operatore.ore_input
-                            }
-                            onChange={(event) =>
-                              handleOreOperatoreChange(
-                                {
-                                  localId:
-                                    operatore.localId,
-                                  value:
-                                    event.target.value,
-                                }
-                              )
+                            value={op.ore_input}
+                            onChange={(e) =>
+                              handleOreOperatoreChange({ localId: op.localId, value: e.target.value })
                             }
                             disabled={readonly}
-                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            placeholder="2h 30m"
                           />
-                          <span className="mt-1 block text-xs text-industrial-muted">
-                            {parseOreMinutiInput(
-                              operatore.ore_input
-                            ) === null
-                              ? RAPPORTI_INTERVENTO_TESTI
-                                  .ERRORI
-                                  .FORMATO_ORE_NON_VALIDO
-                              : formatMinutiOre(
-                                  parseOreMinutiInput(
-                                    operatore.ore_input
-                                  ) || 0
-                                )}
-                          </span>
-                        </label>
+                        </div>
 
                         {!readonly && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              rimuoviOperatore(
-                                operatore.localId
-                              )
-                            }
-                            className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => rimuoviOperatore(op.localId)}
+                            className="text-error-500 hover:text-error-500"
                           >
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
-                            }
-                          </button>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="mt-3 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4">
-                  <p className="text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
-                    }
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {formatMinutiOre(
-                      oreUomoRealiMinuti
-                    )}
+                <div className="rounded-md bg-bg-subtle p-3">
+                  <p className="text-xs text-text-muted">
+                    {RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI}: {formatMinutiOre(oreUomoRealiMinuti)}
                   </p>
                 </div>
               </section>
 
-              <section>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI
-                    }
-                  </h3>
-
+              {/* Lavorazioni (riga compatta) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI}</h3>
                   {!readonly && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={caricaSnapshot}
-                        disabled={loadingSnapshot}
-                        className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
-                      >
-                        {loadingSnapshot
-                          ? RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
-                          : RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={aggiungiLavorazione}
-                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-                      >
-                        {
-                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE
-                        }
-                      </button>
-                    </div>
+                    <Button variant="secondary" size="sm" onClick={aggiungiLavorazione}>
+                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE}
+                    </Button>
                   )}
                 </div>
 
                 {lavorazioni.length === 0 ? (
-                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.NESSUNA_LAVORAZIONE
-                    }
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUNA_LAVORAZIONE}</p>
+                    {!readonly && (
+                      <Button variant="secondary" size="sm" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                        {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
+                      </Button>
+                    )}
+                  </div>
                 ) : (
-                  <div className="grid gap-3">
-                    {lavorazioni.map(
-                      (lavorazione) => (
-                        <div
-                          key={lavorazione.localId}
-                          className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_140px_auto]"
-                        >
-                          <label className="block">
-                            <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                              {
-                                RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE
-                              }
-                            </span>
-                            <input
-                              type="text"
-                              value={
-                                lavorazione.descrizione_snapshot
-                              }
-                              onChange={(event) =>
-                                handleLavorazioneChange(
-                                  {
-                                    localId:
-                                      lavorazione.localId,
-                                    field:
-                                      "descrizione_snapshot",
-                                    value:
-                                      event
-                                        .target
-                                        .value,
-                                  }
-                                )
-                              }
-                              disabled={readonly}
-                              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                            />
-                          </label>
-
-                          <label className="block">
-                            <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                              {
-                                RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_MINUTI
-                              }
-                            </span>
-                            <input
-                              type="text"
-                              value={
-                                lavorazione.ore_uomo_input
-                              }
-                              onChange={(event) =>
-                                handleLavorazioneChange(
-                                  {
-                                    localId:
-                                      lavorazione.localId,
-                                    field:
-                                      "ore_uomo_input",
-                                    value:
-                                      event
-                                        .target
-                                        .value,
-                                  }
-                                )
-                              }
-                              disabled={readonly}
-                              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                            />
-                            <span className="mt-1 block text-xs text-industrial-muted">
-                              {parseOreMinutiInput(
-                                lavorazione.ore_uomo_input
-                              ) === null
-                                ? RAPPORTI_INTERVENTO_TESTI
-                                    .ERRORI
-                                    .FORMATO_ORE_NON_VALIDO
-                                : formatMinutiOre(
-                                    parseOreMinutiInput(
-                                      lavorazione.ore_uomo_input
-                                    ) || 0
-                                  )}
-                            </span>
-                          </label>
-
-                          {!readonly && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                rimuoviLavorazione(
-                                  lavorazione.localId
-                                )
-                              }
-                              className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
-                            >
-                              {
-                                RAPPORTI_INTERVENTO_TESTI.RIMUOVI
-                              }
-                            </button>
-                          )}
+                  <div className="space-y-2">
+                    {lavorazioni.map((lav) => (
+                      <div key={lav.localId} className="flex flex-col sm:flex-row sm:items-end gap-2">
+                        <div className="flex-1">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE}
+                            type="text"
+                            value={lav.descrizione_snapshot}
+                            onChange={(e) =>
+                              handleLavorazioneChange({
+                                localId: lav.localId,
+                                field: "descrizione_snapshot",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                          />
                         </div>
-                      )
+
+                        <div className="w-full sm:w-24">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_MINUTI}
+                            type="text"
+                            value={lav.ore_uomo_input}
+                            onChange={(e) =>
+                              handleLavorazioneChange({
+                                localId: lav.localId,
+                                field: "ore_uomo_input",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                            placeholder="2h 30m"
+                          />
+                        </div>
+
+                        {!readonly && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => rimuoviLavorazione(lav.localId)}
+                            className="text-error-500 hover:text-error-500"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+
+                    {!readonly && (
+                      <Button variant="secondary" size="sm" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                        {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
+                      </Button>
                     )}
                   </div>
                 )}
               </section>
 
-              <section>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.MATERIALI
-                    }
-                  </h3>
-
+              {/* Materiali (riga compatta) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</h3>
                   {!readonly && (
-                    <button
-                      type="button"
-                      onClick={aggiungiMateriale}
-                      className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-                    >
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE
-                      }
-                    </button>
+                    <Button variant="secondary" size="sm" onClick={aggiungiMateriale}>
+                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE}
+                    </Button>
                   )}
                 </div>
 
                 {materiali.length === 0 ? (
-                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.NESSUN_MATERIALE
-                    }
-                  </p>
+                  <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUN_MATERIALE}</p>
                 ) : (
-                  <div className="grid gap-3">
-                    {materiali.map((materiale) => (
-                      <div
-                        key={materiale.localId}
-                        className="grid gap-3 rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3 md:grid-cols-[minmax(0,1fr)_120px_120px_auto]"
-                      >
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE
-                            }
-                          </span>
-                          <input
+                  <div className="space-y-2">
+                    {materiali.map((mat) => (
+                      <div key={mat.localId} className="flex flex-col sm:flex-row sm:items-end gap-2">
+                        <div className="flex-1">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE}
                             type="text"
-                            value={
-                              materiale.descrizione
-                            }
-                            onChange={(event) =>
-                              handleMaterialeChange(
-                                {
-                                  localId:
-                                    materiale.localId,
-                                  field:
-                                    "descrizione",
-                                  value:
-                                    event.target.value,
-                                }
-                              )
+                            value={mat.descrizione}
+                            onChange={(e) =>
+                              handleMaterialeChange({
+                                localId: mat.localId,
+                                field: "descrizione",
+                                value: e.target.value,
+                              })
                             }
                             disabled={readonly}
-                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
                           />
-                        </label>
+                        </div>
 
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.QUANTITA
-                            }
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={materiale.quantita}
-                            onChange={(event) =>
-                              handleMaterialeChange(
-                                {
-                                  localId:
-                                    materiale.localId,
-                                  field: "quantita",
-                                  value:
-                                    event.target.value,
-                                }
-                              )
-                            }
-                            disabled={readonly}
-                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.UNITA_MISURA
-                            }
-                          </span>
-                          <input
+                        <div className="w-20">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.QUANTITA}
                             type="text"
-                            value={
-                              materiale.unita_misura
-                            }
-                            onChange={(event) =>
-                              handleMaterialeChange(
-                                {
-                                  localId:
-                                    materiale.localId,
-                                  field:
-                                    "unita_misura",
-                                  value:
-                                    event.target.value,
-                                }
-                              )
+                            value={mat.quantita}
+                            onChange={(e) =>
+                              handleMaterialeChange({
+                                localId: mat.localId,
+                                field: "quantita",
+                                value: e.target.value,
+                              })
                             }
                             disabled={readonly}
-                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            placeholder="1"
                           />
-                        </label>
+                        </div>
+
+                        <div className="w-24">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.UNITA_MISURA}
+                            type="text"
+                            value={mat.unita_misura}
+                            onChange={(e) =>
+                              handleMaterialeChange({
+                                localId: mat.localId,
+                                field: "unita_misura",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                            placeholder="kg"
+                          />
+                        </div>
 
                         {!readonly && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              rimuoviMateriale(
-                                materiale.localId
-                              )
-                            }
-                            className="self-end rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => rimuoviMateriale(mat.localId)}
+                            className="text-error-500 hover:text-error-500"
                           >
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
-                            }
-                          </button>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     ))}
@@ -2097,385 +1373,281 @@ export default function BackofficeRapportiInterventoPage() {
                 )}
               </section>
 
-              <section>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.FOTO
-                    }
-                  </h3>
-
+              {/* Foto (thumbnail compatto + descrizione) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.FOTO}</h3>
                   {!readonly && (
-                    <div className="min-w-0 w-full sm:w-auto sm:min-w-[280px]">
-                      <FileInputPicker
-                        label={
-                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
-                        }
-                        buttonLabel={
-                          RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO
-                        }
-                        emptyLabel={
-                          RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO_SELEZIONATA
-                        }
-                        selectedFileNames={foto
-                          .map((immagine) => immagine.fileName)
-                          .filter((fileName) =>
-                            fileName.trim().length > 0
-                          )}
-                        accept="image/*"
-                        multiple
-                        onChange={(event) =>
-                          void handleFotoChange(event)
-                        }
-                      />
-                    </div>
+                    <FileInputPicker
+                      label={RAPPORTI_INTERVENTO_TESTI.FOTO}
+                      buttonLabel={RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_FOTO}
+                      emptyLabel={RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO_SELEZIONATA}
+                      selectedFileNames={foto.map((f) => f.fileName)}
+                      multiple
+                      onChange={handleFotoChange}
+                      accept="image/*"
+                    />
                   )}
                 </div>
 
                 {foto.length === 0 ? (
-                  <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO
-                    }
-                  </p>
+                  <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUNA_FOTO}</p>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
                     {foto.map((immagine) => (
-                      <div
-                        key={immagine.localId}
-                        className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-3"
-                      >
-                        <Image
-                          src={
-                            immagine.immagine_data_url
-                          }
-                          alt={
-                            immagine.descrizione ||
-                            RAPPORTI_INTERVENTO_TESTI.FOTO
-                          }
-                          width={640}
-                          height={480}
-                          unoptimized
-                          className="aspect-[4/3] w-full rounded-lg border border-industrial-border object-cover"
-                        />
+                      <div key={immagine.localId} className="flex gap-3">
+                        <div className="relative flex-shrink-0">
+                          <Image
+                            src={immagine.immagine_data_url}
+                            alt={immagine.descrizione}
+                            width={80}
+                            height={80}
+                            className="h-20 w-20 rounded-md border border-border object-cover"
+                          />
+                        </div>
 
-                        <label className="mt-3 block">
-                          <span className="mb-1 block text-xs font-medium text-industrial-muted">
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE_FOTO
-                            }
-                          </span>
-                          <input
+                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE_FOTO}
                             type="text"
-                            value={
-                              immagine.descrizione
-                            }
-                            onChange={(event) =>
-                              handleDescrizioneFotoChange(
-                                {
-                                  localId:
-                                    immagine.localId,
-                                  descrizione:
-                                    event.target.value,
-                                }
-                              )
+                            value={immagine.descrizione}
+                            onChange={(e) =>
+                              handleDescrizioneFotoChange({
+                                localId: immagine.localId,
+                                descrizione: e.target.value,
+                              })
                             }
                             disabled={readonly}
-                            className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-sm text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+                            placeholder="Descrizione della foto"
                           />
-                        </label>
 
-                        {!readonly && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              rimuoviFoto(
-                                immagine.localId
-                              )
-                            }
-                            className="mt-3 w-full rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-3 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
-                          >
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.RIMUOVI
-                            }
-                          </button>
-                        )}
+                          {!readonly && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => rimuoviFoto(immagine.localId)}
+                              className="text-error-500 hover:text-error-500 w-fit"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {RAPPORTI_INTERVENTO_TESTI.RIMUOVI}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
               </section>
 
-              <section
-                className={`grid gap-4 rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 ${utenteAdmin ? "md:grid-cols-3" : ""}`}
-              >
-                <div>
-                  <p className="text-sm font-medium text-industrial-muted">
-                    {
-                      RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
-                    }
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {formatMinutiOre(
-                      oreUomoRealiMinuti
-                    )}
-                  </p>
+              {/* KPI / Calculus (display) */}
+              <section className="space-y-3 rounded-md bg-bg-subtle p-4">
+                <h3 className="font-medium text-text-primary">Calcoli fatturazione</h3>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI}</p>
+                    <p className="text-lg font-semibold text-text-primary">
+                      {formatMinutiOre(oreUomoRealiMinuti)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.VIAGGIO_MINUTI}</p>
+                    <p className="text-lg font-semibold text-text-primary">{viaggioMinuti}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI}</p>
+                    <p className="text-lg font-semibold text-brand-500">
+                      {formatMinutiOre(calcolo.ore_fatturabili_minuti)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.REGOLA_FATTURAZIONE}</p>
+                    <p className="text-sm font-medium text-text-primary">
+                      {LABEL_REGOLE_FATTURAZIONE_INTERVENTO[calcolo.regola_fatturazione]}
+                    </p>
+                  </div>
                 </div>
+              </section>
 
-                {utenteAdmin && (
+              {/* Firme (FirmaCanvas x2) */}
+              <section className="space-y-4">
+                <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.FIRMA}</h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Firma Responsabile */}
+                  <div className="space-y-2">
+                    <FirmaCanvas
+                      label={RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
+                      clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
+                      value={form.firma_responsabile_data_url}
+                      onChange={(dataUrl) => handleFormChange("firma_responsabile_data_url", dataUrl)}
+                      disabled={readonly}
+                    />
+
+                    <Input
+                      label={RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_RESPONSABILE}
+                      type="text"
+                      value={form.firma_responsabile_nome}
+                      onChange={(e) => handleFormChange("firma_responsabile_nome", e.target.value)}
+                      disabled={readonly}
+                      placeholder={form.responsabile_nome}
+                    />
+                  </div>
+
+                  {/* Firma Cliente */}
+                  <div className="space-y-2">
+                    <FirmaCanvas
+                      label={RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                      clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
+                      value={form.firma_cliente_data_url}
+                      onChange={(dataUrl) => handleFormChange("firma_cliente_data_url", dataUrl)}
+                      disabled={readonly}
+                    />
+
+                    <Input
+                      label={RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_CLIENTE}
+                      type="text"
+                      value={form.firma_cliente_nome}
+                      onChange={(e) => handleFormChange("firma_cliente_nome", e.target.value)}
+                      disabled={readonly}
+                      placeholder={form.cliente_committente}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Pulsanti finali */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {!readonly && (
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={salvataggio}
+                    icon={rapportoInModificaId ? undefined : <Plus className="h-4 w-4" />}
+                  >
+                    {rapportoInModificaId
+                      ? RAPPORTI_INTERVENTO_TESTI.SALVA
+                      : RAPPORTI_INTERVENTO_TESTI.NUOVO}
+                  </Button>
+                )}
+
+                {rapportoInModificaId && (
                   <>
-                    <div>
-                      <p className="text-sm font-medium text-industrial-muted">
-                        {
-                          RAPPORTI_INTERVENTO_TESTI.REGOLA_FATTURAZIONE
-                        }
-                      </p>
-                      <p className="mt-2 text-lg font-semibold">
-                        {
-                          LABEL_REGOLE_FATTURAZIONE_INTERVENTO[
-                            calcolo
-                              .regola_fatturazione
-                          ]
-                        }
-                      </p>
-                    </div>
+                    <Button variant="secondary" onClick={() => resetForm()}>
+                      {RAPPORTI_INTERVENTO_TESTI.ANNULLA}
+                    </Button>
 
-                    <div>
-                      <p className="text-sm font-medium text-industrial-muted">
-                        {
-                          RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
-                        }
-                      </p>
-                      <p className="mt-2 text-2xl font-bold">
-                        {formatMinutiOre(
-                          calcolo.ore_fatturabili_minuti
-                        )}
-                      </p>
-                    </div>
+                    {readonly && (
+                      <Button
+                        variant="secondary"
+                        loading={pdfId === rapportoInModificaId}
+                        onClick={() => void handlePdf(rapportoInModificaId)}
+                      >
+                        {RAPPORTI_INTERVENTO_TESTI.GENERA_PDF}
+                      </Button>
+                    )}
                   </>
                 )}
-              </section>
-
-              <section className="grid gap-5 md:grid-cols-2">
-                <div className="grid gap-3">
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_RESPONSABILE
-                      }
-                    </span>
-                    <input
-                      type="text"
-                      value={
-                        form.firma_responsabile_nome
-                      }
-                      onChange={(event) =>
-                        handleFormChange(
-                          "firma_responsabile_nome",
-                          event.target.value
-                        )
-                      }
-                      disabled={readonly}
-                      className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                    />
-                  </label>
-                  <FirmaCanvas
-                    label={
-                      RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE
-                    }
-                    clearLabel={
-                      RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA
-                    }
-                    value={
-                      form.firma_responsabile_data_url
-                    }
-                    disabled={readonly}
-                    onChange={(value) =>
-                      handleFormChange(
-                        "firma_responsabile_data_url",
-                        value
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-3">
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                      {
-                        RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_CLIENTE
-                      }
-                    </span>
-                    <input
-                      type="text"
-                      value={
-                        form.firma_cliente_nome
-                      }
-                      onChange={(event) =>
-                        handleFormChange(
-                          "firma_cliente_nome",
-                          event.target.value
-                        )
-                      }
-                      disabled={readonly}
-                      className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
-                    />
-                  </label>
-                  <FirmaCanvas
-                    label={
-                      RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE
-                    }
-                    clearLabel={
-                      RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA
-                    }
-                    value={
-                      form.firma_cliente_data_url
-                    }
-                    disabled={readonly}
-                    onChange={(value) =>
-                      handleFormChange(
-                        "firma_cliente_data_url",
-                        value
-                      )
-                    }
-                  />
-                </div>
-              </section>
-
-              {!readonly && (
-                <button
-                  type="submit"
-                  disabled={salvataggio}
-                  className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
-                >
-                  {salvataggio
-                    ? RAPPORTI_INTERVENTO_TESTI.SALVATAGGIO
-                    : RAPPORTI_INTERVENTO_TESTI.SALVA}
-                </button>
-              )}
+              </div>
             </form>
-          </section>
+          </Card>
 
-          <aside className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
-            <h2 className="mb-4 text-xl font-semibold">
-              {RAPPORTI_INTERVENTO_TESTI.LISTA}
-            </h2>
+          {/* ── Lista rapporti (responsive: top mobile <1024px, sidebar destra desktop) ── */}
+          <div className="order-first lg:order-last">
+            {/* Mobile: Lista compatta in alto */}
+            <Card className="p-5 lg:sticky lg:top-20">
+              <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+                {RAPPORTI_INTERVENTO_TESTI.LISTA}
+              </h2>
 
-            {loading ? (
-              <p className="text-industrial-muted">
-                {
-                  RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
-                }
-              </p>
-            ) : rapporti.length === 0 ? (
-              <p className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4 text-sm text-industrial-muted">
-                {
-                  RAPPORTI_INTERVENTO_TESTI.NESSUN_RAPPORTO
-                }
-              </p>
-            ) : (
-              <ul className="grid gap-3">
-                {rapporti.map((rapporto) => (
-                  <li
-                    key={rapporto.id}
-                    className="rounded-lg border border-industrial-border-soft bg-industrial-surface-strong p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">
-                          {
-                            rapporto.cantiere_nome_snapshot
-                          }
-                        </p>
-                        <p className="mt-1 text-sm text-industrial-muted">
-                          {formattaData(
-                            rapporto.data_intervento
-                          )}
-                        </p>
-                        <p className="mt-1 text-sm text-industrial-muted">
-                          {
-                            rapporto.cliente_committente
-                          }
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatoClassName(
-                          rapporto.stato
-                        )}`}
-                      >
-                        {
-                          LABEL_STATI_RAPPORTO_INTERVENTO[
-                            rapporto.stato
-                          ]
-                        }
-                      </span>
-                    </div>
+              {loading ? (
+                <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.CARICAMENTO}</p>
+              ) : (
+                <div className="space-y-2">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Cerca rapporto"
+                      value={ricercaRapporti}
+                      onChange={(e) => setRicercaRapporti(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-md border border-border bg-bg-card text-sm placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                    />
+                  </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-industrial-muted">
-                      <span>
-                        {
-                          RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI
-                        }
-                      </span>
-                      <span className="text-right font-semibold text-industrial-text">
-                        {formatMinutiOre(
-                          rapporto.ore_uomo_reali_minuti
-                        )}
-                      </span>
-                      {utenteAdmin && (
-                        <>
-                          <span>
-                            {
-                              RAPPORTI_INTERVENTO_TESTI.ORE_FATTURABILI
+                  {/* Lista rapporti (max 3) */}
+                  {rapportiFiltrati.length === 0 ? (
+                    <p className="text-xs text-text-muted py-4">
+                      {ricercaRapporti
+                        ? "Nessun rapporto trovato"
+                        : RAPPORTI_INTERVENTO_TESTI.NESSUN_RAPPORTO}
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {rapportiFiltrati.map((r) => (
+                        <div
+                          key={r.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => void caricaRapportoInForm(r)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              void caricaRapportoInForm(r);
                             }
-                          </span>
-                          <span className="text-right font-semibold text-industrial-text">
-                            {formatMinutiOre(
-                              rapporto.ore_fatturabili_minuti
+                          }}
+                          className={cn(
+                            "w-full text-left p-3 rounded-md border transition-colors duration-150 cursor-pointer",
+                            rapportoInModificaId === r.id
+                              ? "bg-brand-50 border-brand-500/30 text-text-primary"
+                              : "border-border hover:bg-bg-subtle text-text-primary"
+                          )}
+                        >
+                          <p className="font-medium text-sm">{r.cantiere_nome_snapshot}</p>
+                          <p className="text-xs text-text-muted">{formattaData(r.data_intervento)}</p>
+                          <div className="flex items-center justify-between mt-2 gap-2">
+                            <Badge variant={getStatoBadgeVariant(r.stato)} size="sm">
+                              {LABEL_STATI_RAPPORTO_INTERVENTO[r.stato]}
+                            </Badge>
+                            {r.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handlePdf(r.id);
+                                }}
+                                className="text-text-muted hover:text-text-primary transition-colors"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
                             )}
-                          </span>
-                        </>
-                      )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  )}
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void caricaRapportoInForm(
-                            rapporto
-                          )
-                        }
-                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
-                      >
-                        {rapporto.stato ===
-                        RAPPORTI_INTERVENTO_STATI.FIRMATO
-                          ? RAPPORTI_INTERVENTO_TESTI.VISUALIZZA
-                          : RAPPORTI_INTERVENTO_TESTI.FIRMA}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handlePdf(
-                            rapporto.id
-                          )
-                        }
-                        disabled={pdfId === rapporto.id}
-                        className="rounded-lg border border-industrial-orange bg-industrial-orange px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:cursor-not-allowed disabled:border-industrial-border disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
-                      >
-                        {pdfId === rapporto.id
-                          ? RAPPORTI_INTERVENTO_TESTI.CARICAMENTO
-                          : RAPPORTI_INTERVENTO_TESTI.GENERA_PDF}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </aside>
+                  {/* Vedi tutti button su mobile */}
+                  {rapporti.length > 3 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setMostraListaRapporti(!mostraListaRapporti)}
+                      className="w-full"
+                      icon={<ChevronDown className={cn("h-4 w-4 transition-transform", mostraListaRapporti && "rotate-180")} />}
+                    >
+                      {mostraListaRapporti ? "Nascondi" : "Vedi tutti"}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

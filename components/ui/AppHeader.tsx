@@ -58,7 +58,6 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
           alt="A2C"
           width={120}
           height={34}
-          style={{ height: '34px', width: 'auto' }}
           priority
         />
       </Link>
