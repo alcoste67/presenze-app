@@ -12,6 +12,7 @@ import {
   REPORT_LIBRO_PRESENZE_TESTI,
 } from "@/constants/reportLibroPresenze";
 import { APP_ROUTES } from "@/constants/routes";
+import { getMessaggioErrore } from "@/lib/errors";
 
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { loadDipendenti } from "@/services/dipendenti/loadDipendenti";
@@ -42,11 +43,6 @@ function getDataOggiInput() {
   return `${year}-${month}-${day}`;
 }
 
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : REPORT_LIBRO_PRESENZE_TESTI.ERRORI.GENERICO;
-}
 
 function formattaDipendenteOption(dipendente: Dipendente) {
   return `${dipendente.cognome} ${dipendente.nome}`;
@@ -146,7 +142,7 @@ export default function BackofficeLibroPresenzePage() {
         setDipendenti(dipendentiData);
         setCantieri(cantieriData);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, REPORT_LIBRO_PRESENZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingOpzioni(false);
       }
@@ -167,7 +163,7 @@ export default function BackofficeLibroPresenzePage() {
       const reportData = await fetchLibroPresenzeReport(filtri);
       setReport(reportData);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, REPORT_LIBRO_PRESENZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingReport(false);
     }

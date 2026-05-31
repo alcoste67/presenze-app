@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,10 +30,6 @@ type RiepilogoProduttivita = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : PRODUTTIVITA_TESTI.ERRORI.GENERICO;
-}
 
 function getStatoBadgeVariant(stato: StatoSalLavorazione): BadgeProps["variant"] {
   if (stato === SAL_STATI.COMPLETATA) return "success";
@@ -106,7 +103,7 @@ export default function BackofficeProduttivitaPage() {
       const dati = await loadSalCantiere(nextCantiereId);
       setSal(dati);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, PRODUTTIVITA_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingProduttivita(false);
     }
@@ -123,7 +120,7 @@ export default function BackofficeProduttivitaPage() {
         setCantiereId(primoId);
         if (primoId) await caricaProduttivita(primoId);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, PRODUTTIVITA_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingCantieri(false);
       }

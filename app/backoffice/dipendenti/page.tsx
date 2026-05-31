@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -72,9 +73,6 @@ const FORM_INIZIALE: DipendenteInput = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : "Errore gestione dipendenti";
-}
 
 function preparaDipendente(dipendente: DipendenteInput): DipendenteInput {
   return {
@@ -126,7 +124,7 @@ export default function BackofficeDipendentiPage() {
       const dati = await loadDipendenti();
       setDipendenti(dati);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione dipendenti"));
     } finally {
       setLoading(false);
     }
@@ -142,7 +140,7 @@ export default function BackofficeDipendentiPage() {
         setDipendenti(dati);
       } catch (error: unknown) {
         if (!attivo) return;
-        toast.error(getMessaggioErrore(error));
+        toast.error(getMessaggioErrore(error, "Errore gestione dipendenti"));
       } finally {
         if (attivo) setLoading(false);
       }
@@ -210,7 +208,7 @@ export default function BackofficeDipendentiPage() {
 
       resetForm();
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione dipendenti"));
     } finally {
       setSalvataggio(false);
     }
@@ -265,7 +263,7 @@ export default function BackofficeDipendentiPage() {
         dipendenteAggiornato.attivo ? "Dipendente attivato" : "Dipendente disattivato"
       );
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione dipendenti"));
     } finally {
       setSalvataggio(false);
     }
@@ -297,7 +295,7 @@ export default function BackofficeDipendentiPage() {
 
       toast.success("Dipendente eliminato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione dipendenti"));
     } finally {
       setSalvataggio(false);
     }

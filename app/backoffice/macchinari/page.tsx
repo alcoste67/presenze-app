@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,10 +47,6 @@ const FORM_INIZIALE: MacchinarioForm = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : MACCHINARI_TESTI.ERRORI.GENERICO;
-}
 
 function parseNumeroDecimale(value: string) {
   if (!value.trim()) return null;
@@ -116,7 +113,7 @@ export default function BackofficeMacchinariPage() {
       const dati = await loadMacchinariAdmin();
       setMacchinari(dati);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setLoading(false);
     }
@@ -131,7 +128,7 @@ export default function BackofficeMacchinariPage() {
         if (!attivo) return;
         setMacchinari(dati);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoading(false);
       }
@@ -180,7 +177,7 @@ export default function BackofficeMacchinariPage() {
 
       resetForm();
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -219,7 +216,7 @@ export default function BackofficeMacchinariPage() {
         resetForm();
       }
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }

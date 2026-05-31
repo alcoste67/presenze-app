@@ -1,10 +1,7 @@
+import { isRecord } from "@/lib/typeGuards";
+import { HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const HTTP_STATUS = {
-  OK: 200,
-  BAD_REQUEST: 400,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
 
 const ERRORI_API = {
   PAYLOAD_NON_VALIDO: "Email non valida",
@@ -23,16 +20,6 @@ function jsonErrore(
     {
       status,
     }
-  );
-}
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
   );
 }
 

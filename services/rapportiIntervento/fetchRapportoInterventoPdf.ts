@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { supabase } from "@/lib/supabase";
@@ -6,16 +7,6 @@ type RapportoInterventoPdf = {
   blob: Blob;
   nomeFile: string;
 };
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 async function leggiMessaggioErrorePdf(
   response: Response

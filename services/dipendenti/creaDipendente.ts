@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/typeGuards";
+import { getMessaggioErroreApi } from "@/lib/errors";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { supabase } from "@/lib/supabase";
 import {
@@ -18,16 +20,6 @@ const ERRORI_CREA_DIPENDENTE = {
 
 const TIPI_CONTEGGIO_ORE_CONSENTITI: readonly TipoConteggioOre[] =
   Object.values(TIPO_CONTEGGIO_ORE);
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 function isDipendente(
   value: unknown
@@ -51,18 +43,6 @@ function isDipendente(
   );
 }
 
-function getMessaggioErroreApi(
-  payload: unknown
-): string {
-  if (
-    isRecord(payload) &&
-    typeof payload.errore === "string"
-  ) {
-    return payload.errore;
-  }
-
-  return ERRORI_CREA_DIPENDENTE.ERRORE_GENERICO;
-}
 
 async function leggiJsonResponse(
   response: Response
@@ -112,7 +92,7 @@ export async function creaDipendente(
 
   if (!response.ok) {
     throw new Error(
-      getMessaggioErroreApi(payload)
+      getMessaggioErroreApi(payload, ERRORI_CREA_DIPENDENTE.ERRORE_GENERICO)
     );
   }
 

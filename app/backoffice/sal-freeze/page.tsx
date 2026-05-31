@@ -17,6 +17,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import { getMessaggioErrore } from "@/lib/errors";
+import { isRecord } from "@/lib/typeGuards";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { APP_ROUTES } from "@/constants/routes";
@@ -67,14 +69,6 @@ function getPrimoGiornoMese(data = new Date()) {
 function getUltimoGiornoMese(data = new Date()) {
   const mese = new Date(data.getFullYear(), data.getMonth() + 1, 0);
   return getLocalDateIso(mese);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : SAL_FREEZE_TESTI.ERRORI.GENERICO;
 }
 
 function getMessaggioApi(payload: unknown): string | null {
@@ -268,7 +262,7 @@ export default function BackofficeSalFreezePage() {
 
         setRuoloUtente(utenteResponsabile ? "RESPONSABILE" : null);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingRuolo(false);
       }
@@ -289,7 +283,7 @@ export default function BackofficeSalFreezePage() {
         if (!attivo) return;
         setCantieri(dati);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingCantieri(false);
       }
@@ -334,7 +328,7 @@ export default function BackofficeSalFreezePage() {
           setFreezeDettaglio(null);
         }
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingDatiCantiere(false);
       }
@@ -360,7 +354,7 @@ export default function BackofficeSalFreezePage() {
         const dettaglio = await loadSalFreezeDettaglio({ freezeId: freezeSelezionatoId });
         if (attivo) setFreezeDettaglio(dettaglio);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingDettaglio(false);
       }
@@ -465,7 +459,7 @@ export default function BackofficeSalFreezePage() {
       setNote("");
       setSelectedPhotoIds([]);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -519,7 +513,7 @@ export default function BackofficeSalFreezePage() {
       });
       toast.success("PDF scaricato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingPdf(false);
     }
@@ -573,7 +567,7 @@ export default function BackofficeSalFreezePage() {
       URL.revokeObjectURL(url);
       toast.success("Excel scaricato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingExcel(false);
     }
@@ -642,7 +636,7 @@ export default function BackofficeSalFreezePage() {
       URL.revokeObjectURL(url);
       toast.success("Excel scaricato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingExcelMensile(false);
     }

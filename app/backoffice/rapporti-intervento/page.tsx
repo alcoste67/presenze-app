@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Download, Home, Plus, Search, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
+import { getMessaggioErrore } from "@/lib/errors";
 import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 import {
   LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
@@ -118,12 +119,6 @@ function getLocalId() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random()}`;
-}
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO;
 }
 
 function getNomeDipendente(dipendente: Dipendente) {
@@ -482,7 +477,7 @@ export default function BackofficeRapportiInterventoPage() {
         setRapporti(rapportiData);
       } catch (error: unknown) {
         if (attivo) {
-          toast.error(getMessaggioErrore(error));
+          toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
         }
       } finally {
         if (attivo) {
@@ -778,7 +773,7 @@ export default function BackofficeRapportiInterventoPage() {
       setFoto((fotoCorrenti) => [...fotoCorrenti, ...nuoveFoto]);
       event.target.value = "";
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     }
   };
 
@@ -865,7 +860,7 @@ export default function BackofficeRapportiInterventoPage() {
       );
       toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.SNAPSHOT_CARICATO);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingSnapshot(false);
     }
@@ -938,7 +933,7 @@ export default function BackofficeRapportiInterventoPage() {
       );
       setMostraListaRapporti(false);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     }
   };
 
@@ -977,7 +972,7 @@ export default function BackofficeRapportiInterventoPage() {
       await caricaDati();
       resetForm({ mantieniMessaggio: true });
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -991,7 +986,7 @@ export default function BackofficeRapportiInterventoPage() {
 
       scaricaBlobPdf(pdf);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setPdfId(null);
     }

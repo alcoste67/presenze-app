@@ -40,16 +40,13 @@ import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
+import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type StatoDashboard = { loadingCantieri: boolean; loadingDashboard: boolean };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : COMMESSA_TESTI.ERRORI.GENERICO;
-}
 
 function formattaData(data: string) {
   if (!data) return "";
@@ -191,7 +188,7 @@ export default function BackofficeCommessaPage() {
         setCantieri(dati);
         setCantiereId((corrente) => corrente || dati[0]?.id || "");
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, COMMESSA_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoading((c) => ({ ...c, loadingCantieri: false }));
       }
@@ -210,7 +207,7 @@ export default function BackofficeCommessaPage() {
         if (!attivo) return;
         setDashboard(dati);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, COMMESSA_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoading((c) => ({ ...c, loadingDashboard: false }));
       }
@@ -282,7 +279,7 @@ export default function BackofficeCommessaPage() {
         link.remove();
         URL.revokeObjectURL(url);
       } catch (error: unknown) {
-        toast.error(getMessaggioErrore(error));
+        toast.error(getMessaggioErrore(error, COMMESSA_TESTI.ERRORI.GENERICO));
       } finally {
         setLoadingPdf(false);
         setLoadingExcel(false);

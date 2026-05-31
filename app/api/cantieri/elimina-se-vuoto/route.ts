@@ -1,16 +1,8 @@
-import { API_HEADERS } from "@/constants/api";
+import { isRecord } from "@/lib/typeGuards";
+import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 
-const HTTP_STATUS = {
-  OK: 200,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
 
 const ERRORI_API = {
   TOKEN_MANCANTE: "Token autenticazione mancante",
@@ -43,16 +35,6 @@ function jsonErrore(
     {
       status,
     }
-  );
-}
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
   );
 }
 

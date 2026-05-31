@@ -5,6 +5,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, Home, Pencil, Plus, Power, Search } from "lucide-react";
 
+import { getMessaggioErrore } from "@/lib/errors";
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import {
   LAVORAZIONI_IMPORT,
@@ -56,10 +57,6 @@ const FORM_INIZIALE: LavorazioneForm = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : LAVORAZIONI_TESTI.ERRORI.GENERICO;
-}
 
 function getNumeroIntero(value: string): number | null {
   const numero = Number(value.trim());
@@ -242,7 +239,7 @@ export default function BackofficeLavorazioniPage() {
       setLavorazioni(dati);
       setPercentualiDraft(getPercentualiDraft(dati));
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingLavorazioni(false);
     }
@@ -257,7 +254,7 @@ export default function BackofficeLavorazioniPage() {
         setCantieri(dati);
         setCantiereId((corrente) => corrente || dati[0]?.id || "");
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingCantieri(false);
       }
@@ -278,7 +275,7 @@ export default function BackofficeLavorazioniPage() {
         setLavorazioni(dati);
         setPercentualiDraft(getPercentualiDraft(dati));
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingLavorazioni(false);
       }
@@ -335,7 +332,7 @@ export default function BackofficeLavorazioniPage() {
 
       resetForm();
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -368,7 +365,7 @@ export default function BackofficeLavorazioniPage() {
       setPreviewImport(preview);
       toast.success(LAVORAZIONI_TESTI.MESSAGGI.IMPORT_PRONTO);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setEstrazioneImport(false);
     }
@@ -416,7 +413,7 @@ export default function BackofficeLavorazioniPage() {
       resetImport();
       toast.success(LAVORAZIONI_TESTI.MESSAGGI.IMPORT_COMPLETATO);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggioImport(false);
     }
@@ -447,7 +444,7 @@ export default function BackofficeLavorazioniPage() {
         aggiornata.attiva ? LAVORAZIONI_TESTI.MESSAGGI.ATTIVATA : LAVORAZIONI_TESTI.MESSAGGI.DISATTIVATA
       );
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -468,7 +465,7 @@ export default function BackofficeLavorazioniPage() {
       aggiornaLavorazioneInLista(aggiornata);
       toast.success(LAVORAZIONI_TESTI.MESSAGGI.PERCENTUALE_AGGIORNATA);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }

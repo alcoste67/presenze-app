@@ -15,6 +15,8 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { getMessaggioErrore } from "@/lib/errors";
+import { isRecord } from "@/lib/typeGuards";
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { API_HEADERS } from "@/constants/api";
 import { APP_ROUTES } from "@/constants/routes";
@@ -43,22 +45,6 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : SAL_TESTI.ERRORI.GENERICO;
-}
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 async function leggiMessaggioErrorePdf(
   response: Response
@@ -252,7 +238,7 @@ export default function BackofficeSalPage() {
         setCantieri(dati);
       } catch (error: unknown) {
         if (attivo) {
-          toast.error(getMessaggioErrore(error));
+          toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
         }
       } finally {
         if (attivo) {
@@ -302,7 +288,7 @@ export default function BackofficeSalPage() {
         setFotoLavorazioni(fotoCaricate);
       } catch (error: unknown) {
         if (attivo) {
-          toast.error(getMessaggioErrore(error));
+          toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
         }
       } finally {
         if (attivo) {
@@ -404,7 +390,7 @@ export default function BackofficeSalPage() {
       ]);
       event.target.value = "";
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
     }
   };
 
@@ -454,7 +440,7 @@ export default function BackofficeSalPage() {
       setFotoLavorazioneId("");
       toast.success("Foto caricate con successo");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggioFoto(false);
     }
@@ -507,7 +493,7 @@ export default function BackofficeSalPage() {
       });
       toast.success("PDF scaricato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingPdf(false);
     }

@@ -1,4 +1,5 @@
-import { API_HEADERS } from "@/constants/api";
+import { isRecord } from "@/lib/typeGuards";
+import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import {
   REPORT_PRESENZE_LIMITI,
   REPORT_PRESENZE_TESTI,
@@ -8,13 +9,6 @@ import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadPresenzeReport } from "@/services/report/loadPresenzeReport";
 import type { PresenzeReportFiltri } from "@/types/reportPresenze";
 
-const HTTP_STATUS = {
-  OK: 200,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
@@ -45,16 +39,6 @@ function jsonOk(payload: unknown) {
     status: HTTP_STATUS.OK,
     headers: NO_STORE_HEADERS,
   });
-}
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
 }
 
 function estraiAccessToken(

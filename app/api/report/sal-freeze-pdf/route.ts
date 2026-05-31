@@ -9,7 +9,8 @@ import {
   rgb,
 } from "pdf-lib";
 
-import { API_HEADERS } from "@/constants/api";
+import { HTTP_STATUS } from "@/constants/api";
+import { estraiBearerToken } from "@/lib/auth";
 import {
   SAL_FREEZE_EXPORT,
   SAL_FREEZE_TESTI,
@@ -54,14 +55,6 @@ const COLORS = {
   dangerSoft: rgb(0.973, 0.91, 0.91),
 } as const;
 
-const HTTP_STATUS = {
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
-
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
@@ -82,26 +75,6 @@ function jsonErrore(
       headers: NO_STORE_HEADERS,
     }
   );
-}
-
-function estraiBearerToken(request: NextRequest) {
-  const authorization = request.headers.get(
-    API_HEADERS.AUTHORIZATION
-  );
-
-  if (
-    !authorization?.startsWith(
-      API_HEADERS.BEARER_PREFIX
-    )
-  ) {
-    return null;
-  }
-
-  const token = authorization
-    .slice(API_HEADERS.BEARER_PREFIX.length)
-    .trim();
-
-  return token || null;
 }
 
 function normalizzaTestoPdf(value: string) {

@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { AlertTriangle, Download, Home, Printer } from "lucide-react";
 
+import { getMessaggioErrore } from "@/lib/errors";
 import {
   REPORT_PRESENZE_COLONNE,
   REPORT_PRESENZE_CSV,
@@ -40,10 +41,6 @@ function getDataOggiInput() {
   const month = String(oggi.getMonth() + 1).padStart(2, "0");
   const day = String(oggi.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : REPORT_PRESENZE_TESTI.ERRORI.GENERICO;
 }
 
 function formattaDipendenteOption(dipendente: Dipendente) {
@@ -153,7 +150,7 @@ export default function BackofficePresenzePage() {
         setDipendenti(dipendentiData);
         setCantieri(cantieriData);
       } catch (error: unknown) {
-        if (attivo) toast.error(getMessaggioErrore(error));
+        if (attivo) toast.error(getMessaggioErrore(error, REPORT_PRESENZE_TESTI.ERRORI.GENERICO));
       } finally {
         if (attivo) setLoadingOpzioni(false);
       }
@@ -174,7 +171,7 @@ export default function BackofficePresenzePage() {
       const reportData = await fetchPresenzeReport(filtri);
       setReport(reportData);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, REPORT_PRESENZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingReport(false);
     }

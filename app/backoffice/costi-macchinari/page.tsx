@@ -23,6 +23,7 @@ import { loadCostiMacchinariCommessa } from "@/services/costiMacchinari/loadCost
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadMacchinariAdmin } from "@/services/macchinari/loadMacchinariAdmin";
 import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
+import { getMessaggioErrore } from "@/lib/errors";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   CostoMacchinarioCommessa,
@@ -51,11 +52,6 @@ const FORM_INIZIALE: CostoForm = {
   note: "",
 };
 
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : MACCHINARI_TESTI.ERRORI.GENERICO;
-}
 
 function getLocalDateIso() {
   const data = new Date();
@@ -332,7 +328,7 @@ export default function BackofficeCostiMacchinariPage() {
         setIsAdminUser(admin);
       } catch (error: unknown) {
         if (attivo) {
-          setErrore(getMessaggioErrore(error));
+          setErrore(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
         }
       } finally {
         if (attivo) {
@@ -365,7 +361,7 @@ export default function BackofficeCostiMacchinariPage() {
       } catch (error: unknown) {
         if (attivo) {
           setErrore(
-            getMessaggioErrore(error)
+            getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO)
           );
         }
       } finally {
@@ -421,7 +417,7 @@ export default function BackofficeCostiMacchinariPage() {
       } catch (error: unknown) {
         if (attivo) {
           setErrore(
-            getMessaggioErrore(error)
+            getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO)
           );
         }
       } finally {
@@ -459,7 +455,7 @@ export default function BackofficeCostiMacchinariPage() {
         dati as CostoMacchinarioCommessa[]
       );
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      setErrore(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingCosti(false);
     }
@@ -567,7 +563,7 @@ export default function BackofficeCostiMacchinariPage() {
       await caricaCosti();
       resetForm();
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      setErrore(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
@@ -618,7 +614,7 @@ export default function BackofficeCostiMacchinariPage() {
 
       await caricaCosti();
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      setErrore(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }

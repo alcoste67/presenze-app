@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -39,9 +40,6 @@ const FORM_INIZIALE: CantiereInput = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getMessaggioErrore(error: unknown) {
-  return error instanceof Error ? error.message : "Errore gestione cantieri";
-}
 
 function preparaCantiere(cantiere: CantiereInput): CantiereInput {
   return {
@@ -85,7 +83,7 @@ export default function BackofficeCantieriPage() {
       const dati = await loadCantieriBackoffice();
       setCantieri(dati);
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
     } finally {
       setLoading(false);
     }
@@ -101,7 +99,7 @@ export default function BackofficeCantieriPage() {
         setCantieri(dati);
       } catch (error: unknown) {
         if (!attivo) return;
-        toast.error(getMessaggioErrore(error));
+        toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
       } finally {
         if (attivo) setLoading(false);
       }
@@ -159,7 +157,7 @@ export default function BackofficeCantieriPage() {
 
       resetForm();
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
     } finally {
       setSalvataggio(false);
     }
@@ -208,7 +206,7 @@ export default function BackofficeCantieriPage() {
         cantiereAggiornato.attivo ? "Cantiere attivato" : "Cantiere disattivato"
       );
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
     } finally {
       setSalvataggio(false);
     }
@@ -240,7 +238,7 @@ export default function BackofficeCantieriPage() {
 
       toast.success("Cantiere eliminato");
     } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
     } finally {
       setSalvataggio(false);
     }
