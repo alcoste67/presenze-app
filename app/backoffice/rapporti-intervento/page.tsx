@@ -596,7 +596,7 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
-  const aggiungiOperatore = () => {
+  const aggiungiOperatore = useCallback(() => {
     setOperatori((operatoriCorrenti) => [
       ...operatoriCorrenti,
       {
@@ -610,9 +610,9 @@ export default function BackofficeRapportiInterventoPage() {
         ordine: operatoriCorrenti.length + 1,
       },
     ]);
-  };
+  }, []);
 
-  const handleOperatoreSearchChange = ({
+  const handleOperatoreSearchChange = useCallback(({
     localId,
     ricerca,
   }: {
@@ -634,9 +634,9 @@ export default function BackofficeRapportiInterventoPage() {
         };
       })
     );
-  };
+  }, []);
 
-  const handleOperatoreSelect = ({
+  const handleOperatoreSelect = useCallback(({
     localId,
     dipendente,
   }: {
@@ -667,9 +667,9 @@ export default function BackofficeRapportiInterventoPage() {
         };
       })
     );
-  };
+  }, []);
 
-  const handleOperatoreBlur = ({ localId }: { localId: string }) => {
+  const handleOperatoreBlur = useCallback(({ localId }: { localId: string }) => {
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.map((operatore) => {
         if (operatore.localId !== localId) return operatore;
@@ -692,9 +692,9 @@ export default function BackofficeRapportiInterventoPage() {
         };
       })
     );
-  };
+  }, []);
 
-  const handleOreOperatoreChange = ({
+  const handleOreOperatoreChange = useCallback(({
     localId,
     value,
   }: {
@@ -714,13 +714,13 @@ export default function BackofficeRapportiInterventoPage() {
         };
       })
     );
-  };
+  }, []);
 
-  const rimuoviOperatore = (localId: string) => {
+  const rimuoviOperatore = useCallback((localId: string) => {
     setOperatori((operatoriCorrenti) =>
       operatoriCorrenti.filter((operatore) => operatore.localId !== localId)
     );
-  };
+  }, []);
 
   const leggiFileComeDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -1140,7 +1140,7 @@ export default function BackofficeRapportiInterventoPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</h3>
                   {!readonly && (
-                    <Button variant="secondary" size="sm" onClick={aggiungiOperatore}>
+                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiOperatore}>
                       +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE}
                     </Button>
                   )}
@@ -1188,6 +1188,7 @@ export default function BackofficeRapportiInterventoPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            type="button"
                             onClick={() => rimuoviOperatore(op.localId)}
                             className="text-error-500 hover:text-error-500"
                           >
@@ -1211,7 +1212,7 @@ export default function BackofficeRapportiInterventoPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI}</h3>
                   {!readonly && (
-                    <Button variant="secondary" size="sm" onClick={aggiungiLavorazione}>
+                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavorazione}>
                       +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE}
                     </Button>
                   )}
@@ -1221,7 +1222,7 @@ export default function BackofficeRapportiInterventoPage() {
                   <div className="space-y-2">
                     <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUNA_LAVORAZIONE}</p>
                     {!readonly && (
-                      <Button variant="secondary" size="sm" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                      <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
                         {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
                       </Button>
                     )}
@@ -1267,6 +1268,7 @@ export default function BackofficeRapportiInterventoPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            type="button"
                             onClick={() => rimuoviLavorazione(lav.localId)}
                             className="text-error-500 hover:text-error-500"
                           >
@@ -1277,7 +1279,7 @@ export default function BackofficeRapportiInterventoPage() {
                     ))}
 
                     {!readonly && (
-                      <Button variant="secondary" size="sm" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                      <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
                         {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
                       </Button>
                     )}
@@ -1290,7 +1292,7 @@ export default function BackofficeRapportiInterventoPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</h3>
                   {!readonly && (
-                    <Button variant="secondary" size="sm" onClick={aggiungiMateriale}>
+                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiMateriale}>
                       +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE}
                     </Button>
                   )}
@@ -1356,6 +1358,7 @@ export default function BackofficeRapportiInterventoPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            type="button"
                             onClick={() => rimuoviMateriale(mat.localId)}
                             className="text-error-500 hover:text-error-500"
                           >
@@ -1420,6 +1423,7 @@ export default function BackofficeRapportiInterventoPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              type="button"
                               onClick={() => rimuoviFoto(immagine.localId)}
                               className="text-error-500 hover:text-error-500 w-fit"
                             >
@@ -1531,13 +1535,14 @@ export default function BackofficeRapportiInterventoPage() {
 
                 {rapportoInModificaId && (
                   <>
-                    <Button variant="secondary" onClick={() => resetForm()}>
+                    <Button variant="secondary" type="button" onClick={() => resetForm()}>
                       {RAPPORTI_INTERVENTO_TESTI.ANNULLA}
                     </Button>
 
                     {readonly && (
                       <Button
                         variant="secondary"
+                        type="button"
                         loading={pdfId === rapportoInModificaId}
                         onClick={() => void handlePdf(rapportoInModificaId)}
                       >
