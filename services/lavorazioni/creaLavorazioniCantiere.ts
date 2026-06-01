@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import {
   LAVORAZIONI_LIMITI,
 } from "@/constants/lavorazioni";
@@ -28,7 +29,8 @@ function preparaLavorazioni({
   cantiereId,
   lavorazioni,
   ordineIniziale,
-}: Params) {
+  aziendaId,
+}: Params & { aziendaId: string }) {
   const nomiUsati = new Set<string>();
 
   return [...lavorazioni]
@@ -57,6 +59,7 @@ function preparaLavorazioni({
       attiva: true,
       percentuale_completamento:
         LAVORAZIONI_LIMITI.PERCENTUALE_MIN,
+      azienda_id: aziendaId,
     }));
 }
 
@@ -69,10 +72,24 @@ export async function creaLavorazioniCantiere({
     return [];
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Non autenticato");
+  }
+
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabase,
+    user.id
+  );
+
   const righe = preparaLavorazioni({
     cantiereId,
     lavorazioni,
     ordineIniziale,
+    aziendaId,
   });
 
   if (righe.length === 0) {

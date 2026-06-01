@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import {
   CantiereBackoffice,
   CantiereInput,
@@ -7,6 +8,19 @@ import {
 export async function creaCantiere(
   cantiere: CantiereInput
 ): Promise<CantiereBackoffice> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Non autenticato");
+  }
+
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabase,
+    user.id
+  );
+
   const { data, error } = await supabase
     .from("cantieri")
     .insert({
@@ -14,6 +28,7 @@ export async function creaCantiere(
       indirizzo: cantiere.indirizzo,
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
+      azienda_id: aziendaId,
     })
     .select(
       "id, nome, indirizzo, lavorazioni, attivo"

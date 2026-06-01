@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   SalLavorazioneFoto,
@@ -33,9 +34,17 @@ export async function creaSalLavorazioniFoto({
     );
   }
 
+  const aziendaId = user
+    ? await getAziendaIdFromAuthUser(
+        supabaseClient,
+        user.id
+      )
+    : null;
+
   const righe = foto.map((fotoInput) => ({
     ...fotoInput,
     created_by: user?.id || null,
+    azienda_id: aziendaId,
   }));
 
   const { data, error } = await supabaseClient

@@ -8,6 +8,7 @@ import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import type {
   Dipendente,
@@ -373,6 +374,11 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(
+      supabaseAdmin,
+      user.id
+    );
+
     const authUser =
       await creaORecuperaAuthUser(
         dipendente.email
@@ -392,6 +398,7 @@ export async function POST(
         tipo_conteggio_ore:
           dipendente.tipo_conteggio_ore,
         auth_user_id: authUser.userId,
+        azienda_id: aziendaId,
       })
       .select(SELECT_DIPENDENTE)
       .single();

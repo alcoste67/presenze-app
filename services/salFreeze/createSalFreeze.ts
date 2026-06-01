@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { SAL_FREEZE_STORAGE_BUCKET } from "@/constants/salFreeze";
 import {
   INCLUDI_LAVORAZIONI_A_ZERO_NEL_SAL_PERIODO,
@@ -143,6 +144,7 @@ type SalFreezeLavorazioneInsert = {
   delta_percentuale: number;
   ore_uomo_minuti: number;
   ordine: number;
+  azienda_id: string;
 };
 
 type SalFreezeFotoInsert = {
@@ -154,6 +156,7 @@ type SalFreezeFotoInsert = {
   storage_path_snapshot: string;
   descrizione: string;
   ordine: number;
+  azienda_id: string;
 };
 
 type SalFreezeMacchinarioInsert = {
@@ -164,6 +167,7 @@ type SalFreezeMacchinarioInsert = {
   ore_utilizzo: number;
   note: string;
   ordine: number;
+  azienda_id: string;
 };
 
 type MacchinarioFreezeSourceRow = Pick<
@@ -408,6 +412,7 @@ async function insertHeaderFreeze({
   periodStart,
   periodEnd,
   createdBy,
+  aziendaId,
   note,
   supabaseClient,
 }: {
@@ -416,6 +421,7 @@ async function insertHeaderFreeze({
   periodStart: string;
   periodEnd: string;
   createdBy: string | null;
+  aziendaId: string;
   note: string;
   supabaseClient: SupabaseClient;
 }) {
@@ -435,6 +441,7 @@ async function insertHeaderFreeze({
       created_by: createdBy,
       note,
       metadata,
+      azienda_id: aziendaId,
     })
     .select(SELECT_FREEZE_PRECEDENTE)
     .single();
@@ -632,6 +639,11 @@ export async function createSalFreeze({
     );
   }
 
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabaseAdmin,
+    userId
+  );
+
   const utenteAdmin = await isAdmin(
     userEmail,
     supabaseAdmin
@@ -772,6 +784,7 @@ export async function createSalFreeze({
         delta_percentuale: deltaPercentuale,
         ore_uomo_minuti: oreUomoMinuti,
         ordine: lavorazione.ordine,
+        azienda_id: aziendaId,
       };
     })
     .filter((lavorazione) => {
@@ -796,6 +809,7 @@ export async function createSalFreeze({
       storage_path_snapshot: foto.storage_path_snapshot,
       descrizione: foto.descrizione || "",
       ordine: index,
+      azienda_id: aziendaId,
     })
   );
 
@@ -808,6 +822,7 @@ export async function createSalFreeze({
       ore_utilizzo: macchinario.ore_utilizzo,
       note: macchinario.note,
       ordine: index,
+      azienda_id: aziendaId,
     })
   );
 
@@ -824,6 +839,7 @@ export async function createSalFreeze({
           periodStart,
           periodEnd,
           createdBy: userId,
+          aziendaId,
           note: note?.trim() || "",
           supabaseClient,
         })
