@@ -36,7 +36,6 @@ export const runtime = "nodejs";
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 42;
-const MARGIN_Y = MARGIN_X;
 const TOP_Y = 792;
 const FOOTER_Y = 28;
 
@@ -1083,7 +1082,7 @@ async function generaPdf({
         MARGIN_X + column * (fotoWidth + fotoGap);
       const cardHeight = fotoHeight + 40;
       const y = totFoto === 1
-        ? PAGE_HEIGHT - MARGIN_Y - cardHeight - 60
+        ? 710 - cardHeight
         : 520 - row * (fotoHeight + 52);
 
       page4.drawRectangle({
