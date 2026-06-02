@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/typeGuards";
+import { getMessaggioErroreApi } from "@/lib/errors";
 import { ATTIVITA } from "@/constants/attivita";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import {
@@ -20,16 +22,6 @@ const TIPI_TIMBRATURA = Object.values(
 const TIPI_ATTIVITA = Object.values(
   ATTIVITA
 ) as readonly TipoAttivita[];
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 function isTipoTimbratura(
   value: unknown
@@ -87,18 +79,6 @@ function isPresenzeReportRisposta(
   );
 }
 
-function getMessaggioErroreApi(
-  payload: unknown
-): string {
-  if (
-    isRecord(payload) &&
-    typeof payload.errore === "string"
-  ) {
-    return payload.errore;
-  }
-
-  return REPORT_PRESENZE_TESTI.ERRORI.GENERICO;
-}
 
 async function leggiJsonResponse(
   response: Response
@@ -149,7 +129,7 @@ export async function fetchPresenzeReport(
 
   if (!response.ok) {
     throw new Error(
-      getMessaggioErroreApi(payload)
+      getMessaggioErroreApi(payload, REPORT_PRESENZE_TESTI.ERRORI.GENERICO)
     );
   }
 

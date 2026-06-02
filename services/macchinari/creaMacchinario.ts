@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   Macchinario,
@@ -17,9 +18,22 @@ export async function creaMacchinario({
   macchinario: MacchinarioInput;
   supabaseClient?: SupabaseClient;
 }): Promise<Macchinario> {
+  const {
+    data: { user },
+  } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    throw new Error("Non autenticato");
+  }
+
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabaseClient,
+    user.id
+  );
+
   const { data, error } = await supabaseClient
     .from("macchinari")
-    .insert(macchinario)
+    .insert({ ...macchinario, azienda_id: aziendaId })
     .select(SELECT_MACCHINARIO)
     .maybeSingle();
 

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   CostoMacchinarioCommessa,
@@ -36,6 +37,13 @@ export async function creaCostoMacchinarioCommessa({
     );
   }
 
+  const aziendaId = user
+    ? await getAziendaIdFromAuthUser(
+        supabaseClient,
+        user.id
+      )
+    : null;
+
   const generatedId =
     typeof crypto !== "undefined" &&
     "randomUUID" in crypto
@@ -48,6 +56,7 @@ export async function creaCostoMacchinarioCommessa({
       id: generatedId,
       ...costo,
       created_by: user?.id || null,
+      azienda_id: aziendaId,
     });
 
   if (error) {

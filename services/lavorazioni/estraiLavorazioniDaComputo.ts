@@ -1,17 +1,9 @@
+import { isRecord } from "@/lib/typeGuards";
+import { getMessaggioErroreApi } from "@/lib/errors";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { supabase } from "@/lib/supabase";
 import type { LavorazioneImportPreview } from "@/types/lavorazioni";
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 function isLavorazioneImportPreview(
   value: unknown
@@ -34,19 +26,6 @@ async function leggiJsonResponse(
   }
 }
 
-function getMessaggioErroreApi(
-  payload: unknown
-) {
-  if (
-    isRecord(payload) &&
-    typeof payload.errore === "string"
-  ) {
-    return payload.errore;
-  }
-
-  return LAVORAZIONI_TESTI.ERRORI
-    .AI_ESTRAZIONE_FALLITA;
-}
 
 export async function estraiLavorazioniDaComputo(
   file: File
@@ -87,7 +66,7 @@ export async function estraiLavorazioniDaComputo(
 
   if (!response.ok) {
     throw new Error(
-      getMessaggioErroreApi(payload)
+      getMessaggioErroreApi(payload, LAVORAZIONI_TESTI.ERRORI.GENERICO)
     );
   }
 

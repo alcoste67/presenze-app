@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import sharp from "sharp";
 import {
   PDFDocument,
   type PDFImage,
@@ -118,6 +119,66 @@ function drawText(
   page.drawText(normalizzaTestoPdf(text), options);
 }
 
+function calcolaRighe(text: string, font: PDFFont, size: number, maxWidth: number): number {
+  const words = text.split(" ");
+  let righe = 1;
+  let lineWidth = 0;
+
+  for (const word of words) {
+    const wordWidth = font.widthOfTextAtSize(`${word} `, size);
+
+    if (lineWidth + wordWidth > maxWidth && lineWidth > 0) {
+      righe += 1;
+      lineWidth = wordWidth;
+    } else {
+      lineWidth += wordWidth;
+    }
+  }
+
+  return righe;
+}
+
+function drawTextWrapped(
+  page: PDFPage,
+  text: string,
+  options: {
+    x: number;
+    y: number;
+    size: number;
+    font: PDFFont;
+    color: RGB;
+    maxWidth: number;
+    lineHeight: number;
+  }
+): void {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+
+    if (options.font.widthOfTextAtSize(testLine, options.size) > options.maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+
+  lines.forEach((line, i) => {
+    page.drawText(normalizzaTestoPdf(line), {
+      x: options.x,
+      y: options.y - i * options.lineHeight,
+      size: options.size,
+      font: options.font,
+      color: options.color,
+    });
+  });
+}
+
 function formattaData(value: string) {
   return new Intl.DateTimeFormat("it-IT").format(
     new Date(`${value}T00:00:00`)
@@ -226,14 +287,29 @@ async function embedImmagineDataUrl(
     return null;
   }
 
-  const mime = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
+  const MAX_PX = 1200;
+  const sharpInstance = sharp(bytes);
+  const metadata = await sharpInstance.metadata();
+  const needsResize =
+    (metadata.width ?? 0) > MAX_PX ||
+    (metadata.height ?? 0) > MAX_PX;
 
-  if (mime === "png") {
-    return pdfDoc.embedPng(bytes);
-  }
+  const compressed = await sharpInstance
+    .resize(
+      needsResize
+        ? {
+            width: MAX_PX,
+            height: MAX_PX,
+            fit: "inside",
+            withoutEnlargement: true,
+          }
+        : undefined
+    )
+    .jpeg({ quality: 75 })
+    .toBuffer();
 
-  return pdfDoc.embedJpg(bytes);
+  return pdfDoc.embedJpg(compressed);
 }
 
 function drawFooter(
@@ -473,26 +549,91 @@ function getNomeMacchinario(
   );
 }
 
-function drawSummaryPage({
-  page,
-  fonts,
-  dashboard,
+async function generaPdf({
   cantiere,
+  dashboard,
+  mostraCosti,
 }: {
-  page: PDFPage;
-  fonts: {
-    regular: PDFFont;
-    bold: PDFFont;
-  };
-  dashboard: DashboardCommessaData;
   cantiere: CantiereBackoffice;
+  dashboard: DashboardCommessaData;
+  mostraCosti: boolean;
 }) {
+  const pdfDoc = await PDFDocument.create();
+  const fonts = {
+    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+    bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+  };
+
+  const dataGenerazione = new Date();
+  const startY = TOP_Y - 80;
+  const limitePagina = FOOTER_Y + 60;
+  const contentWidth = PAGE_WIDTH - MARGIN_X * 2;
+
+  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  drawHeader({ page, fonts, cantiere, dataGenerazione });
+
+  let currentY = startY;
+
+  const checkNewPage = (y: number, spazioNecessario: number) => {
+    if (y - spazioNecessario >= limitePagina) {
+      return y;
+    }
+
+    page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    drawHeader({ page, fonts, cantiere, dataGenerazione });
+    return startY;
+  };
+
+  const drawSectionHeader = ({
+    title,
+    subtitle,
+    spazioNecessario = 0,
+  }: {
+    title: string;
+    subtitle?: string;
+    spazioNecessario?: number;
+  }) => {
+    currentY = checkNewPage(currentY, 34 + spazioNecessario);
+    drawSectionTitle({ page, fonts, title, subtitle, y: currentY });
+    currentY -= 34;
+  };
+
+  const drawEmptyState = (message: string) => {
+    const height = 48;
+    currentY = checkNewPage(currentY, height + 14);
+    const y = currentY - height;
+
+    page.drawRectangle({
+      x: MARGIN_X,
+      y,
+      width: contentWidth,
+      height,
+      color: COLORS.surface,
+      borderColor: COLORS.border,
+      borderWidth: 1,
+    });
+
+    drawText(page, message, {
+      x: MARGIN_X + 16,
+      y: y + 27,
+      size: 10,
+      font: fonts.regular,
+      color: COLORS.muted,
+    });
+
+    currentY = y - 14;
+  };
+
   const lavorazioni = dashboard.sal.lavorazioni;
-  const summary = [
+  const summary: Array<{
+    label: string;
+    value: string;
+    tone?: "neutral" | "orange" | "green";
+  }> = [
     {
       label: COMMESSA_TESTI.AVANZAMENTO_PERCENTUALE,
       value: `${dashboard.sal.avanzamentoTotale}%`,
-      tone: "orange" as const,
+      tone: "orange",
     },
     {
       label: COMMESSA_TESTI.ORE_UOMO_TOTALI,
@@ -502,21 +643,19 @@ function drawSummaryPage({
       label: COMMESSA_TESTI.LAVORAZIONI_COMPLETATE,
       value: String(
         lavorazioni.filter(
-          (lavorazione) =>
-            lavorazione.stato === SAL_STATI.COMPLETATA
+          (lavorazione) => lavorazione.stato === SAL_STATI.COMPLETATA
         ).length
       ),
-      tone: "green" as const,
+      tone: "green",
     },
     {
       label: COMMESSA_TESTI.LAVORAZIONI_IN_CORSO,
       value: String(
         lavorazioni.filter(
-          (lavorazione) =>
-            lavorazione.stato === SAL_STATI.IN_CORSO
+          (lavorazione) => lavorazione.stato === SAL_STATI.IN_CORSO
         ).length
       ),
-      tone: "orange" as const,
+      tone: "orange",
     },
     {
       label: COMMESSA_TESTI.NUMERO_RAPPORTI,
@@ -534,52 +673,50 @@ function drawSummaryPage({
           0
         )
       ),
-      tone: "orange" as const,
+      tone: "orange",
     },
   ];
 
-  const cardWidth =
-    (PAGE_WIDTH - MARGIN_X * 2 - 24) / 3;
+  const cardWidth = (contentWidth - 24) / 3;
   const cardHeight = 56;
-  let currentY = 650;
 
-  summary.forEach((card, index) => {
-    const column = index % 3;
-    const row = Math.floor(index / 3);
-    const x =
-      MARGIN_X + column * (cardWidth + 12);
-    const y = currentY - row * (cardHeight + 10);
+  for (let index = 0; index < summary.length; index += 3) {
+    const row = summary.slice(index, index + 3);
+    currentY = checkNewPage(currentY, cardHeight + 12);
+    const y = currentY - cardHeight;
 
-    drawStatCard({
-      page,
-      fonts,
-      x,
-      y,
-      width: cardWidth,
-      height: cardHeight,
-      label: card.label,
-      value: card.value,
-      tone: card.tone || "neutral",
+    row.forEach((card, column) => {
+      drawStatCard({
+        page,
+        fonts,
+        x: MARGIN_X + column * (cardWidth + 12),
+        y,
+        width: cardWidth,
+        height: cardHeight,
+        label: card.label,
+        value: card.value,
+        tone: card.tone || "neutral",
+      });
     });
-  });
 
-  currentY =
-    currentY - 2 * (cardHeight + 10) - 16;
+    currentY = y - 12;
+  }
 
-  drawSectionTitle({
-    page,
-    fonts,
+  currentY -= 8;
+
+  drawSectionHeader({
     title: COMMESSA_TESTI.STATO_AVANZAMENTO,
     subtitle: cantiere.nome,
-    y: currentY,
+    spazioNecessario: 82,
   });
 
-  currentY -= 26;
+  currentY = checkNewPage(currentY, 82 + 24);
+  const progressY = currentY - 82;
 
   page.drawRectangle({
     x: MARGIN_X,
-    y: currentY,
-    width: PAGE_WIDTH - MARGIN_X * 2,
+    y: progressY,
+    width: contentWidth,
     height: 82,
     color: COLORS.surface,
     borderColor: COLORS.border,
@@ -588,7 +725,7 @@ function drawSummaryPage({
 
   drawText(page, `${dashboard.sal.avanzamentoTotale}%`, {
     x: MARGIN_X + 16,
-    y: currentY + 54,
+    y: progressY + 54,
     size: 20,
     font: fonts.bold,
     color: COLORS.orange,
@@ -598,52 +735,54 @@ function drawSummaryPage({
     page,
     value: dashboard.sal.avanzamentoTotale,
     x: MARGIN_X + 16,
-    y: currentY + 34,
-    width: PAGE_WIDTH - MARGIN_X * 2 - 32,
+    y: progressY + 34,
+    width: contentWidth - 32,
     height: 10,
   });
 
   drawText(page, COMMESSA_TESTI.AVANZAMENTO_PERCENTUALE, {
     x: MARGIN_X + 16,
-    y: currentY + 22,
+    y: progressY + 22,
     size: 9,
     font: fonts.regular,
     color: COLORS.muted,
   });
 
-  currentY -= 110;
+  currentY = progressY - 28;
 
-  drawSectionTitle({
-    page,
-    fonts,
+  drawSectionHeader({
     title: COMMESSA_TESTI.LAVORAZIONI_PRINCIPALI,
     subtitle: COMMESSA_TESTI.STATO_AVANZAMENTO,
-    y: currentY,
+    spazioNecessario: lavorazioni.length > 0 ? 46 : 0,
   });
 
-  currentY -= 20;
+  lavorazioni.slice(0, 5).forEach((lavorazione) => {
+    const lineHeight = 11;
+    const righe = calcolaRighe(lavorazione.nome, fonts.bold, 11, 280);
+    const boxH = Math.max(38, 16 + righe * lineHeight + 16);
 
-  lavorazioni.slice(0, 5).forEach((lavorazione, index) => {
-    const boxY = currentY - index * 46;
+    currentY = checkNewPage(currentY, boxH + 8);
+    const boxY = currentY - boxH;
     const colori = getStatoColoriSal(lavorazione.stato);
 
     page.drawRectangle({
       x: MARGIN_X,
       y: boxY,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 38,
+      width: contentWidth,
+      height: boxH,
       color: COLORS.white,
       borderColor: COLORS.border,
       borderWidth: 1,
     });
 
-    drawText(page, lavorazione.nome, {
+    drawTextWrapped(page, lavorazione.nome, {
       x: MARGIN_X + 12,
-      y: boxY + 22,
+      y: boxY + boxH - 16,
       size: 11,
       font: fonts.bold,
       color: COLORS.text,
       maxWidth: 280,
+      lineHeight: 13,
     });
 
     drawText(
@@ -651,7 +790,7 @@ function drawSummaryPage({
       `${SAL_TESTI.PERCENTUALE}: ${lavorazione.percentuale_completamento}% · ${SAL_TESTI.ORE_UOMO}: ${formattaOre(lavorazione.oreUomoMinuti)}`,
       {
         x: MARGIN_X + 12,
-        y: boxY + 8,
+        y: boxY + 14,
         size: 8,
         font: fonts.regular,
         color: COLORS.muted,
@@ -661,7 +800,7 @@ function drawSummaryPage({
 
     page.drawRectangle({
       x: PAGE_WIDTH - MARGIN_X - 96,
-      y: boxY + 10,
+      y: boxY + boxH / 2 - 9,
       width: 84,
       height: 18,
       color: colori.background,
@@ -669,32 +808,21 @@ function drawSummaryPage({
 
     drawText(page, getStatoSalLabel(lavorazione.stato), {
       x: PAGE_WIDTH - MARGIN_X - 88,
-      y: boxY + 16,
+      y: boxY + boxH / 2 - 5,
       size: 7,
       font: fonts.bold,
       color: colori.text,
     });
-  });
-}
 
-function drawOreUomoPage({
-  page,
-  fonts,
-  dashboard,
-}: {
-  page: PDFPage;
-  fonts: {
-    regular: PDFFont;
-    bold: PDFFont;
-  };
-  dashboard: DashboardCommessaData;
-}) {
-  drawSectionTitle({
-    page,
-    fonts,
+    currentY = boxY - 14;
+  });
+
+  currentY -= 12;
+
+  drawSectionHeader({
     title: COMMESSA_TESTI.ORE_UOMO,
     subtitle: COMMESSA_TESTI.LAVORAZIONI_PRINCIPALI,
-    y: 752,
+    spazioNecessario: 48,
   });
 
   const lavorazioniOre = dashboard.sal.lavorazioni
@@ -703,30 +831,16 @@ function drawOreUomoPage({
     .slice(0, 5);
 
   if (lavorazioniOre.length === 0) {
-    page.drawRectangle({
-      x: MARGIN_X,
-      y: 660,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 48,
-      color: COLORS.surface,
-      borderColor: COLORS.border,
-      borderWidth: 1,
-    });
-
-    drawText(page, COMMESSA_TESTI.NESSUN_DATO, {
-      x: MARGIN_X + 16,
-      y: 687,
-      size: 10,
-      font: fonts.regular,
-      color: COLORS.muted,
-    });
+    drawEmptyState(COMMESSA_TESTI.NESSUN_DATO);
   } else {
-    lavorazioniOre.forEach((lavorazione, index) => {
-      const boxY = 690 - index * 46;
+    lavorazioniOre.forEach((lavorazione) => {
+      currentY = checkNewPage(currentY, 46);
+      const boxY = currentY - 38;
+
       page.drawRectangle({
         x: MARGIN_X,
         y: boxY,
-        width: PAGE_WIDTH - MARGIN_X * 2,
+        width: contentWidth,
         height: 38,
         color: COLORS.white,
         borderColor: COLORS.border,
@@ -742,23 +856,29 @@ function drawOreUomoPage({
         maxWidth: 280,
       });
 
-      drawText(page, `${formattaOre(lavorazione.oreUomoMinuti)} · ${lavorazione.percentuale_completamento}%`, {
-        x: PAGE_WIDTH - MARGIN_X - 120,
-        y: boxY + 16,
-        size: 9,
-        font: fonts.bold,
-        color: COLORS.orange,
-        maxWidth: 110,
-      });
+      drawText(
+        page,
+        `${formattaOre(lavorazione.oreUomoMinuti)} · ${lavorazione.percentuale_completamento}%`,
+        {
+          x: PAGE_WIDTH - MARGIN_X - 120,
+          y: boxY + 16,
+          size: 9,
+          font: fonts.bold,
+          color: COLORS.orange,
+          maxWidth: 110,
+        }
+      );
+
+      currentY = boxY - 8;
     });
   }
 
-  drawSectionTitle({
-    page,
-    fonts,
+  currentY -= 12;
+
+  drawSectionHeader({
     title: COMMESSA_TESTI.MACCHINARI_UTILIZZATI,
     subtitle: COMMESSA_TESTI.ORE_MACCHINARI,
-    y: 460,
+    spazioNecessario: 48,
   });
 
   const macchinariById = new Map(
@@ -767,34 +887,19 @@ function drawOreUomoPage({
       macchinario,
     ])
   );
-
   const macchinari = dashboard.costiMacchinari.slice(0, 5);
 
   if (macchinari.length === 0) {
-    page.drawRectangle({
-      x: MARGIN_X,
-      y: 368,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 48,
-      color: COLORS.surface,
-      borderColor: COLORS.border,
-      borderWidth: 1,
-    });
-
-    drawText(page, COMMESSA_TESTI.NESSUN_DATO, {
-      x: MARGIN_X + 16,
-      y: 395,
-      size: 10,
-      font: fonts.regular,
-      color: COLORS.muted,
-    });
+    drawEmptyState(COMMESSA_TESTI.NESSUN_DATO);
   } else {
-    macchinari.forEach((costo, index) => {
-      const boxY = 410 - index * 46;
+    macchinari.forEach((costo) => {
+      currentY = checkNewPage(currentY, 46);
+      const boxY = currentY - 38;
+
       page.drawRectangle({
         x: MARGIN_X,
         y: boxY,
-        width: PAGE_WIDTH - MARGIN_X * 2,
+        width: contentWidth,
         height: 38,
         color: COLORS.white,
         borderColor: COLORS.border,
@@ -810,14 +915,18 @@ function drawOreUomoPage({
         maxWidth: 260,
       });
 
-      drawText(page, `${formattaData(costo.data_utilizzo)} · ${formattaOreDecimali(costo.ore_utilizzo)}`, {
-        x: MARGIN_X + 12,
-        y: boxY + 8,
-        size: 8,
-        font: fonts.regular,
-        color: COLORS.muted,
-        maxWidth: 250,
-      });
+      drawText(
+        page,
+        `${formattaData(costo.data_utilizzo)} · ${formattaOreDecimali(costo.ore_utilizzo)}`,
+        {
+          x: MARGIN_X + 12,
+          y: boxY + 8,
+          size: 8,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 250,
+        }
+      );
 
       drawText(page, costo.note || costo.descrizione || "-", {
         x: PAGE_WIDTH - MARGIN_X - 140,
@@ -827,61 +936,33 @@ function drawOreUomoPage({
         color: COLORS.muted,
         maxWidth: 130,
       });
+
+      currentY = boxY - 8;
     });
   }
-}
 
-function drawRapportiPage({
-  page,
-  fonts,
-  dashboard,
-  mostraCosti,
-}: {
-  page: PDFPage;
-  fonts: {
-    regular: PDFFont;
-    bold: PDFFont;
-  };
-  dashboard: DashboardCommessaData;
-  mostraCosti: boolean;
-}) {
-  drawSectionTitle({
-    page,
-    fonts,
+  currentY -= 12;
+
+  drawSectionHeader({
     title: COMMESSA_TESTI.RAPPORTI_RECENTI,
     subtitle: COMMESSA_TESTI.NUMERO_RAPPORTI,
-    y: 752,
+    spazioNecessario: 58,
   });
 
   const rapporti = dashboard.rapportiRecenti.slice(0, 5);
 
   if (rapporti.length === 0) {
-    page.drawRectangle({
-      x: MARGIN_X,
-      y: 660,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 48,
-      color: COLORS.surface,
-      borderColor: COLORS.border,
-      borderWidth: 1,
-    });
-
-    drawText(page, COMMESSA_TESTI.NESSUN_RAPPORTO, {
-      x: MARGIN_X + 16,
-      y: 687,
-      size: 10,
-      font: fonts.regular,
-      color: COLORS.muted,
-    });
+    drawEmptyState(COMMESSA_TESTI.NESSUN_RAPPORTO);
   } else {
-    rapporti.forEach((rapporto, index) => {
-      const boxY = 700 - index * 58;
+    rapporti.forEach((rapporto) => {
+      currentY = checkNewPage(currentY, 58);
+      const boxY = currentY - 50;
       const colori = getStatoColoriRapporto(rapporto.stato);
 
       page.drawRectangle({
         x: MARGIN_X,
         y: boxY,
-        width: PAGE_WIDTH - MARGIN_X * 2,
+        width: contentWidth,
         height: 50,
         color: COLORS.white,
         borderColor: COLORS.border,
@@ -897,14 +978,18 @@ function drawRapportiPage({
         maxWidth: 250,
       });
 
-      drawText(page, `${formattaData(rapporto.data_intervento)} · ${rapporto.responsabile_nome}`, {
-        x: MARGIN_X + 12,
-        y: boxY + 15,
-        size: 8,
-        font: fonts.regular,
-        color: COLORS.muted,
-        maxWidth: 260,
-      });
+      drawText(
+        page,
+        `${formattaData(rapporto.data_intervento)} · ${rapporto.responsabile_nome}`,
+        {
+          x: MARGIN_X + 12,
+          y: boxY + 15,
+          size: 8,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 260,
+        }
+      );
 
       drawText(page, LABEL_STATI_RAPPORTO_INTERVENTO[rapporto.stato], {
         x: PAGE_WIDTH - MARGIN_X - 90,
@@ -926,192 +1011,100 @@ function drawRapportiPage({
         color: COLORS.muted,
         maxWidth: 140,
       });
+
+      currentY = boxY - 8;
     });
   }
-}
 
-async function generaPdf({
-  cantiere,
-  dashboard,
-  mostraCosti,
-}: {
-  cantiere: CantiereBackoffice;
-  dashboard: DashboardCommessaData;
-  mostraCosti: boolean;
-}) {
-  const pdfDoc = await PDFDocument.create();
-  const fonts = {
-    regular: await pdfDoc.embedFont(
-      StandardFonts.Helvetica
-    ),
-    bold: await pdfDoc.embedFont(
-      StandardFonts.HelveticaBold
-    ),
-  };
+  currentY -= 12;
 
-  const page1 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page1,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawSummaryPage({
-    page: page1,
-    fonts,
-    dashboard,
-    cantiere,
-  });
-
-  const page2 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page2,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawOreUomoPage({
-    page: page2,
-    fonts,
-    dashboard,
-  });
-
-  const page3 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page3,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawRapportiPage({
-    page: page3,
-    fonts,
-    dashboard,
-    mostraCosti,
-  });
-
-  const page4 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page4,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-
-  drawSectionTitle({
-    page: page4,
-    fonts,
+  drawSectionHeader({
     title: COMMESSA_TESTI.FOTO_RECENTI,
     subtitle: COMMESSA_TESTI.NUMERO_FOTO_SAL,
-    y: 752,
+    spazioNecessario: 48,
   });
 
   const foto = dashboard.fotoRecenti.slice(0, 4);
-  if (foto.length === 0) {
-    page4.drawRectangle({
-      x: MARGIN_X,
-      y: 660,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 48,
-      color: COLORS.surface,
-      borderColor: COLORS.border,
-      borderWidth: 1,
-    });
 
-    drawText(page4, COMMESSA_TESTI.NESSUNA_FOTO, {
-      x: MARGIN_X + 16,
-      y: 687,
-      size: 10,
-      font: fonts.regular,
-      color: COLORS.muted,
-    });
+  if (foto.length === 0) {
+    drawEmptyState(COMMESSA_TESTI.NESSUNA_FOTO);
   } else {
+    const totFoto = foto.length;
     const fotoWidth =
-      (PAGE_WIDTH - MARGIN_X * 2 - 16) / 2;
-    const fotoHeight = 220;
+      totFoto === 1 ? contentWidth : (contentWidth - 16) / 2;
+    const fotoHeight = totFoto === 1 ? 320 : 220;
     const fotoGap = 16;
+    const cardHeightFoto = fotoHeight + 40;
 
     const fotoPdf = await Promise.all(
       foto.map(async (item) => ({
-        image: await embedImmagineDataUrl(
-          pdfDoc,
-          item.immagine_data_url
-        ),
-        descrizione:
-          item.descrizione ||
-          COMMESSA_TESTI.FOTO_RECENTI,
+        image: await embedImmagineDataUrl(pdfDoc, item.immagine_data_url),
+        descrizione: item.descrizione || COMMESSA_TESTI.FOTO_RECENTI,
         data: item.data_riferimento,
       }))
     );
 
-    for (let index = 0; index < fotoPdf.length; index += 1) {
-      const fotoItem = fotoPdf[index];
-      const column = index % 2;
-      const row = Math.floor(index / 2);
-      const x =
-        MARGIN_X + column * (fotoWidth + fotoGap);
-      const y = 520 - row * (fotoHeight + 52);
+    for (let index = 0; index < fotoPdf.length; ) {
+      const itemsInRow =
+        totFoto === 1 ? 1 : Math.min(2, fotoPdf.length - index);
 
-      page4.drawRectangle({
-        x,
-        y,
-        width: fotoWidth,
-        height: fotoHeight + 40,
-        color: COLORS.white,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-      });
+      currentY = checkNewPage(currentY, cardHeightFoto + 14);
+      const y = currentY - cardHeightFoto;
 
-      if (fotoItem.image) {
-        const ratio =
-          fotoItem.image.width /
-          fotoItem.image.height;
-        let imageWidth = fotoWidth - 16;
-        let imageHeight = fotoHeight;
+      for (let column = 0; column < itemsInRow; column += 1) {
+        const fotoItem = fotoPdf[index + column];
+        const x = MARGIN_X + column * (fotoWidth + fotoGap);
 
-        if (imageWidth / imageHeight > ratio) {
-          imageWidth = imageHeight * ratio;
-        } else {
-          imageHeight = imageWidth / ratio;
+        page.drawRectangle({
+          x,
+          y,
+          width: fotoWidth,
+          height: cardHeightFoto,
+          color: COLORS.white,
+          borderColor: COLORS.border,
+          borderWidth: 1,
+        });
+
+        if (fotoItem.image) {
+          const ratio = fotoItem.image.width / fotoItem.image.height;
+          let imageWidth = fotoWidth - 16;
+          let imageHeight = fotoHeight;
+
+          if (imageWidth / imageHeight > ratio) {
+            imageWidth = imageHeight * ratio;
+          } else {
+            imageHeight = imageWidth / ratio;
+          }
+
+          page.drawImage(fotoItem.image, {
+            x: x + (fotoWidth - imageWidth) / 2,
+            y: y + 24 + (fotoHeight - imageHeight) / 2,
+            width: imageWidth,
+            height: imageHeight,
+          });
         }
 
-        page4.drawImage(fotoItem.image, {
-          x: x + (fotoWidth - imageWidth) / 2,
-          y: y + 24 + (fotoHeight - imageHeight) / 2,
-          width: imageWidth,
-          height: imageHeight,
+        drawText(page, fotoItem.descrizione, {
+          x: x + 10,
+          y: y + 14,
+          size: 8,
+          font: fonts.bold,
+          color: COLORS.text,
+          maxWidth: fotoWidth - 20,
+        });
+
+        drawText(page, formattaData(fotoItem.data), {
+          x: x + fotoWidth - 70,
+          y: y + 14,
+          size: 7,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 60,
         });
       }
 
-      drawText(page4, fotoItem.descrizione, {
-        x: x + 10,
-        y: y + 14,
-        size: 8,
-        font: fonts.bold,
-        color: COLORS.text,
-        maxWidth: fotoWidth - 20,
-      });
-
-      drawText(page4, formattaData(fotoItem.data), {
-        x: x + fotoWidth - 70,
-        y: y + 14,
-        size: 7,
-        font: fonts.regular,
-        color: COLORS.muted,
-        maxWidth: 60,
-      });
+      currentY = y - 14;
+      index += itemsInRow;
     }
   }
 

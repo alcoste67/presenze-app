@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 
 import {
   TIMBRATURE,
@@ -107,6 +108,11 @@ export async function creaTimbratura({
     );
   }
 
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabase,
+    userId
+  );
+
   const { data, error } = await supabase
     .from("timbrature")
     .insert({
@@ -116,6 +122,7 @@ export async function creaTimbratura({
       attivita_tipo:
         destinazioneAttivitaTipo,
       tipo,
+      azienda_id: aziendaId,
     })
     .select()
     .single();

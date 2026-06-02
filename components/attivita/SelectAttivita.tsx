@@ -2,13 +2,32 @@ import { ATTIVITA } from "@/constants/attivita";
 import { TipoAttivita } from "@/types/attivita";
 
 const SELECT_CLASS_NAME =
-  "h-12 w-full appearance-none rounded-xl border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong min-w-0 box-border";
+  "h-10 w-full appearance-none rounded-md border border-border bg-bg-card px-3 pr-8 text-sm text-text-primary outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle disabled:text-text-muted min-w-0 box-border";
 
 type Props = {
   attivitaTipo: TipoAttivita | "";
   onChange: (attivitaTipo: TipoAttivita | "") => void;
   disabled?: boolean;
 };
+
+function ChevronIcon() {
+  return (
+    <svg
+      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function SelectAttivita({
   attivitaTipo,
@@ -17,36 +36,27 @@ export function SelectAttivita({
 }: Props) {
   return (
     <div>
-      <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
+      <label className="mb-1.5 block text-sm font-medium text-text-primary">
         Attività
       </label>
 
       <div className="relative">
         <select
           value={attivitaTipo}
-          onChange={(e) =>
-            onChange(
-              e.target.value as TipoAttivita | ""
-            )
-          }
+          onChange={(e) => onChange(e.target.value as TipoAttivita | "")}
           disabled={disabled}
           className={SELECT_CLASS_NAME}
         >
           <option value="">Seleziona attività</option>
 
           {Object.values(ATTIVITA).map((attivita) => (
-            <option
-              key={attivita}
-              value={attivita}
-            >
+            <option key={attivita} value={attivita}>
               {attivita}
             </option>
           ))}
         </select>
 
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-industrial-muted-strong">
-          ▾
-        </span>
+        <ChevronIcon />
       </div>
     </div>
   );

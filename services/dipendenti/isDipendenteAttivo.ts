@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/typeGuards";
+import { getMessaggioErroreApi } from "@/lib/errors";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 
 const ERRORI_VERIFICA_DIPENDENTE = {
@@ -7,28 +9,6 @@ const ERRORI_VERIFICA_DIPENDENTE = {
     "Errore verifica dipendente attivo",
 } as const;
 
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
-
-function getMessaggioErroreApi(
-  payload: unknown
-): string {
-  if (
-    isRecord(payload) &&
-    typeof payload.errore === "string"
-  ) {
-    return payload.errore;
-  }
-
-  return ERRORI_VERIFICA_DIPENDENTE.ERRORE_GENERICO;
-}
 
 async function leggiJsonResponse(
   response: Response
@@ -79,7 +59,7 @@ export async function isDipendenteAttivo(
 
   if (!response.ok) {
     throw new Error(
-      getMessaggioErroreApi(payload)
+      getMessaggioErroreApi(payload, ERRORI_VERIFICA_DIPENDENTE.ERRORE_GENERICO)
     );
   }
 

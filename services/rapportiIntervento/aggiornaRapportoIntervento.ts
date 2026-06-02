@@ -3,6 +3,7 @@ import {
   RAPPORTI_INTERVENTO_TESTI,
 } from "@/constants/rapportiIntervento";
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { calcolaOreFatturabili } from "@/services/rapportiIntervento/calcolaOreFatturabili";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
@@ -167,10 +168,12 @@ function getFirmaAt({
 
 async function insertLavorazioni({
   rapportoInterventoId,
+  aziendaId,
   lavorazioni,
   supabaseClient,
 }: {
   rapportoInterventoId: string;
+  aziendaId: string;
   lavorazioni: RapportoInterventoLavorazioneInput[];
   supabaseClient: SupabaseClient;
 }) {
@@ -189,6 +192,7 @@ async function insertLavorazioni({
       ore_uomo_minuti:
         lavorazione.ore_uomo_minuti,
       ordine: lavorazione.ordine,
+      azienda_id: aziendaId,
     })
   );
 
@@ -213,10 +217,12 @@ async function insertLavorazioni({
 
 async function insertOperatori({
   rapportoInterventoId,
+  aziendaId,
   operatori,
   supabaseClient,
 }: {
   rapportoInterventoId: string;
+  aziendaId: string;
   operatori: RapportoInterventoOperatoreInput[];
   supabaseClient: SupabaseClient;
 }) {
@@ -252,6 +258,7 @@ async function insertOperatori({
         operatore.email_snapshot,
       ore_minuti: operatore.ore_minuti,
       ordine: operatore.ordine,
+      azienda_id: aziendaId,
     };
   });
 
@@ -276,10 +283,12 @@ async function insertOperatori({
 
 async function insertFoto({
   rapportoInterventoId,
+  aziendaId,
   foto,
   supabaseClient,
 }: {
   rapportoInterventoId: string;
+  aziendaId: string;
   foto: RapportoInterventoFotoInput[];
   supabaseClient: SupabaseClient;
 }) {
@@ -294,6 +303,7 @@ async function insertFoto({
       immagine.immagine_data_url,
     descrizione: immagine.descrizione,
     ordine: immagine.ordine,
+    azienda_id: aziendaId,
   }));
 
   const { data, error } = await supabaseClient
@@ -315,10 +325,12 @@ async function insertFoto({
 
 async function insertMateriali({
   rapportoInterventoId,
+  aziendaId,
   materiali,
   supabaseClient,
 }: {
   rapportoInterventoId: string;
+  aziendaId: string;
   materiali: RapportoInterventoMaterialeInput[];
   supabaseClient: SupabaseClient;
 }) {
@@ -335,6 +347,7 @@ async function insertMateriali({
       unita_misura:
         materiale.unita_misura,
       ordine: materiale.ordine,
+      azienda_id: aziendaId,
     })
   );
 
@@ -386,6 +399,19 @@ export async function aggiornaRapportoIntervento(
         .RAPPORTO_FIRMATO
     );
   }
+
+  const {
+    data: { user: authUser },
+  } = await supabaseClient.auth.getUser();
+
+  if (!authUser) {
+    throw new Error("Non autenticato");
+  }
+
+  const aziendaId = await getAziendaIdFromAuthUser(
+    supabaseClient,
+    authUser.id
+  );
 
   const cantiere = await loadCantiereSnapshot(
     rapportoInput.cantiere_id,
@@ -470,22 +496,26 @@ export async function aggiornaRapportoIntervento(
     await Promise.all([
       insertLavorazioni({
         rapportoInterventoId,
+        aziendaId,
         lavorazioni:
           rapportoInput.lavorazioni,
         supabaseClient,
       }),
       insertOperatori({
         rapportoInterventoId,
+        aziendaId,
         operatori: rapportoInput.operatori,
         supabaseClient,
       }),
       insertFoto({
         rapportoInterventoId,
+        aziendaId,
         foto: rapportoInput.foto,
         supabaseClient,
       }),
       insertMateriali({
         rapportoInterventoId,
+        aziendaId,
         materiali:
           rapportoInput.materiali,
         supabaseClient,

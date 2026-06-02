@@ -39,3 +39,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database dumps and logs (sensitive data)
+schema_prod.sql
+schema_prod.sql.bak
+data_prod.sql
+data_prod_wrapped.sql
+schema_apply.log
+data_apply.log
+*.dump
+
+# Supabase CLI temp folder
+supabase/.temp/
+supabase/.DS_Store
+auth_data.sql
+auth_data_wrapped.sql
+auth_apply.log
+
+# Backup pre-restyle (locali)
+*.backup-pre-restyle

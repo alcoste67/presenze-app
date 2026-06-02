@@ -1,3 +1,4 @@
+import { getMessaggioErroreApi } from "@/lib/errors";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { supabase } from "@/lib/supabase";
 
@@ -7,29 +8,6 @@ const ERRORI_ELIMINA_CANTIERE = {
   ERRORE_GENERICO:
     "Errore eliminazione cantiere",
 } as const;
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
-
-function getMessaggioErroreApi(
-  payload: unknown
-): string {
-  if (
-    isRecord(payload) &&
-    typeof payload.errore === "string"
-  ) {
-    return payload.errore;
-  }
-
-  return ERRORI_ELIMINA_CANTIERE.ERRORE_GENERICO;
-}
 
 async function leggiJsonResponse(
   response: Response
@@ -81,7 +59,7 @@ export async function eliminaCantiereSeVuoto(
 
   if (!response.ok) {
     throw new Error(
-      getMessaggioErroreApi(payload)
+      getMessaggioErroreApi(payload, ERRORI_ELIMINA_CANTIERE.ERRORE_GENERICO)
     );
   }
 }

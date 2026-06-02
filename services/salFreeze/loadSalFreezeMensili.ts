@@ -1,19 +1,10 @@
+import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
 import { supabase } from "@/lib/supabase";
 import type { SalFreezeMensile } from "@/types/salFreeze";
 
 type SupabaseClient = typeof supabase;
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
 
 function getErrorMessage(payload: unknown) {
   if (!isRecord(payload)) {

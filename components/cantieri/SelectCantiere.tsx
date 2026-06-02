@@ -11,7 +11,7 @@ type Cantiere = {
 };
 
 const INPUT_CLASS_NAME =
-  "h-12 w-full rounded-xl border border-industrial-border bg-industrial-control px-4 pr-10 text-sm font-medium text-industrial-text outline-none transition-colors duration-200 ease-out placeholder:text-industrial-muted-strong focus:border-industrial-orange disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong min-w-0 box-border";
+  "h-10 w-full rounded-md border border-border bg-bg-card px-3 pr-9 text-sm text-text-primary outline-none transition-colors duration-150 placeholder:text-text-subtle focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle disabled:text-text-muted min-w-0 box-border";
 
 type Props = {
   cantieri: Cantiere[];
@@ -20,90 +20,82 @@ type Props = {
   disabled?: boolean;
 };
 
+function ChevronIcon() {
+  return (
+    <svg
+      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function SelectCantiere({
   cantieri,
   cantiereId,
   onChange,
   disabled,
 }: Props) {
-  const containerRef =
-    useRef<HTMLDivElement | null>(null);
-  const inputRef =
-    useRef<HTMLInputElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const cantiereSelezionato =
-    cantieri.find(
-      (cantiere) => cantiere.id === cantiereId
-    ) || null;
+    cantieri.find((cantiere) => cantiere.id === cantiereId) || null;
 
   const [query, setQuery] = useState("");
   const [aperto, setAperto] = useState(false);
 
   useEffect(() => {
-    const handleMouseDown = (
-      event: MouseEvent
-    ) => {
+    const handleMouseDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(
-          event.target as Node
-        )
+        !containerRef.current.contains(event.target as Node)
       ) {
         setAperto(false);
       }
     };
 
-    const handleKeyDown = (
-      event: KeyboardEvent
-    ) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setAperto(false);
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleMouseDown
-    );
-    document.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleMouseDown
-      );
-      document.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
-  const inputValue =
-    cantiereSelezionato?.nome || query;
+  const inputValue = cantiereSelezionato?.nome || query;
 
   const cantieriFiltrati = useMemo(() => {
-    const ricerca = inputValue
-      .trim()
-      .toLowerCase();
+    const ricerca = inputValue.trim().toLowerCase();
 
     if (!ricerca) {
       return cantieri;
     }
 
     return cantieri.filter((cantiere) =>
-      cantiere.nome
-        .toLowerCase()
-        .includes(ricerca)
+      cantiere.nome.toLowerCase().includes(ricerca)
     );
   }, [cantieri, inputValue]);
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-[10px] font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
+      <label className="mb-1.5 block text-sm font-medium text-text-primary">
         Cantiere
       </label>
 
@@ -114,9 +106,7 @@ export function SelectCantiere({
           value={inputValue}
           onChange={(e) => {
             const nextQuery = e.target.value;
-            const queryCorrente =
-              cantiereSelezionato?.nome ||
-              query;
+            const queryCorrente = cantiereSelezionato?.nome || query;
 
             if (nextQuery === queryCorrente) {
               return;
@@ -134,35 +124,30 @@ export function SelectCantiere({
           placeholder="Cerca cantiere"
           className={INPUT_CLASS_NAME}
         />
-
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-industrial-muted-strong">
-          ▾
-        </span>
+        <ChevronIcon />
       </div>
 
       {aperto && !disabled && (
-        <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-industrial-border bg-industrial-surface-strong shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-bg-card shadow-[0_4px_16px_rgb(0_0_0/0.08)]">
           {cantieriFiltrati.map((cantiere) => (
             <button
               key={cantiere.id}
               type="button"
-              onMouseDown={(e) =>
-                e.preventDefault()
-              }
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 onChange(cantiere.id);
                 setQuery("");
                 setAperto(false);
                 inputRef.current?.blur();
               }}
-              className="block w-full border-b border-industrial-border-soft px-3 py-3 text-left text-sm font-medium text-industrial-text transition-colors duration-200 ease-out last:border-b-0 hover:bg-industrial-control hover:text-industrial-orange"
+              className="block w-full border-b border-border px-3 py-2.5 text-left text-sm text-text-primary transition-colors duration-150 last:border-b-0 hover:bg-bg-subtle"
             >
               {cantiere.nome}
             </button>
           ))}
 
           {cantieriFiltrati.length === 0 && (
-            <div className="px-3 py-3 text-sm text-industrial-muted-strong">
+            <div className="px-3 py-3 text-sm text-text-muted">
               Nessun cantiere trovato
             </div>
           )}

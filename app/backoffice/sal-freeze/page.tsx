@@ -1,13 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
-  type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
+import {
+  Home,
+  Download,
+  Plus,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
+import { getMessaggioErrore } from "@/lib/errors";
+import { isRecord } from "@/lib/typeGuards";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { APP_ROUTES } from "@/constants/routes";
@@ -31,63 +42,37 @@ import type {
   SalFreezeMensile,
 } from "@/types/salFreeze";
 
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/utils";
+
 type RuoloUtente = "ADMIN" | "RESPONSABILE" | null;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function getLocalDateIso(data = new Date()) {
   const year = data.getFullYear();
-  const month = String(data.getMonth() + 1).padStart(
-    2,
-    "0"
-  );
+  const month = String(data.getMonth() + 1).padStart(2, "0");
   const day = String(data.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
 function getPrimoGiornoMese(data = new Date()) {
-  const mese = new Date(
-    data.getFullYear(),
-    data.getMonth(),
-    1
-  );
-
+  const mese = new Date(data.getFullYear(), data.getMonth(), 1);
   return getLocalDateIso(mese);
 }
 
 function getUltimoGiornoMese(data = new Date()) {
-  const mese = new Date(
-    data.getFullYear(),
-    data.getMonth() + 1,
-    0
-  );
-
+  const mese = new Date(data.getFullYear(), data.getMonth() + 1, 0);
   return getLocalDateIso(mese);
 }
 
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
-
-function getMessaggioErrore(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return SAL_FREEZE_TESTI.ERRORI.GENERICO;
-}
-
-function getMessaggioApi(
-  payload: unknown
-): string | null {
-  if (!isRecord(payload)) {
-    return null;
-  }
+function getMessaggioApi(payload: unknown): string | null {
+  if (!isRecord(payload)) return null;
 
   const errorMessage =
     typeof payload.errorMessage === "string"
@@ -98,139 +83,63 @@ function getMessaggioApi(
           ? payload.error
           : null;
 
-  const step =
-    typeof payload.step === "string"
-      ? payload.step
-      : null;
+  const step = typeof payload.step === "string" ? payload.step : null;
 
-  if (errorMessage && step) {
-    return `${errorMessage}. Step: ${step}`;
-  }
-
-  if (errorMessage) {
-    return errorMessage;
-  }
-
+  if (errorMessage && step) return `${errorMessage}. Step: ${step}`;
+  if (errorMessage) return errorMessage;
   return null;
 }
 
-function getTestoBreve(value: string, maxLength = 180) {
-  return value
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+function formattaData(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("it-IT").format(new Date(`${value}T00:00:00`));
+}
+
+function formattaDataConOra(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value)
+  );
+}
+
+function formattaOreUomo(minutiTotali: number) {
+  const ore = Math.floor(minutiTotali / 60);
+  const minuti = minutiTotali % 60;
+  return `${ore}h ${minuti}m`;
+}
+
+function formattaDeltaPercentuale(value: number) {
+  const segno = value > 0 ? "+" : "";
+  return `${segno}${value.toFixed(0)}%`;
+}
+
+function getDeltaIcon(value: number) {
+  if (value > 0) return <TrendingUp className="h-4 w-4" />;
+  if (value < 0) return <TrendingDown className="h-4 w-4" />;
+  return <Minus className="h-4 w-4" />;
+}
+
+function getDeltaBadgeVariant(value: number) {
+  if (value > 0) return "success";
+  if (value < 0) return "error";
+  return "muted";
+}
+
+function getFreezePeriodoLabel(freeze: SalFreezeMensile) {
+  return `${formattaData(freeze.period_start)} - ${formattaData(freeze.period_end)}`;
 }
 
 function getPreviewUrlSicura(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  if (
-    /^data:image\/(png|jpe?g|webp);base64,/i.test(value) ||
-    /^https?:\/\//i.test(value)
-  ) {
+  if (!value) return null;
+  if (/^data:image\/(png|jpe?g|webp);base64,/i.test(value) || /^https?:\/\//i.test(value)) {
     return value;
   }
-
   return null;
 }
 
-function getRiferimentoTecnicoFoto(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  if (/^data:image\//i.test(value)) {
-    return "Foto incorporata / data URL";
-  }
-
-  if (/^https?:\/\//i.test(value)) {
-    return getTestoBreve(value, 80);
-  }
-
-  return getTestoBreve(value, 80);
-}
-
-async function getMessaggioErroreExportDaResponse({
-  response,
-  tipo,
-}: {
-  response: Response;
-  tipo: "pdf" | "excel" | "excel-mensile";
-}) {
-  const contentType =
-    response.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-
-  if (isJson) {
-    const payload = await response
-      .json()
-      .catch(() => null);
-
-    const step =
-      isRecord(payload) && typeof payload.step === "string"
-        ? payload.step
-        : null;
-    const errorMessage =
-      isRecord(payload) &&
-      typeof payload.errorMessage === "string"
-        ? payload.errorMessage
-        : isRecord(payload) &&
-            typeof payload.error === "string"
-          ? payload.error
-          : null;
-
-    const messaggio =
-      tipo === "pdf"
-        ? "Errore export PDF"
-        : tipo === "excel"
-          ? "Errore export Excel"
-          : "Errore export Excel mensile";
-
-    return {
-      contentType,
-      step,
-      errorMessage,
-      message:
-        step && errorMessage
-          ? `${messaggio}. Step: ${step}. Errore: ${errorMessage}`
-          : `${messaggio}. Errore: ${errorMessage || SAL_FREEZE_TESTI.ERRORI.GENERICO}`,
-    };
-  }
-
-  const testo = getTestoBreve(await response.text().catch(() => ""));
-
-  return {
-    contentType,
-    step: null,
-    errorMessage: testo || SAL_FREEZE_TESTI.ERRORI.GENERICO,
-    message: `${tipo === "pdf" ? "Errore export PDF" : tipo === "excel" ? "Errore export Excel" : "Errore export Excel mensile"}. Status: ${response.status}. Risposta: ${testo || "nessun dettaglio"}`,
-  };
-}
-
-function getNomeFilePdf(response: Response) {
-  const contentDisposition =
-    response.headers.get("Content-Disposition") || "";
-  const match = /filename="([^"]+)"/.exec(
-    contentDisposition
-  );
-
-  return (
-    match?.[1] || SAL_FREEZE_EXPORT.PDF.DEFAULT_FILENAME
-  );
-}
-
-function scaricaBlobPdf({
-  blob,
-  nomeFile,
-}: {
-  blob: Blob;
-  nomeFile: string;
-}) {
+function scaricaBlobFile({ blob, nomeFile }: { blob: Blob; nomeFile: string }) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-
   link.href = url;
   link.download = nomeFile;
   document.body.appendChild(link);
@@ -239,245 +148,70 @@ function scaricaBlobPdf({
   URL.revokeObjectURL(url);
 }
 
-function formattaData(value: string) {
-  if (!value) {
-    return "";
+function getNomeFileDaResponse(response: Response) {
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/.exec(contentDisposition);
+  return match?.[1] || SAL_FREEZE_EXPORT.PDF.DEFAULT_FILENAME;
+}
+
+async function getMessaggioErroreExport({
+  response,
+  tipo,
+}: {
+  response: Response;
+  tipo: "pdf" | "excel" | "excel-mensile";
+}) {
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+
+  if (isJson) {
+    const payload = await response.json().catch(() => null);
+    const errorMessage =
+      isRecord(payload) && typeof payload.errorMessage === "string"
+        ? payload.errorMessage
+        : isRecord(payload) && typeof payload.error === "string"
+          ? payload.error
+          : null;
+    const tipoLabel =
+      tipo === "pdf" ? "PDF" : tipo === "excel" ? "Excel" : "Excel mensile";
+    return `Errore export ${tipoLabel}: ${errorMessage || "Errore sconosciuto"}`;
   }
 
-  return new Intl.DateTimeFormat("it-IT").format(
-    new Date(`${value}T00:00:00`)
-  );
-}
-
-function formattaDataConOra(value: string) {
-  if (!value) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formattaOreUomo(minutiTotali: number) {
-  const ore = Math.floor(minutiTotali / 60);
-  const minuti = minutiTotali % 60;
-
-  return `${ore}h ${minuti}m`;
-}
-
-function formattaDeltaPercentuale(value: number) {
-  const segno = value > 0 ? "+" : "";
-
-  return `${segno}${value.toFixed(0)}%`;
-}
-
-function getDeltaClassName(value: number) {
-  if (value > 0) {
-    return "bg-industrial-success-bg text-industrial-success-text";
-  }
-
-  if (value < 0) {
-    return "bg-red-50 text-red-700";
-  }
-
-  return "bg-industrial-bg-soft text-industrial-muted";
-}
-
-function getFreezePeriodoLabel(
-  freeze: SalFreezeMensile
-) {
-  return `${formattaData(freeze.period_start)} - ${formattaData(freeze.period_end)}`;
-}
-
-function SectionCard({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-4 shadow-[0_12px_28px_rgb(36_38_43/0.08)] sm:p-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-industrial-text">
-            {title}
-          </h2>
-          {subtitle ? (
-            <p className="mt-1 text-sm text-industrial-muted">
-              {subtitle}
-            </p>
-          ) : null}
-        </div>
-
-        {action ? <div>{action}</div> : null}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function FreezeBadge({
-  annullato,
-}: {
-  annullato: boolean;
-}) {
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${annullato ? "bg-red-50 text-red-700" : "bg-industrial-success-bg text-industrial-success-text"}`}
-    >
-      {annullato ? "Annullato" : "Attivo"}
-    </span>
-  );
-}
-
-function FreezeLavorazioneCard({
-  lavorazione,
-}: {
-  lavorazione: SalFreezeDettaglio["lavorazioni"][number];
-}) {
-  return (
-    <article className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-industrial-text">
-            {lavorazione.lavorazione_nome_snapshot}
-          </p>
-          <p className="mt-1 text-xs text-industrial-muted">
-            {SAL_FREEZE_TESTI.PERCENTUALE_PRECEDENTE}:{" "}
-            {lavorazione.percentuale_precedente}%
-          </p>
-          <p className="mt-1 text-xs text-industrial-muted">
-            {SAL_FREEZE_TESTI.PERCENTUALE_ATTUALE}:{" "}
-            {lavorazione.percentuale_attuale}%
-          </p>
-          <p className="mt-1 text-xs text-industrial-muted">
-            {SAL_FREEZE_TESTI.ORE_UOMO}:{" "}
-            {formattaOreUomo(
-              lavorazione.ore_uomo_minuti
-            )}
-          </p>
-        </div>
-
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${getDeltaClassName(
-            lavorazione.delta_percentuale
-          )}`}
-        >
-          {formattaDeltaPercentuale(
-            lavorazione.delta_percentuale
-          )}
-        </span>
-      </div>
-    </article>
-  );
-}
-
-function FreezeMacchinarioCard({
-  macchinario,
-}: {
-  macchinario: SalFreezeDettaglio["macchinari"][number];
-}) {
-  return (
-    <article className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-4">
-      <div className="grid gap-2 text-sm">
-        <div className="flex items-start justify-between gap-3">
-          <p className="font-semibold text-industrial-text">
-            {macchinario.tipo_macchinario_snapshot}
-          </p>
-          <p className="text-xs text-industrial-muted">
-            {macchinario.ore_utilizzo}
-          </p>
-        </div>
-        <p className="text-sm text-industrial-muted">
-          {macchinario.descrizione_snapshot}
-        </p>
-        <p className="text-xs text-industrial-muted-strong">
-          {macchinario.note}
-        </p>
-      </div>
-    </article>
-  );
+  return `Errore export: status ${response.status}`;
 }
 
 export default function BackofficeSalFreezePage() {
-  const [cantieri, setCantieri] = useState<
-    CantiereBackoffice[]
-  >([]);
-  const [cantiereId, setCantiereId] =
-    useState("");
-  const [periodStart, setPeriodStart] = useState(
-    getPrimoGiornoMese()
-  );
-  const [periodEnd, setPeriodEnd] = useState(
-    getUltimoGiornoMese()
-  );
-  const [periodStartExportMensile, setPeriodStartExportMensile] =
-    useState(getPrimoGiornoMese());
-  const [periodEndExportMensile, setPeriodEndExportMensile] =
-    useState(getUltimoGiornoMese());
-  const [cantiereIdsExportMensile, setCantiereIdsExportMensile] =
-    useState<string[]>([]);
-  const [recentPhotos, setRecentPhotos] = useState<
-    SalLavorazioneFoto[]
-  >([]);
-  const [selectedPhotoIds, setSelectedPhotoIds] =
-    useState<string[]>([]);
+  const toast = useToast();
+
+  // State
+  const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [cantiereId, setCantiereId] = useState("");
+  const [periodStart, setPeriodStart] = useState(getPrimoGiornoMese());
+  const [periodEnd, setPeriodEnd] = useState(getUltimoGiornoMese());
+  const [periodStartExportMensile, setPeriodStartExportMensile] = useState(getPrimoGiornoMese());
+  const [periodEndExportMensile, setPeriodEndExportMensile] = useState(getUltimoGiornoMese());
+  const [cantiereIdsExportMensile, setCantiereIdsExportMensile] = useState<string[]>([]);
+  const [recentPhotos, setRecentPhotos] = useState<SalLavorazioneFoto[]>([]);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
   const [note, setNote] = useState("");
-  const [freezeList, setFreezeList] = useState<
-    SalFreezeMensile[]
-  >([]);
-  const [freezeSelezionatoId, setFreezeSelezionatoId] =
-    useState("");
-  const [freezeDettaglio, setFreezeDettaglio] =
-    useState<SalFreezeDettaglio | null>(null);
-  const [loadingCantieri, setLoadingCantieri] =
-    useState(true);
-  const [loadingDatiCantiere, setLoadingDatiCantiere] =
-    useState(false);
-  const [loadingDettaglio, setLoadingDettaglio] =
-    useState(false);
-  const [salvataggio, setSalvataggio] =
-    useState(false);
-  const [loadingPdf, setLoadingPdf] =
-    useState(false);
-  const [loadingExcel, setLoadingExcel] =
-    useState(false);
-  const [loadingExcelMensile, setLoadingExcelMensile] =
-    useState(false);
-  const [errore, setErrore] = useState<
-    string | null
-  >(null);
-  const [erroreExport, setErroreExport] = useState<
-    string | null
-  >(null);
-  const [erroreExportMensile, setErroreExportMensile] =
-    useState<string | null>(null);
-  const [messaggio, setMessaggio] = useState<
-    string | null
-  >(null);
-  const [ruoloUtente, setRuoloUtente] =
-    useState<RuoloUtente>(null);
-  const [loadingRuolo, setLoadingRuolo] =
-    useState(true);
+  const [freezeList, setFreezeList] = useState<SalFreezeMensile[]>([]);
+  const [freezeSelezionatoId, setFreezeSelezionatoId] = useState("");
+  const [freezeDettaglio, setFreezeDettaglio] = useState<SalFreezeDettaglio | null>(null);
+  const [loadingCantieri, setLoadingCantieri] = useState(true);
+  const [loadingDatiCantiere, setLoadingDatiCantiere] = useState(false);
+  const [loadingDettaglio, setLoadingDettaglio] = useState(false);
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const [loadingExcel, setLoadingExcel] = useState(false);
+  const [loadingExcelMensile, setLoadingExcelMensile] = useState(false);
+  const [ruoloUtente, setRuoloUtente] = useState<RuoloUtente>(null);
+  const [loadingRuolo, setLoadingRuolo] = useState(true);
 
   const puoCreareFreeze = ruoloUtente === "ADMIN";
-  const puoEsportareMensile =
-    ruoloUtente === "ADMIN" ||
-    ruoloUtente === "RESPONSABILE";
+  const puoEsportareMensile = ruoloUtente === "ADMIN" || ruoloUtente === "RESPONSABILE";
 
   const fotoById = useMemo(
-    () =>
-      new Map(
-        recentPhotos.map((foto) => [foto.id, foto])
-      ),
+    () => new Map(recentPhotos.map((foto) => [foto.id, foto])),
     [recentPhotos]
   );
 
@@ -485,73 +219,30 @@ export default function BackofficeSalFreezePage() {
     () =>
       selectedPhotoIds
         .map((photoId) => fotoById.get(photoId))
-        .filter(
-          (foto): foto is SalLavorazioneFoto =>
-            Boolean(foto)
-        ),
+        .filter((foto): foto is SalLavorazioneFoto => Boolean(foto)),
     [fotoById, selectedPhotoIds]
   );
 
   const cantiereSelezionato = useMemo(
-    () =>
-      cantieri.find(
-        (cantiere) => cantiere.id === cantiereId
-      ) || null,
+    () => cantieri.find((cantiere) => cantiere.id === cantiereId) || null,
     [cantieri, cantiereId]
   );
 
   const freezeDettaglioDaMostrare =
-    freezeSelezionatoId && freezeDettaglio
-      ? freezeDettaglio
-      : null;
+    freezeSelezionatoId && freezeDettaglio ? freezeDettaglio : null;
 
   const freezeSelezionatoAnnullato = Boolean(
     freezeDettaglioDaMostrare?.freeze.annullato_at
   );
 
-  const caricaStoricoFreeze = async ({
-    cantiereIdCorrente,
-    freezeIdDaSelezionare,
-  }: {
-    cantiereIdCorrente: string;
-    freezeIdDaSelezionare?: string | null;
-  }): Promise<string | null> => {
-    const freezeAggiornati =
-      await loadSalFreezeMensili({
-        cantiereId: cantiereIdCorrente,
-      });
-
-    setFreezeList(freezeAggiornati);
-
-    if (freezeAggiornati.length === 0) {
-      setFreezeSelezionatoId("");
-      setFreezeDettaglio(null);
-      return null;
-    }
-
-    const freezeIdValido =
-      freezeIdDaSelezionare &&
-      freezeAggiornati.some(
-        (freeze) => freeze.id === freezeIdDaSelezionare
-      )
-        ? freezeIdDaSelezionare
-        : freezeAggiornati[0].id;
-
-    setFreezeSelezionatoId(freezeIdValido);
-
-    return freezeIdValido;
-  };
-
+  // Effects
   useEffect(() => {
     let attivo = true;
 
     const caricaRuolo = async () => {
       try {
         const user = await loadUtenteAuth();
-
-        if (!attivo) {
-          return;
-        }
+        if (!attivo) return;
 
         if (!user?.email) {
           setRuoloUtente(null);
@@ -559,46 +250,29 @@ export default function BackofficeSalFreezePage() {
         }
 
         const utenteAdmin = await isAdmin(user.email);
-
-        if (!attivo) {
-          return;
-        }
+        if (!attivo) return;
 
         if (utenteAdmin) {
           setRuoloUtente("ADMIN");
           return;
         }
 
-        const utenteResponsabile =
-          await isResponsabile(user.email);
+        const utenteResponsabile = await isResponsabile(user.email);
+        if (!attivo) return;
 
-        if (!attivo) {
-          return;
-        }
-
-        if (utenteResponsabile) {
-          setRuoloUtente("RESPONSABILE");
-          return;
-        }
-
-        setRuoloUtente(null);
+        setRuoloUtente(utenteResponsabile ? "RESPONSABILE" : null);
       } catch (error: unknown) {
-        if (attivo) {
-          setErrore(getMessaggioErrore(error));
-        }
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
-        if (attivo) {
-          setLoadingRuolo(false);
-        }
+        if (attivo) setLoadingRuolo(false);
       }
     };
 
     void caricaRuolo();
-
     return () => {
       attivo = false;
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     let attivo = true;
@@ -606,215 +280,168 @@ export default function BackofficeSalFreezePage() {
     const caricaCantieri = async () => {
       try {
         const dati = await loadCantieriBackoffice();
-
-        if (!attivo) {
-          return;
-        }
-
+        if (!attivo) return;
         setCantieri(dati);
       } catch (error: unknown) {
-        if (attivo) {
-          setErrore(getMessaggioErrore(error));
-        }
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
-        if (attivo) {
-          setLoadingCantieri(false);
-        }
+        if (attivo) setLoadingCantieri(false);
       }
     };
 
     void caricaCantieri();
-
     return () => {
       attivo = false;
     };
-  }, []);
-
-  const handleCantiereChange = (nextCantiereId: string) => {
-    setCantiereId(nextCantiereId);
-    setSelectedPhotoIds([]);
-    setNote("");
-    setRecentPhotos([]);
-    setFreezeList([]);
-    setFreezeSelezionatoId("");
-    setFreezeDettaglio(null);
-    setErrore(null);
-    setMessaggio(null);
-  };
+  }, [toast]);
 
   useEffect(() => {
-    if (!cantiereId) {
-      return;
-    }
-
     let attivo = true;
 
-    const caricaDati = async () => {
+    const caricaDatiCantiere = async () => {
+      if (!cantiereId) {
+        setRecentPhotos([]);
+        setFreezeList([]);
+        setFreezeSelezionatoId("");
+        setFreezeDettaglio(null);
+        setLoadingDatiCantiere(false);
+        return;
+      }
+
       try {
         setLoadingDatiCantiere(true);
 
-        const [freeze, foto] = await Promise.all([
-          loadSalFreezeMensili({
-            cantiereId,
-          }),
-          puoCreareFreeze
-            ? loadSalLavorazioniFoto({
-                cantiereId,
-                limit: 12,
-              })
-            : Promise.resolve([] as SalLavorazioneFoto[]),
+        const [foto, freeze] = await Promise.all([
+          loadSalLavorazioniFoto({ cantiereId, dataRiferimento: getLocalDateIso(), limit: 100 }),
+          loadSalFreezeMensili({ cantiereId }),
         ]);
 
-        if (!attivo) {
-          return;
-        }
+        if (!attivo) return;
 
-        setFreezeList(freeze);
         setRecentPhotos(foto);
+        setFreezeList(freeze);
 
         if (freeze.length > 0) {
-          setFreezeSelezionatoId((corrente) =>
-            corrente && freeze.some((item) => item.id === corrente)
-              ? corrente
-              : freeze[0].id
-          );
+          setFreezeSelezionatoId(freeze[0].id);
         } else {
           setFreezeSelezionatoId("");
           setFreezeDettaglio(null);
         }
       } catch (error: unknown) {
-        if (attivo) {
-          setErrore(getMessaggioErrore(error));
-        }
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
-        if (attivo) {
-          setLoadingDatiCantiere(false);
-        }
+        if (attivo) setLoadingDatiCantiere(false);
       }
     };
 
-    void caricaDati();
-
+    void caricaDatiCantiere();
     return () => {
       attivo = false;
     };
-  }, [cantiereId, puoCreareFreeze]);
+  }, [cantiereId, toast]);
 
   useEffect(() => {
-    if (!freezeSelezionatoId) {
-      return;
-    }
-
     let attivo = true;
 
     const caricaDettaglio = async () => {
+      if (!freezeSelezionatoId) {
+        setFreezeDettaglio(null);
+        return;
+      }
+
       try {
         setLoadingDettaglio(true);
-        const dettaglio = await loadSalFreezeDettaglio({
-          freezeId: freezeSelezionatoId,
-        });
-
-        if (!attivo) {
-          return;
-        }
-
-        setFreezeDettaglio(dettaglio);
+        const dettaglio = await loadSalFreezeDettaglio({ freezeId: freezeSelezionatoId });
+        if (attivo) setFreezeDettaglio(dettaglio);
       } catch (error: unknown) {
-        if (attivo) {
-          setErrore(getMessaggioErrore(error));
-        }
+        if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
-        if (attivo) {
-          setLoadingDettaglio(false);
-        }
+        if (attivo) setLoadingDettaglio(false);
       }
     };
 
     void caricaDettaglio();
-
     return () => {
       attivo = false;
     };
-  }, [freezeSelezionatoId]);
+  }, [freezeSelezionatoId, toast]);
 
-  const handleTogglePhoto = (photoId: string) => {
-    setSelectedPhotoIds((correnti) => {
-      if (correnti.includes(photoId)) {
-        return correnti.filter((id) => id !== photoId);
+  // Handlers
+  const caricaStoricoFreeze = useCallback(
+    async ({
+      cantiereIdCorrente,
+      freezeIdDaSelezionare,
+    }: {
+      cantiereIdCorrente: string;
+      freezeIdDaSelezionare?: string | null;
+    }): Promise<string | null> => {
+      const freezeAggiornati = await loadSalFreezeMensili({ cantiereId: cantiereIdCorrente });
+      setFreezeList(freezeAggiornati);
+
+      if (freezeAggiornati.length === 0) {
+        setFreezeSelezionatoId("");
+        setFreezeDettaglio(null);
+        return null;
       }
 
-      return [...correnti, photoId];
-    });
-    setMessaggio(null);
+      const freezeIdValido =
+        freezeIdDaSelezionare && freezeAggiornati.some((freeze) => freeze.id === freezeIdDaSelezionare)
+          ? freezeIdDaSelezionare
+          : freezeAggiornati[0].id;
+
+      setFreezeSelezionatoId(freezeIdValido);
+      return freezeIdValido;
+    },
+    []
+  );
+
+  const handleTogglePhoto = (photoId: string) => {
+    setSelectedPhotoIds((correnti) =>
+      correnti.includes(photoId) ? correnti.filter((id) => id !== photoId) : [...correnti, photoId]
+    );
   };
 
   const handleCreaFreeze = async () => {
-    if (!puoCreareFreeze) {
-      return;
-    }
-
+    if (!puoCreareFreeze) return;
     if (!cantiereId) {
-      setErrore(SAL_FREEZE_TESTI.ERRORI.INPUT_NON_VALIDO);
+      toast.error(SAL_FREEZE_TESTI.ERRORI.INPUT_NON_VALIDO);
       return;
     }
 
     try {
       setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
 
       const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error(SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO);
 
-      if (!accessToken) {
-        throw new Error(
-          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
-        );
-      }
+      const response = await fetch("/api/sal-freeze/create", {
+        method: "POST",
+        headers: {
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+        },
+        body: JSON.stringify({
+          cantiereId,
+          periodStart,
+          periodEnd,
+          selectedPhotoIds,
+          note,
+        }),
+      });
 
-      const response = await fetch(
-        "/api/sal-freeze/create",
-        {
-          method: "POST",
-          headers: {
-            [API_HEADERS.CONTENT_TYPE]:
-              API_HEADERS.APPLICATION_JSON,
-            [API_HEADERS.AUTHORIZATION]:
-              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
-          },
-          body: JSON.stringify({
-            cantiereId,
-            periodStart,
-            periodEnd,
-            selectedPhotoIds,
-            note,
-          }),
-        }
-      );
-
-      const payload = await response
-        .json()
-        .catch(() => null);
+      const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          getMessaggioApi(payload) ||
-            SAL_FREEZE_TESTI.ERRORI.GENERICO
-        );
+        throw new Error(getMessaggioApi(payload) || SAL_FREEZE_TESTI.ERRORI.GENERICO);
       }
 
       const freezeIdCreato =
-        isRecord(payload) &&
-        typeof payload.freezeId === "string"
+        isRecord(payload) && typeof payload.freezeId === "string"
           ? payload.freezeId
-          : isRecord(payload) &&
-              isRecord(payload.freeze) &&
-              typeof payload.freeze.id === "string"
+          : isRecord(payload) && isRecord(payload.freeze) && typeof payload.freeze.id === "string"
             ? payload.freeze.id
             : null;
 
@@ -824,1337 +451,746 @@ export default function BackofficeSalFreezePage() {
       });
 
       if (freezeIdSelezionato) {
-        const dettaglioCreato =
-          await loadSalFreezeDettaglio({
-            freezeId: freezeIdSelezionato,
-          });
-
+        const dettaglioCreato = await loadSalFreezeDettaglio({ freezeId: freezeIdSelezionato });
         setFreezeDettaglio(dettaglioCreato);
       }
 
-      setMessaggio(
-        SAL_FREEZE_TESTI.MESSAGGI.FREEZE_CREATO
-      );
-
+      toast.success(SAL_FREEZE_TESTI.MESSAGGI.FREEZE_CREATO);
       setNote("");
       setSelectedPhotoIds([]);
     } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
     }
   };
 
   const handleEsportaPdf = async () => {
-    const freezeId =
-      freezeDettaglioDaMostrare?.freeze.id || null;
+    const freezeId = freezeDettaglioDaMostrare?.freeze.id || null;
 
     if (!freezeId || freezeSelezionatoAnnullato) {
-      setErroreExport(
-        "Seleziona un SAL periodo prima di esportare"
-      );
+      toast.error("Seleziona un SAL periodo prima di esportare");
       return;
     }
 
     try {
       setLoadingPdf(true);
-      setErroreExport(null);
 
       const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const accessToken = data.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error(
-          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
-        );
-      }
+      if (!accessToken) throw new Error(SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO);
 
       const cantiereNomePdf =
-        cantiereSelezionato?.nome ||
-        freezeDettaglioDaMostrare?.freeze.cantiere_id ||
-        "";
+        cantiereSelezionato?.nome || freezeDettaglioDaMostrare?.freeze.cantiere_id || "";
       const pdfUrl =
         `${API_ROUTES.REPORT_SAL_FREEZE_PDF}?${SAL_FREEZE_EXPORT.QUERY.FREEZE_ID}=${encodeURIComponent(freezeId)}&${SAL_FREEZE_EXPORT.QUERY.CANTIERE_NOME}=${encodeURIComponent(cantiereNomePdf)}`;
 
-      const response = await fetch(
-        pdfUrl,
-        {
-          headers: {
-            [API_HEADERS.AUTHORIZATION]:
-              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
-          },
-        }
-      );
-      const contentType =
-        response.headers.get("content-type") || "";
+      const response = await fetch(pdfUrl, {
+        headers: {
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+        },
+      });
 
-      if (
-        response.redirected ||
-        !contentType.includes("application/pdf")
-      ) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "pdf",
-          });
+      const contentType = response.headers.get("content-type") || "";
 
-        console.error("[sal-period-export-error]", {
-          freezeId,
-          type: "pdf",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExport(erroreExport.message);
+      if (response.redirected || !contentType.includes("application/pdf")) {
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "pdf" });
+        toast.error(erroreExport);
         return;
       }
 
       if (!response.ok) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "pdf",
-          });
-
-        console.error("[sal-period-export-error]", {
-          freezeId,
-          type: "pdf",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExport(erroreExport.message);
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "pdf" });
+        toast.error(erroreExport);
         return;
       }
 
-      scaricaBlobPdf({
+      scaricaBlobFile({
         blob: await response.blob(),
-        nomeFile: getNomeFilePdf(response),
+        nomeFile: getNomeFileDaResponse(response),
       });
+      toast.success("PDF scaricato");
     } catch (error: unknown) {
-      const freezeId =
-        freezeDettaglioDaMostrare?.freeze.id || null;
-      const errorMessage = getMessaggioErrore(error);
-
-      console.error("[sal-period-export-error]", {
-        freezeId,
-        type: "pdf",
-        errorMessage,
-      });
-
-      setErroreExport(errorMessage);
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingPdf(false);
     }
   };
 
   const handleEsportaExcel = async () => {
-    if (!freezeDettaglioDaMostrare || freezeSelezionatoAnnullato) {
-      return;
-    }
+    if (!freezeDettaglioDaMostrare || freezeSelezionatoAnnullato) return;
 
     try {
       setLoadingExcel(true);
-      setErroreExport(null);
 
       const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const accessToken = data.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error(
-          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
-        );
-      }
+      if (!accessToken) throw new Error(SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO);
 
       const response = await fetch(
         `${API_ROUTES.REPORT_SAL_FREEZE_EXCEL}?${SAL_FREEZE_EXPORT.QUERY.FREEZE_ID}=${encodeURIComponent(freezeDettaglioDaMostrare.freeze.id)}&${SAL_FREEZE_EXPORT.QUERY.CANTIERE_NOME}=${encodeURIComponent(cantiereSelezionato?.nome || freezeDettaglioDaMostrare.freeze.cantiere_id)}`,
         {
           headers: {
-            [API_HEADERS.AUTHORIZATION]:
-              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+            [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
           },
         }
       );
-      const contentType =
-        response.headers.get("content-type") || "";
 
-      if (
-        response.redirected ||
-        !contentType.includes(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-      ) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "excel",
-          });
+      const contentType = response.headers.get("content-type") || "";
 
-        console.error("[sal-period-export-error]", {
-          freezeId: freezeDettaglioDaMostrare.freeze.id,
-          type: "excel",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExport(erroreExport.message);
+      if (response.redirected || !contentType.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "excel" });
+        toast.error(erroreExport);
         return;
       }
 
       if (!response.ok) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "excel",
-          });
-
-        console.error("[sal-period-export-error]", {
-          freezeId: freezeDettaglioDaMostrare.freeze.id,
-          type: "excel",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExport(erroreExport.message);
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "excel" });
+        toast.error(erroreExport);
         return;
       }
 
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
-      const contentDisposition =
-        response.headers.get("Content-Disposition") || "";
-      const match = /filename="([^"]+)"/.exec(
-        contentDisposition
-      );
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const match = /filename="([^"]+)"/.exec(contentDisposition);
 
       link.href = url;
-      link.download =
-        match?.[1] ||
-        SAL_FREEZE_EXPORT.EXCEL.DEFAULT_FILENAME;
+      link.download = match?.[1] || SAL_FREEZE_EXPORT.EXCEL.DEFAULT_FILENAME;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      toast.success("Excel scaricato");
     } catch (error: unknown) {
-      const freezeId =
-        freezeDettaglioDaMostrare?.freeze.id || null;
-      const errorMessage = getMessaggioErrore(error);
-
-      console.error("[sal-period-export-error]", {
-        freezeId,
-        type: "excel",
-        errorMessage,
-      });
-
-      setErroreExport(errorMessage);
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingExcel(false);
     }
   };
 
-  const handleToggleCantiereExportMensile = (
-    cantiereIdDaToccare: string
-  ) => {
+  const handleToggleCantiereExportMensile = (cantiereIdDaToccare: string) => {
     setCantiereIdsExportMensile((correnti) =>
       correnti.includes(cantiereIdDaToccare)
         ? correnti.filter((id) => id !== cantiereIdDaToccare)
         : [...correnti, cantiereIdDaToccare]
     );
-    setErroreExportMensile(null);
   };
 
   const handleEsportaExcelMensile = async () => {
-    if (
-      !periodStartExportMensile ||
-      !periodEndExportMensile ||
-      cantiereIdsExportMensile.length === 0
-    ) {
-      setErroreExportMensile(
-        SAL_FREEZE_TESTI.NESSUN_CANTIERE_SELEZIONATO
-      );
+    if (!periodStartExportMensile || !periodEndExportMensile || cantiereIdsExportMensile.length === 0) {
+      toast.error(SAL_FREEZE_TESTI.NESSUN_CANTIERE_SELEZIONATO);
       return;
     }
 
     try {
       setLoadingExcelMensile(true);
-      setErroreExportMensile(null);
 
       const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error(SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO);
 
-      if (!accessToken) {
-        throw new Error(
-          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
-        );
-      }
+      const response = await fetch(API_ROUTES.REPORT_SAL_FREEZE_EXCEL_MULTIPLO, {
+        method: "POST",
+        headers: {
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+        },
+        body: JSON.stringify({
+          periodStart: periodStartExportMensile,
+          periodEnd: periodEndExportMensile,
+          cantiereIds: cantiereIdsExportMensile,
+        }),
+      });
 
-      const response = await fetch(
-        API_ROUTES.REPORT_SAL_FREEZE_EXCEL_MULTIPLO,
-        {
-          method: "POST",
-          headers: {
-            [API_HEADERS.CONTENT_TYPE]:
-              API_HEADERS.APPLICATION_JSON,
-            [API_HEADERS.AUTHORIZATION]:
-              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
-          },
-          body: JSON.stringify({
-            periodStart: periodStartExportMensile,
-            periodEnd: periodEndExportMensile,
-            cantiereIds: cantiereIdsExportMensile,
-          }),
-        }
-      );
+      const contentType = response.headers.get("content-type") || "";
 
-      const contentType =
-        response.headers.get("content-type") || "";
-
-      if (
-        response.redirected ||
-        !contentType.includes(
-          SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.MIME_TYPE
-        )
-      ) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "excel-mensile",
-          });
-
-        console.error("[sal-period-export-error]", {
-          freezeId: null,
-          type: "excel-mensile",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExportMensile(erroreExport.message);
+      if (response.redirected || !contentType.includes(SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.MIME_TYPE)) {
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "excel-mensile" });
+        toast.error(erroreExport);
         return;
       }
 
       if (!response.ok) {
-        const erroreExport =
-          await getMessaggioErroreExportDaResponse({
-            response,
-            tipo: "excel-mensile",
-          });
-
-        console.error("[sal-period-export-error]", {
-          freezeId: null,
-          type: "excel-mensile",
-          status: response.status,
-          contentType,
-          step: erroreExport.step,
-          errorMessage: erroreExport.errorMessage,
-        });
-
-        setErroreExportMensile(erroreExport.message);
+        const erroreExport = await getMessaggioErroreExport({ response, tipo: "excel-mensile" });
+        toast.error(erroreExport);
         return;
       }
 
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");
-      const contentDisposition =
-        response.headers.get("Content-Disposition") || "";
-      const match = /filename="([^"]+)"/.exec(
-        contentDisposition
-      );
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const match = /filename="([^"]+)"/.exec(contentDisposition);
 
       link.href = url;
-      link.download =
-        match?.[1] ||
-        SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.DEFAULT_FILENAME;
+      link.download = match?.[1] || SAL_FREEZE_EXPORT.EXCEL_MULTIPLO.DEFAULT_FILENAME;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      toast.success("Excel scaricato");
     } catch (error: unknown) {
-      const errorMessage = getMessaggioErrore(error);
-
-      console.error("[sal-period-export-error]", {
-        freezeId: null,
-        type: "excel-mensile",
-        status: null,
-        contentType: null,
-        step: "unexpected",
-        errorMessage,
-      });
-
-      setErroreExportMensile(
-        SAL_FREEZE_TESTI.ERRORI.ESPORTAZIONE_EXCEL_MENSILE_FALLITA
-      );
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setLoadingExcelMensile(false);
     }
   };
 
-  const handleAnnullaFreeze = async () => {
-    if (
-      !puoCreareFreeze ||
-      !freezeDettaglioDaMostrare ||
-      freezeSelezionatoAnnullato
-    ) {
-      return;
-    }
-
-    const conferma = window.confirm(
-      `Annullare il freeze del periodo ${getFreezePeriodoLabel(freezeDettaglioDaMostrare.freeze)}?`
-    );
-
-    if (!conferma) {
-      return;
-    }
-
-    try {
-      setSalvataggio(true);
-      setErrore(null);
-      setMessaggio(null);
-
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error) {
-        throw error;
-      }
-
-      const accessToken = data.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error(
-          SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO
-        );
-      }
-
-      const response = await fetch(
-        "/api/sal-freeze/annulla",
-        {
-          method: "POST",
-          headers: {
-            [API_HEADERS.CONTENT_TYPE]:
-              API_HEADERS.APPLICATION_JSON,
-            [API_HEADERS.AUTHORIZATION]:
-              `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
-          },
-          body: JSON.stringify({
-            freezeId: freezeDettaglioDaMostrare.freeze.id,
-          }),
-        }
-      );
-
-      const payload = await response
-        .json()
-        .catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          getMessaggioApi(payload) ||
-            SAL_FREEZE_TESTI.ERRORI.GENERICO
-        );
-      }
-
-      const freezeIdSelezionato = await caricaStoricoFreeze({
-        cantiereIdCorrente: cantiereId,
-        freezeIdDaSelezionare:
-          freezeDettaglioDaMostrare.freeze.id,
-      });
-
-      if (freezeIdSelezionato) {
-        const dettaglioAggiornato =
-          await loadSalFreezeDettaglio({
-            freezeId: freezeIdSelezionato,
-          });
-
-        setFreezeDettaglio(dettaglioAggiornato);
-      }
-      setMessaggio(
-        SAL_FREEZE_TESTI.MESSAGGI.FREEZE_ANNULLATO
-      );
-    } catch (error: unknown) {
-      setErrore(getMessaggioErrore(error));
-    } finally {
-      setSalvataggio(false);
-    }
-  };
-
-  const loading = loadingRuolo || loadingCantieri;
-  const loadingDati =
-    loadingDatiCantiere || loadingDettaglio;
+  const loading = loadingCantieri || loadingRuolo;
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
-        <div className="mx-auto max-w-7xl text-sm text-industrial-muted">
-          {SAL_TESTI.CARICAMENTO}
-        </div>
-      </main>
+      <div className="min-h-dvh bg-bg-base">
+        <AppHeader />
+        <main className="mx-auto max-w-[1200px] px-6 py-6">
+          <p className="text-text-muted">{SAL_TESTI.CARICAMENTO}</p>
+        </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-4 text-industrial-text sm:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-industrial-muted-strong">
-              {SAL_FREEZE_TESTI.BACKOFFICE}
-            </p>
-            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
-              {SAL_FREEZE_TESTI.TITOLO}
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm text-industrial-muted">
-              {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
-            </p>
-          </div>
-
-          <Link
-            href={APP_ROUTES.BACKOFFICE}
-            className="w-full rounded-xl border border-industrial-border bg-industrial-control px-4 py-3 text-center text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white md:w-auto"
-          >
-            {SAL_FREEZE_TESTI.BACKOFFICE}
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <Link href={APP_ROUTES.BACKOFFICE}>
+            <Button variant="secondary" size="sm">
+              Back-office
+            </Button>
           </Link>
+        }
+      />
+
+      <main className="mx-auto max-w-[1200px] px-6 py-6 space-y-6">
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-sm text-text-muted">
+          <Link href={APP_ROUTES.HOME} className="hover:text-text-primary transition-colors">
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link href={APP_ROUTES.BACKOFFICE} className="hover:text-text-primary transition-colors">
+            Back-office
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">{SAL_FREEZE_TESTI.TITOLO}</span>
+        </nav>
+
+        {/* Titolo */}
+        <div>
+          <h1 className="font-heading text-2xl font-medium text-text-primary">
+            {SAL_FREEZE_TESTI.TITOLO}
+          </h1>
+          <p className="text-sm text-text-muted mt-2">
+            {SAL_FREEZE_TESTI.CARD_DESCRIZIONE}
+          </p>
         </div>
 
-        {errore ? (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errore}
-          </div>
-        ) : null}
+        {/* 1. Selezione Cantiere */}
+        <Card className="p-5">
+          <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
+            {SAL_FREEZE_TESTI.CANTIERE}
+          </h2>
+          <SelectCantiere
+            cantieri={cantieri}
+            cantiereId={cantiereId}
+            onChange={setCantiereId}
+            disabled={loadingDatiCantiere}
+          />
+        </Card>
 
-        {messaggio ? (
-          <div className="mb-4 rounded-xl border border-industrial-success-bg bg-industrial-success-bg px-4 py-3 text-sm text-industrial-success-text">
-            {messaggio}
-          </div>
-        ) : null}
+        {/* 2. Crea nuovo SAL periodo (ADMIN only) */}
+        {puoCreareFreeze && (
+          <Card className="p-5 space-y-6">
+            <h2 className="font-heading text-lg font-medium text-text-primary">
+              {SAL_FREEZE_TESTI.CREA_FREEZE}
+            </h2>
 
-        {erroreExport ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {erroreExport}
-          </div>
-        ) : null}
-
-        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <SectionCard
-              title={SAL_FREEZE_TESTI.CANTIERE}
-              subtitle={
-                cantiereSelezionato?.indirizzo || undefined
-              }
-            >
-              <SelectCantiere
-                cantieri={cantieri}
-                cantiereId={cantiereId}
-                onChange={handleCantiereChange}
-                disabled={loadingDati}
-              />
-
-              {!cantieri.length ? (
-                <p className="mt-3 text-sm text-industrial-muted">
-                  {SAL_FREEZE_TESTI.NESSUN_CANTIERE}
-                </p>
-              ) : null}
-            </SectionCard>
-
-            {puoCreareFreeze ? (
-              <SectionCard
-                title={SAL_FREEZE_TESTI.PERIODO_MESE}
-                subtitle={SAL_FREEZE_TESTI.CREA_FREEZE_CTA}
-              >
-                <div className="grid gap-4">
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
-                      {SAL_FREEZE_TESTI.DATA_INIZIO}
-                    </span>
-                    <input
-                      type="date"
-                      value={periodStart}
-                      onChange={(event) =>
-                        setPeriodStart(event.target.value)
-                      }
-                      className="form-field"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
-                      {SAL_FREEZE_TESTI.DATA_FINE}
-                    </span>
-                    <input
-                      type="date"
-                      value={periodEnd}
-                      onChange={(event) =>
-                        setPeriodEnd(event.target.value)
-                      }
-                      className="form-field"
-                    />
-                  </label>
-                </div>
-              </SectionCard>
-            ) : null}
-
-            {puoCreareFreeze ? (
-              <SectionCard
-                title={SAL_FREEZE_TESTI.FOTO_RECENTI}
-                subtitle={SAL_FREEZE_TESTI.FOTO_SELEZIONATE}
-              >
-                {loadingDati ? (
-                  <p className="text-sm text-industrial-muted">
-                    {SAL_TESTI.CARICAMENTO}
-                  </p>
-                ) : recentPhotos.length > 0 ? (
-                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
-                    {recentPhotos.map((foto) => {
-                      const selezionata =
-                        selectedPhotoIds.includes(
-                          foto.id
-                        );
-                      const previewUrl =
-                        getPreviewUrlSicura(
-                          foto.immagine_data_url
-                        );
-
-                      return (
-                        <label
-                          key={foto.id}
-                          className={`w-full max-w-[160px] overflow-hidden rounded-xl border transition-colors duration-200 ease-out ${selezionata ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong"}`}
-                        >
-                          <div className="flex flex-col gap-2 p-3">
-                            <input
-                              type="checkbox"
-                              checked={selezionata}
-                              onChange={() =>
-                                handleTogglePhoto(foto.id)
-                              }
-                              className="mt-1 h-4 w-4 rounded border-industrial-border text-industrial-orange"
-                            />
-
-                            <div className="min-w-0">
-                              <div
-                                className="flex overflow-hidden rounded-lg bg-industrial-bg-soft"
-                                style={{
-                                  width: "160px",
-                                  height: "120px",
-                                  maxWidth: "160px",
-                                  maxHeight: "120px",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                {previewUrl ? (
-                                  <img
-                                    src={previewUrl}
-                                    alt={
-                                      foto.descrizione ||
-                                      SAL_FREEZE_TESTI.FOTO_RECENTI
-                                    }
-                                    className="block h-auto max-h-full w-auto max-w-full object-contain"
-                                  />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center rounded-lg bg-industrial-bg-soft px-3 text-center text-xs text-industrial-muted">
-                                    Preview non disponibile
-                                  </div>
-                                )}
-                              </div>
-
-                              <p className="mt-2 text-sm font-medium text-industrial-text">
-                                {foto.descrizione ||
-                                  formattaData(
-                                    foto.data_riferimento
-                                  )}
-                              </p>
-                              <p className="mt-1 text-xs text-industrial-muted-strong">
-                                {formattaData(
-                                  foto.data_riferimento
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-industrial-muted">
-                    {SAL_FREEZE_TESTI.NESSUNA_FOTO}
-                  </p>
-                )}
-              </SectionCard>
-            ) : null}
-
-            {puoCreareFreeze ? (
-              <SectionCard
-                title={SAL_FREEZE_TESTI.ANTEPRIMA_FOTO_SELEZIONATE}
-                subtitle={`${fotoSelezionate.length} foto`}
-              >
-                {fotoSelezionate.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {fotoSelezionate.map((foto) => {
-                      const previewUrl = getPreviewUrlSicura(
-                        foto.immagine_data_url
-                      );
-
-                      return (
-                        <figure
-                          key={foto.id}
-                          className="w-full max-w-full overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
-                        >
-                          <div
-                            className="overflow-hidden bg-industrial-bg-soft"
-                            style={{
-                              maxWidth: "100%",
-                              height: "200px",
-                            }}
-                          >
-                            {previewUrl ? (
-                              <img
-                                src={previewUrl}
-                                alt={
-                                  foto.descrizione ||
-                                  SAL_FREEZE_TESTI
-                                    .ANTEPRIMA_FOTO_SELEZIONATE
-                                }
-                                className="block h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full items-center justify-center px-3 text-center text-xs text-industrial-muted">
-                                Preview non disponibile
-                              </div>
-                            )}
-                          </div>
-                          <figcaption className="space-y-1 p-3 text-sm text-industrial-muted">
-                            <p className="font-medium text-industrial-text">
-                              {foto.descrizione ||
-                                formattaData(
-                                  foto.data_riferimento
-                                )}
-                            </p>
-                            <p className="text-xs text-industrial-muted-strong">
-                              {formattaData(
-                                foto.data_riferimento
-                              )}
-                            </p>
-                          </figcaption>
-                        </figure>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-industrial-muted">
-                    {SAL_TESTI.NESSUNA_FOTO_SELEZIONATA}
-                  </p>
-                )}
-              </SectionCard>
-            ) : null}
-
-            {puoCreareFreeze ? (
-              <SectionCard
-                title={SAL_FREEZE_TESTI.NOTE}
-              >
-                <textarea
-                  value={note}
-                  onChange={(event) =>
-                    setNote(event.target.value)
-                  }
-                  placeholder={SAL_FREEZE_TESTI.NOTE}
-                  className="form-field min-h-28"
+            {/* Data periodo */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-text-primary text-sm">Periodo</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label={SAL_FREEZE_TESTI.DATA_INIZIO}
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => void handleCreaFreeze()}
-                    disabled={
-                      salvataggio || !cantiereId
-                    }
-                    className="inline-flex h-12 items-center justify-center rounded-xl border border-industrial-orange bg-industrial-orange px-5 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
-                  >
-                    {salvataggio
-                      ? SAL_TESTI.CARICAMENTO
-                      : SAL_FREEZE_TESTI.CREA_FREEZE}
-                  </button>
+                <Input
+                  label={SAL_FREEZE_TESTI.DATA_FINE}
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Foto recenti */}
+            <div className="space-y-3">
+              <h3 className="font-medium text-text-primary text-sm">
+                {SAL_FREEZE_TESTI.FOTO_RECENTI}
+              </h3>
+
+              {loadingDatiCantiere ? (
+                <p className="text-sm text-text-muted">{SAL_TESTI.CARICAMENTO}</p>
+              ) : recentPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {recentPhotos.map((foto) => {
+                    const selezionata = selectedPhotoIds.includes(foto.id);
+                    const previewUrl = getPreviewUrlSicura(foto.immagine_data_url);
+
+                    return (
+                      <label
+                        key={foto.id}
+                        className={cn(
+                          "overflow-hidden rounded-md border transition-colors duration-150 cursor-pointer",
+                          selezionata
+                            ? "border-brand-500 bg-brand-50"
+                            : "border-border hover:border-brand-500"
+                        )}
+                      >
+                        <div className="flex flex-col gap-2 p-2">
+                          <input
+                            type="checkbox"
+                            checked={selezionata}
+                            onChange={() => handleTogglePhoto(foto.id)}
+                            className="h-4 w-4 accent-brand-500"
+                          />
+                          {previewUrl && (
+                            <Image
+                              src={previewUrl}
+                              alt={foto.descrizione}
+                              width={140}
+                              height={140}
+                              className="h-32 w-full rounded object-cover"
+                            />
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
-              </SectionCard>
-            ) : (
-              <SectionCard
-                title={SAL_FREEZE_TESTI.CREA_FREEZE}
-                subtitle={SAL_FREEZE_TESTI.SOLO_ADMIN_CREA}
-              >
-                <p className="text-sm text-industrial-muted">
-                  {SAL_FREEZE_TESTI.SOLO_ADMIN_CREA}
-                </p>
-              </SectionCard>
+              ) : (
+                <p className="text-sm text-text-muted">{SAL_TESTI.NESSUNA_FOTO}</p>
+              )}
+            </div>
+
+            {/* Note */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">
+                {SAL_FREEZE_TESTI.NOTE}
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-subtle outline-none transition-colors duration-150 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 resize-none"
+                placeholder="Note opzionali"
+              />
+            </div>
+
+            {/* Anteprima foto selezionate */}
+            {fotoSelezionate.length > 0 && (
+              <div className="space-y-3 rounded-md bg-bg-subtle p-4 border border-border">
+                <h4 className="font-medium text-text-primary text-sm">
+                  Anteprima ({fotoSelezionate.length} foto selezionate)
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {fotoSelezionate.map((foto) => {
+                    const previewUrl = getPreviewUrlSicura(foto.immagine_data_url);
+                    return (
+                      <div key={foto.id} className="overflow-hidden rounded-md border border-border">
+                        {previewUrl && (
+                          <Image
+                            src={previewUrl}
+                            alt={foto.descrizione}
+                            width={160}
+                            height={160}
+                            className="h-40 w-full object-cover"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
-            {puoEsportareMensile ? (
-              <SectionCard
-                title={
-                  SAL_FREEZE_TESTI
-                    .ESPORTA_EXCEL_MENSILE_TITOLO
-                }
-                subtitle={
-                  SAL_FREEZE_TESTI
-                    .ESPORTA_EXCEL_MENSILE_SOTTOTITOLO
-                }
+            {/* Bottoni azione */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-border">
+              <Button
+                variant="primary"
+                loading={salvataggio}
+                icon={<Plus className="h-4 w-4" />}
+                disabled={!cantiereId || fotoSelezionate.length === 0}
+                onClick={() => void handleCreaFreeze()}
               >
-                <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.PERIODO_EXPORT}
-                      </span>
-                      <input
-                        type="date"
-                        value={periodStartExportMensile}
-                        onChange={(event) =>
-                          setPeriodStartExportMensile(
-                            event.target.value
-                          )
-                        }
-                        className="form-field"
-                      />
-                    </label>
+                Crea SAL periodo
+              </Button>
+            </div>
+          </Card>
+        )}
 
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.DATA_FINE}
-                      </span>
-                      <input
-                        type="date"
-                        value={periodEndExportMensile}
-                        onChange={(event) =>
-                          setPeriodEndExportMensile(
-                            event.target.value
-                          )
-                        }
-                        className="form-field"
-                      />
-                    </label>
-                  </div>
+        {/* 3. Export Excel multi-cantiere (ADMIN/RESPONSABILE) */}
+        {puoEsportareMensile && (
+          <Card className="p-5 space-y-4">
+            <h2 className="font-heading text-lg font-medium text-text-primary">
+              {SAL_FREEZE_TESTI.ESPORTA_EXCEL_MENSILE_TITOLO}
+            </h2>
 
-                  <div>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI
-                          .SELEZIONA_CANTIERI_EXPORT}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCantiereIdsExportMensile(
-                            cantiereIdsExportMensile.length ===
-                              cantieri.length
-                              ? []
-                              : cantieri.map((cantiere) => cantiere.id)
-                          )
-                        }
-                        className="text-xs font-semibold text-industrial-orange transition-colors duration-200 ease-out hover:text-industrial-orange-hover"
-                      >
-                        {cantiereIdsExportMensile.length ===
-                        cantieri.length
-                          ? "Deseleziona tutti"
-                          : "Seleziona tutti"}
-                      </button>
-                    </div>
+            {/* Date range */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Data inizio"
+                type="date"
+                value={periodStartExportMensile}
+                onChange={(e) => setPeriodStartExportMensile(e.target.value)}
+              />
+              <Input
+                label="Data fine"
+                type="date"
+                value={periodEndExportMensile}
+                onChange={(e) => setPeriodEndExportMensile(e.target.value)}
+              />
+            </div>
 
-                    <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                      {cantieri.map((cantiere) => {
-                        const selezionato =
-                          cantiereIdsExportMensile.includes(
-                            cantiere.id
-                          );
+            {/* Select cantieri */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm font-medium text-text-primary">
+                  {SAL_FREEZE_TESTI.SELEZIONA_CANTIERI_EXPORT}
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCantiereIdsExportMensile(
+                      cantiereIdsExportMensile.length === cantieri.length
+                        ? []
+                        : cantieri.map((c) => c.id)
+                    )
+                  }
+                  className="text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
+                >
+                  {cantiereIdsExportMensile.length === cantieri.length
+                    ? "Deseleziona tutti"
+                    : "Seleziona tutti"}
+                </button>
+              </div>
 
-                        return (
-                          <label
-                            key={cantiere.id}
-                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors duration-200 ease-out ${selezionato ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong hover:border-industrial-orange"}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selezionato}
-                              onChange={() =>
-                                handleToggleCantiereExportMensile(
-                                  cantiere.id
-                                )
-                              }
-                              className="mt-1 h-4 w-4 rounded border-industrial-border text-industrial-orange"
-                            />
-
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-industrial-text">
-                                {cantiere.nome}
-                              </p>
-                              {cantiere.indirizzo ? (
-                                <p className="mt-1 text-xs text-industrial-muted">
-                                  {cantiere.indirizzo}
-                                </p>
-                              ) : null}
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {erroreExportMensile ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      {erroreExportMensile}
-                    </div>
-                  ) : null}
-
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void handleEsportaExcelMensile()
-                      }
-                      disabled={
-                        loadingExcelMensile ||
-                        cantiereIdsExportMensile.length === 0
-                      }
-                      className="inline-flex h-12 items-center justify-center rounded-xl border border-industrial-orange bg-industrial-orange px-5 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover active:border-industrial-orange-active active:bg-industrial-orange-active disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+              <div className="max-h-64 space-y-2 overflow-y-auto border border-border rounded-md p-3">
+                {cantieri.map((cantiere) => {
+                  const selezionato = cantiereIdsExportMensile.includes(cantiere.id);
+                  return (
+                    <label
+                      key={cantiere.id}
+                      className={cn(
+                        "flex items-start gap-3 p-2 rounded-md cursor-pointer transition-colors",
+                        selezionato
+                          ? "bg-brand-50 border border-brand-500/30"
+                          : "border border-transparent hover:bg-bg-subtle"
+                      )}
                     >
-                      {loadingExcelMensile
-                        ? SAL_TESTI.CARICAMENTO
-                        : SAL_FREEZE_TESTI.ESPORTA_EXCEL_MENSILE}
-                    </button>
-                  </div>
-                </div>
-              </SectionCard>
-            ) : null}
+                      <input
+                        type="checkbox"
+                        checked={selezionato}
+                        onChange={() => handleToggleCantiereExportMensile(cantiere.id)}
+                        className="mt-0.5 h-4 w-4 accent-brand-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary">{cantiere.nome}</p>
+                        {cantiere.indirizzo && (
+                          <p className="text-xs text-text-muted mt-0.5">{cantiere.indirizzo}</p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
-            <SectionCard
-              title={SAL_FREEZE_TESTI.LISTA_FREEZE}
-              subtitle={
-                cantiereSelezionato
-                  ? cantiereSelezionato.nome
-                  : undefined
-              }
-            >
-              {loadingDati ? (
-                <p className="text-sm text-industrial-muted">
-                  {SAL_TESTI.CARICAMENTO}
-                </p>
-              ) : freezeList.length > 0 ? (
-                <div className="grid gap-2">
+            {/* Bottone export */}
+            <div className="flex justify-end pt-3 border-t border-border">
+              <Button
+                variant="primary"
+                loading={loadingExcelMensile}
+                icon={<Download className="h-4 w-4" />}
+                disabled={cantiereIdsExportMensile.length === 0}
+                onClick={() => void handleEsportaExcelMensile()}
+              >
+                {loadingExcelMensile ? SAL_TESTI.CARICAMENTO : SAL_FREEZE_TESTI.ESPORTA_EXCEL_MENSILE}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* 4. Storico SAL periodi */}
+        {cantiereId && (
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
+              {SAL_FREEZE_TESTI.LISTA_FREEZE}
+            </h2>
+
+            {loadingDatiCantiere ? (
+              <p className="text-sm text-text-muted">{SAL_TESTI.CARICAMENTO}</p>
+            ) : freezeList.length === 0 ? (
+              <p className="text-sm text-text-muted">{SAL_FREEZE_TESTI.NESSUN_DATO}</p>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+                {/* Lista freeze (sinistra) */}
+                <div className="space-y-2 order-2 lg:order-1">
                   {freezeList.map((freeze) => {
-                    const selezionato =
-                      freeze.id === freezeSelezionatoId;
-
+                    const selezionato = freeze.id === freezeSelezionatoId;
                     return (
                       <button
                         key={freeze.id}
-                        type="button"
-                        onClick={() =>
-                          setFreezeSelezionatoId(freeze.id)
-                        }
-                        className={`rounded-xl border p-3 text-left transition-colors duration-200 ease-out ${selezionato ? "border-industrial-orange bg-orange-50" : "border-industrial-border-soft bg-industrial-surface-strong hover:border-industrial-orange hover:text-industrial-orange"}`}
+                        onClick={() => setFreezeSelezionatoId(freeze.id)}
+                        className={cn(
+                          "w-full text-left p-3 rounded-md border transition-colors",
+                          selezionato
+                            ? "bg-brand-50 border-brand-500/30"
+                            : "border-border hover:border-brand-500"
+                        )}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-industrial-text">
-                              {getFreezePeriodoLabel(
-                                freeze
-                              )}
+                        <div className="space-y-1">
+                          <p className="font-medium text-sm text-text-primary">
+                            {getFreezePeriodoLabel(freeze)}
+                          </p>
+                          <p className="text-xs text-text-muted">
+                            {formattaDataConOra(freeze.freeze_at)}
+                          </p>
+                          {freeze.note && (
+                            <p className="text-xs text-text-muted line-clamp-2 mt-1">
+                              {freeze.note}
                             </p>
-                            <p className="mt-1 text-xs text-industrial-muted">
-                              {formattaDataConOra(
-                                freeze.freeze_at
-                              )}
-                            </p>
-                            {freeze.note ? (
-                              <p className="mt-2 line-clamp-2 text-sm text-industrial-muted-strong">
-                                {freeze.note}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <FreezeBadge
-                            annullato={
-                              Boolean(freeze.annullato_at)
-                            }
-                          />
+                          )}
+                          <Badge
+                            variant={freeze.annullato_at ? "error" : "success"}
+                            size="sm"
+                            className="mt-2"
+                          >
+                            {freeze.annullato_at ? "Annullato" : "Attivo"}
+                          </Badge>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-sm text-industrial-muted">
-                  {SAL_FREEZE_TESTI.NESSUN_FREEZE}
-                </p>
-              )}
-            </SectionCard>
-          </div>
 
-          <div className="space-y-6">
-            <SectionCard
-              title={SAL_FREEZE_TESTI.DETTAGLIO_FREEZE}
-              subtitle={
-                freezeDettaglioDaMostrare?.freeze
-                  ? getFreezePeriodoLabel(
-                      freezeDettaglioDaMostrare.freeze
-                    )
-                  : undefined
-              }
-              action={
-                freezeDettaglioDaMostrare ? (
-                  <div className="grid w-full gap-2 sm:grid-cols-2 lg:flex lg:w-auto">
-                    <FreezeBadge
-                      annullato={freezeSelezionatoAnnullato}
-                    />
+                {/* Dettaglio freeze (destra) */}
+                <div className="order-1 lg:order-2 space-y-6">
+                  {freezeSelezionatoId && loadingDettaglio && (
+                    <p className="text-sm text-text-muted">{SAL_TESTI.CARICAMENTO}</p>
+                  )}
 
-                    {!freezeSelezionatoAnnullato ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleEsportaPdf()
-                          }
-                          disabled={loadingPdf}
-                          className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
+                  {freezeDettaglioDaMostrare && (
+                    <>
+                      {/* Bottoni export in alto */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Download className="h-4 w-4" />}
+                          loading={loadingPdf}
+                          disabled={freezeSelezionatoAnnullato}
+                          onClick={() => void handleEsportaPdf()}
                         >
-                          {loadingPdf
-                            ? SAL_TESTI.CARICAMENTO
-                            : SAL_FREEZE_TESTI.ESPORTA_PDF}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleEsportaExcel()
-                          }
-                          disabled={loadingExcel}
-                          className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-industrial-border bg-industrial-control px-4 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white disabled:cursor-not-allowed disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong sm:w-auto"
+                          Esporta PDF
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Download className="h-4 w-4" />}
+                          loading={loadingExcel}
+                          disabled={freezeSelezionatoAnnullato}
+                          onClick={() => void handleEsportaExcel()}
                         >
-                          {loadingExcel
-                            ? SAL_TESTI.CARICAMENTO
-                            : SAL_FREEZE_TESTI.ESPORTA_EXCEL}
-                        </button>
-                      </>
-                    ) : null}
-
-                    {puoCreareFreeze &&
-                    !freezeSelezionatoAnnullato ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleAnnullaFreeze()
-                        }
-                        disabled={salvataggio}
-                        className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition-colors duration-200 ease-out hover:border-red-300 hover:bg-red-100 active:bg-red-200 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                      >
-                        {SAL_FREEZE_TESTI.ANNULLA_FREEZE}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : undefined
-              }
-            >
-              {loadingDati ? (
-                <p className="text-sm text-industrial-muted">
-                  {SAL_TESTI.CARICAMENTO}
-                </p>
-              ) : freezeDettaglioDaMostrare ? (
-                <div className="space-y-6">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-3">
-                      <p className="text-xs uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.CANTIERE}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-industrial-text">
-                        {cantiereSelezionato?.nome ||
-                          freezeDettaglioDaMostrare.freeze.cantiere_id}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-3">
-                      <p className="text-xs uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.PERIODO_MESE}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-industrial-text">
-                        {getFreezePeriodoLabel(
-                          freezeDettaglioDaMostrare.freeze
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-3">
-                      <p className="text-xs uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.FOTO_SELEZIONATE}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-industrial-text">
-                        {freezeDettaglioDaMostrare.foto.length}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-industrial-border-soft bg-industrial-surface-strong p-3">
-                      <p className="text-xs uppercase tracking-[0.24em] text-industrial-muted-strong">
-                        {SAL_FREEZE_TESTI.MACCHINARI}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-industrial-text">
-                        {freezeDettaglioDaMostrare.macchinari.length}
-                      </p>
-                    </div>
-                  </div>
-
-                  {freezeSelezionatoAnnullato ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      Freeze annullato.
-                    </div>
-                  ) : null}
-
-                  <div className="overflow-hidden rounded-xl border border-industrial-border-soft">
-                    <div className="hidden overflow-x-auto md:block">
-                      <table className="min-w-full border-collapse text-left text-sm">
-                        <thead className="bg-industrial-bg-soft text-xs uppercase tracking-[0.2em] text-industrial-muted-strong">
-                          <tr>
-                            <th className="px-4 py-3">
-                              {SAL_TESTI.SELEZIONA_LAVORAZIONE}
-                            </th>
-                            <th className="px-4 py-3">
-                              {SAL_FREEZE_TESTI.PERCENTUALE_PRECEDENTE}
-                            </th>
-                            <th className="px-4 py-3">
-                              {SAL_FREEZE_TESTI.PERCENTUALE_ATTUALE}
-                            </th>
-                            <th className="px-4 py-3">
-                              {SAL_FREEZE_TESTI.DELTA_PERCENTUALE}
-                            </th>
-                            <th className="px-4 py-3">
-                              {SAL_FREEZE_TESTI.ORE_UOMO}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {freezeDettaglioDaMostrare.lavorazioni.map(
-                            (lavorazione) => (
-                              <tr
-                                key={lavorazione.id}
-                                className="border-t border-industrial-border-soft bg-industrial-surface"
-                              >
-                                <td className="px-4 py-3 font-medium text-industrial-text">
-                                  {
-                                    lavorazione.lavorazione_nome_snapshot
-                                  }
-                                </td>
-                                <td className="px-4 py-3 text-industrial-muted">
-                                  {lavorazione.percentuale_precedente}
-                                  %
-                                </td>
-                                <td className="px-4 py-3 text-industrial-text">
-                                  {lavorazione.percentuale_attuale}
-                                  %
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span
-                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getDeltaClassName(
-                                      lavorazione.delta_percentuale
-                                    )}`}
-                                  >
-                                    {formattaDeltaPercentuale(
-                                      lavorazione.delta_percentuale
-                                    )}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-industrial-muted">
-                                  {formattaOreUomo(
-                                    lavorazione.ore_uomo_minuti
-                                  )}
-                                </td>
-                              </tr>
-                            )
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="grid gap-3 p-3 md:hidden">
-                      {freezeDettaglioDaMostrare.lavorazioni.map(
-                        (lavorazione) => (
-                          <FreezeLavorazioneCard
-                            key={lavorazione.id}
-                            lavorazione={lavorazione}
-                          />
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-base font-semibold text-industrial-text">
-                      {SAL_FREEZE_TESTI.FOTO_SELEZIONATE_TITOLO}
-                    </h3>
-
-                    {freezeDettaglioDaMostrare.foto.length > 0 ? (
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {freezeDettaglioDaMostrare.foto.map((foto) => {
-                          const previewUrl = getPreviewUrlSicura(
-                            foto.preview_url
-                          );
-                          const riferimentoTecnico =
-                            getRiferimentoTecnicoFoto(
-                              foto.storage_path_snapshot
-                            );
-
-                          return (
-                          <figure
-                            key={foto.id}
-                            className="w-full max-w-full overflow-hidden rounded-xl border border-industrial-border-soft bg-industrial-surface-strong"
-                          >
-                            <div
-                              className="overflow-hidden bg-industrial-bg-soft"
-                              style={{
-                                maxWidth: "100%",
-                                height: "200px",
-                              }}
-                            >
-                              {previewUrl ? (
-                                <img
-                                  src={previewUrl}
-                                  alt={foto.descrizione}
-                                  className="block h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full items-center justify-center px-3 text-center text-sm text-industrial-muted">
-                                    Preview non disponibile
-                                  </div>
-                                )}
-                              </div>
-                              <figcaption className="space-y-1 p-3">
-                                <p className="text-sm font-medium text-industrial-text">
-                                  {foto.descrizione ||
-                                    formattaData(
-                                      foto.data_riferimento
-                                    )}
-                                </p>
-                                <p className="text-xs text-industrial-muted">
-                                  {formattaData(
-                                    foto.data_riferimento
-                                  )}
-                                </p>
-                                {riferimentoTecnico ? (
-                                  <p className="break-all text-[11px] text-industrial-muted-strong">
-                                    {riferimentoTecnico}
-                                  </p>
-                                ) : null}
-                              </figcaption>
-                            </figure>
-                          );
-                        })}
+                          Esporta Excel
+                        </Button>
                       </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-industrial-muted">
-                        {SAL_TESTI.NESSUNA_FOTO}
-                      </p>
-                    )}
-                  </div>
 
-                  <div>
-                    <h3 className="text-base font-semibold text-industrial-text">
-                      {SAL_FREEZE_TESTI.MACCHINARI}
-                    </h3>
+                      {/* KPI cards */}
+                      {(() => {
+                        const lavorazioni = freezeDettaglioDaMostrare.lavorazioni;
+                        const avanzamentoMedio =
+                          lavorazioni.length > 0
+                            ? Math.round(
+                                lavorazioni.reduce((sum, l) => sum + l.percentuale_attuale, 0) /
+                                  lavorazioni.length
+                              )
+                            : 0;
+                        const deltaMedio =
+                          lavorazioni.length > 0
+                            ? lavorazioni.reduce((sum, l) => sum + l.delta_percentuale, 0) /
+                              lavorazioni.length
+                            : 0;
+                        const oreUomoTotali = lavorazioni.reduce((sum, l) => sum + l.ore_uomo_minuti, 0);
 
-                    {freezeDettaglioDaMostrare.macchinari.length > 0 ? (
-                      <div className="mt-3 overflow-hidden rounded-xl border border-industrial-border-soft">
-                        <div className="hidden overflow-x-auto md:block">
-                          <table className="min-w-full border-collapse text-left text-sm">
-                            <thead className="bg-industrial-bg-soft text-xs uppercase tracking-[0.2em] text-industrial-muted-strong">
-                              <tr>
-                                <th className="px-4 py-3">
-                                  Tipo
-                                </th>
-                                <th className="px-4 py-3">
-                                  Descrizione
-                                </th>
-                                <th className="px-4 py-3">
-                                  Ore utilizzo
-                                </th>
-                                <th className="px-4 py-3">
-                                  Note
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {freezeDettaglioDaMostrare.macchinari.map(
-                                (macchinario) => (
-                                  <tr
-                                    key={macchinario.id}
-                                    className="border-t border-industrial-border-soft bg-industrial-surface"
-                                  >
-                                    <td className="px-4 py-3 font-medium text-industrial-text">
-                                      {
-                                        macchinario.tipo_macchinario_snapshot
-                                      }
+                        return (
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <Card className="p-3">
+                              <p className="text-xs text-text-muted mb-1">Avanzamento</p>
+                              <p className="text-2xl font-semibold text-text-primary">{avanzamentoMedio}%</p>
+                            </Card>
+                            <Card className="p-3">
+                              <p className="text-xs text-text-muted mb-1">Delta vs precedente</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                {getDeltaIcon(deltaMedio)}
+                                <span className="text-lg font-semibold text-text-primary">
+                                  {formattaDeltaPercentuale(deltaMedio)}
+                                </span>
+                              </div>
+                            </Card>
+                            <Card className="p-3">
+                              <p className="text-xs text-text-muted mb-1">Foto consolidate</p>
+                              <p className="text-2xl font-semibold text-text-primary">
+                                {freezeDettaglioDaMostrare.foto.length}
+                              </p>
+                            </Card>
+                            <Card className="p-3">
+                              <p className="text-xs text-text-muted mb-1">Ore uomo</p>
+                              <p className="text-xl font-semibold text-text-primary">
+                                {formattaOreUomo(oreUomoTotali)}
+                              </p>
+                            </Card>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Tabella lavorazioni */}
+                      <div className="space-y-3">
+                        <h3 className="font-medium text-text-primary text-sm">
+                          {SAL_TESTI.SELEZIONA_LAVORAZIONE}
+                        </h3>
+
+                        {freezeDettaglioDaMostrare.lavorazioni.length === 0 ? (
+                          <p className="text-sm text-text-muted">{SAL_TESTI.NESSUNA_LAVORAZIONE}</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead className="bg-bg-subtle border-b border-border">
+                                <tr className="text-xs font-medium text-text-muted uppercase">
+                                  <th className="p-3 text-left">Lavorazione</th>
+                                  <th className="p-3 text-right">Prec. %</th>
+                                  <th className="p-3 text-right">Att. %</th>
+                                  <th className="p-3 text-right">Delta</th>
+                                  <th className="p-3 text-right">Ore</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {freezeDettaglioDaMostrare.lavorazioni.map((lav) => (
+                                  <tr key={lav.id} className="hover:bg-bg-subtle transition-colors">
+                                    <td className="p-3 font-medium text-text-primary">
+                                      {lav.lavorazione_nome_snapshot}
                                     </td>
-                                    <td className="px-4 py-3 text-industrial-muted">
-                                      {
-                                        macchinario.descrizione_snapshot
-                                      }
+                                    <td className="p-3 text-right text-text-muted">
+                                      {lav.percentuale_precedente}%
                                     </td>
-                                    <td className="px-4 py-3 text-industrial-muted">
-                                      {macchinario.ore_utilizzo}
+                                    <td className="p-3 text-right text-text-primary font-medium">
+                                      {lav.percentuale_attuale}%
                                     </td>
-                                    <td className="px-4 py-3 text-industrial-muted">
-                                      {macchinario.note}
+                                    <td className="p-3 text-right">
+                                      <Badge
+                                        variant={getDeltaBadgeVariant(lav.delta_percentuale)}
+                                        size="sm"
+                                        className="inline-flex items-center gap-1"
+                                      >
+                                        {getDeltaIcon(lav.delta_percentuale)}
+                                        {formattaDeltaPercentuale(lav.delta_percentuale)}
+                                      </Badge>
+                                    </td>
+                                    <td className="p-3 text-right text-text-muted">
+                                      {formattaOreUomo(lav.ore_uomo_minuti)}
                                     </td>
                                   </tr>
-                                )
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className="grid gap-3 p-3 md:hidden">
-                          {freezeDettaglioDaMostrare.macchinari.map(
-                            (macchinario) => (
-                              <FreezeMacchinarioCard
-                                key={macchinario.id}
-                                macchinario={macchinario}
-                              />
-                            )
-                          )}
-                        </div>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-industrial-muted">
-                        {SAL_FREEZE_TESTI.NESSUN_DATO}
-                      </p>
-                    )}
-                  </div>
+
+                      {/* Foto */}
+                      {freezeDettaglioDaMostrare.foto.length > 0 && (
+                        <div className="space-y-3">
+                          <h3 className="font-medium text-text-primary text-sm">
+                            {SAL_FREEZE_TESTI.FOTO_SELEZIONATE_TITOLO}
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {freezeDettaglioDaMostrare.foto.map((foto) => {
+                              const previewUrl = getPreviewUrlSicura(foto.preview_url);
+                              return (
+                                <figure
+                                  key={foto.id}
+                                  className="overflow-hidden rounded-md border border-border"
+                                >
+                                  {previewUrl && (
+                                    <Image
+                                      src={previewUrl}
+                                      alt={foto.descrizione}
+                                      width={200}
+                                      height={200}
+                                      className="h-40 w-full object-cover"
+                                    />
+                                  )}
+                                  <figcaption className="p-2 bg-bg-subtle">
+                                    <p className="text-xs text-text-primary line-clamp-2">
+                                      {foto.descrizione || formattaData(foto.data_riferimento)}
+                                    </p>
+                                  </figcaption>
+                                </figure>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Macchinari */}
+                      {freezeDettaglioDaMostrare.macchinari.length > 0 && (
+                        <div className="space-y-3">
+                          <h3 className="font-medium text-text-primary text-sm">
+                            {SAL_FREEZE_TESTI.MACCHINARI}
+                          </h3>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead className="bg-bg-subtle border-b border-border">
+                                <tr className="text-xs font-medium text-text-muted uppercase">
+                                  <th className="p-3 text-left">Tipo</th>
+                                  <th className="p-3 text-left">Descrizione</th>
+                                  <th className="p-3 text-right">Ore</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {freezeDettaglioDaMostrare.macchinari.map((mach) => (
+                                  <tr key={mach.id} className="hover:bg-bg-subtle transition-colors">
+                                    <td className="p-3 font-medium text-text-primary">
+                                      {mach.tipo_macchinario_snapshot}
+                                    </td>
+                                    <td className="p-3 text-text-muted">
+                                      {mach.descrizione_snapshot}
+                                    </td>
+                                    <td className="p-3 text-right text-text-muted">
+                                      {mach.ore_utilizzo}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-industrial-muted">
-                  {loadingDettaglio
-                    ? SAL_TESTI.CARICAMENTO
-                    : SAL_FREEZE_TESTI.NESSUN_DETTAGLIO}
-                </p>
-              )}
-            </SectionCard>
-          </div>
-        </div>
-      </div>
-    </main>
+              </div>
+            )}
+          </Card>
+        )}
+      </main>
+    </div>
   );
 }

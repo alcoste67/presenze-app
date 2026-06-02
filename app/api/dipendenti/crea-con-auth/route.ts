@@ -3,10 +3,12 @@ import {
   type User,
 } from "@supabase/supabase-js";
 
-import { API_HEADERS } from "@/constants/api";
+import { isRecord } from "@/lib/typeGuards";
+import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import type {
   Dipendente,
@@ -18,14 +20,6 @@ import type {
 const SELECT_DIPENDENTE =
   "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at";
 
-const HTTP_STATUS = {
-  CREATED: 201,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  CONFLICT: 409,
-  INTERNAL_SERVER_ERROR: 500,
-} as const;
 
 const ERRORI_API = {
   TOKEN_MANCANTE: "Token autenticazione mancante",
@@ -71,16 +65,6 @@ function jsonErrore(
     {
       status,
     }
-  );
-}
-
-function isRecord(
-  value: unknown
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
   );
 }
 
@@ -390,6 +374,11 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(
+      supabaseAdmin,
+      user.id
+    );
+
     const authUser =
       await creaORecuperaAuthUser(
         dipendente.email
@@ -409,6 +398,7 @@ export async function POST(
         tipo_conteggio_ore:
           dipendente.tipo_conteggio_ore,
         auth_user_id: authUser.userId,
+        azienda_id: aziendaId,
       })
       .select(SELECT_DIPENDENTE)
       .single();
