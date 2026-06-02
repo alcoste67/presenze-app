@@ -119,6 +119,25 @@ function drawText(
   page.drawText(normalizzaTestoPdf(text), options);
 }
 
+function calcolaRighe(text: string, font: PDFFont, size: number, maxWidth: number): number {
+  const words = text.split(" ");
+  let righe = 1;
+  let lineWidth = 0;
+
+  for (const word of words) {
+    const wordWidth = font.widthOfTextAtSize(`${word} `, size);
+
+    if (lineWidth + wordWidth > maxWidth && lineWidth > 0) {
+      righe += 1;
+      lineWidth = wordWidth;
+    } else {
+      lineWidth += wordWidth;
+    }
+  }
+
+  return righe;
+}
+
 function formattaData(value: string) {
   return new Intl.DateTimeFormat("it-IT").format(
     new Date(`${value}T00:00:00`)
@@ -1154,15 +1173,19 @@ async function generaPdf({
   });
 
   lavorazioni.slice(0, 5).forEach((lavorazione) => {
-    currentY = checkNewPage(currentY, 46);
-    const boxY = currentY - 38;
+    const lineHeight = 13;
+    const righe = calcolaRighe(lavorazione.nome, fonts.bold, 11, 280);
+    const boxH = Math.max(38, 16 + righe * lineHeight + 16);
+
+    currentY = checkNewPage(currentY, boxH + 8);
+    const boxY = currentY - boxH;
     const colori = getStatoColoriSal(lavorazione.stato);
 
     page.drawRectangle({
       x: MARGIN_X,
       y: boxY,
       width: contentWidth,
-      height: 38,
+      height: boxH,
       color: COLORS.white,
       borderColor: COLORS.border,
       borderWidth: 1,
@@ -1170,7 +1193,7 @@ async function generaPdf({
 
     drawText(page, lavorazione.nome, {
       x: MARGIN_X + 12,
-      y: boxY + 22,
+      y: boxY + boxH - 16,
       size: 11,
       font: fonts.bold,
       color: COLORS.text,
@@ -1182,7 +1205,7 @@ async function generaPdf({
       `${SAL_TESTI.PERCENTUALE}: ${lavorazione.percentuale_completamento}% · ${SAL_TESTI.ORE_UOMO}: ${formattaOre(lavorazione.oreUomoMinuti)}`,
       {
         x: MARGIN_X + 12,
-        y: boxY + 8,
+        y: boxY + 10,
         size: 8,
         font: fonts.regular,
         color: COLORS.muted,
@@ -1192,7 +1215,7 @@ async function generaPdf({
 
     page.drawRectangle({
       x: PAGE_WIDTH - MARGIN_X - 96,
-      y: boxY + 10,
+      y: boxY + boxH / 2 - 9,
       width: 84,
       height: 18,
       color: colori.background,
@@ -1200,7 +1223,7 @@ async function generaPdf({
 
     drawText(page, getStatoSalLabel(lavorazione.stato), {
       x: PAGE_WIDTH - MARGIN_X - 88,
-      y: boxY + 16,
+      y: boxY + boxH / 2 - 5,
       size: 7,
       font: fonts.bold,
       color: colori.text,
