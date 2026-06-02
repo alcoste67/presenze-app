@@ -382,13 +382,7 @@ export async function GET(request: NextRequest) {
         []) as SalFreezeMacchinario[],
     };
 
-    console.log("[sal-freeze-dettaglio]", {
-      freezeId,
-      cantiereId: freeze.cantiere_id,
-      fotoCount: foto.length,
-      lavorazioniCount: dettaglio.lavorazioni.length,
-      macchinariCount: dettaglio.macchinari.length,
-    });
+
 
     return Response.json(
       {

@@ -129,11 +129,6 @@ export async function GET(request: NextRequest) {
   const freezeList =
     (data || []) as SalFreezeMensile[];
 
-  console.log("[sal-freeze-list]", {
-    cantiereId,
-    freezeCount: freezeList.length,
-  });
-
   return Response.json(
     {
       success: true,
