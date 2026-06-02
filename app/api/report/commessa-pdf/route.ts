@@ -138,6 +138,47 @@ function calcolaRighe(text: string, font: PDFFont, size: number, maxWidth: numbe
   return righe;
 }
 
+function drawTextWrapped(
+  page: PDFPage,
+  text: string,
+  options: {
+    x: number;
+    y: number;
+    size: number;
+    font: PDFFont;
+    color: RGB;
+    maxWidth: number;
+    lineHeight: number;
+  }
+): void {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+
+    if (options.font.widthOfTextAtSize(testLine, options.size) > options.maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+
+  lines.forEach((line, i) => {
+    page.drawText(normalizzaTestoPdf(line), {
+      x: options.x,
+      y: options.y - i * options.lineHeight,
+      size: options.size,
+      font: options.font,
+      color: options.color,
+    });
+  });
+}
+
 function formattaData(value: string) {
   return new Intl.DateTimeFormat("it-IT").format(
     new Date(`${value}T00:00:00`)
@@ -1191,13 +1232,14 @@ async function generaPdf({
       borderWidth: 1,
     });
 
-    drawText(page, lavorazione.nome, {
+    drawTextWrapped(page, lavorazione.nome, {
       x: MARGIN_X + 12,
       y: boxY + boxH - 16,
       size: 11,
       font: fonts.bold,
       color: COLORS.text,
       maxWidth: 280,
+      lineHeight: 13,
     });
 
     drawText(
