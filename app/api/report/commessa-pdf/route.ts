@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import sharp from "sharp";
 import {
   PDFDocument,
   type PDFImage,
@@ -35,6 +36,7 @@ export const runtime = "nodejs";
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 42;
+const MARGIN_Y = MARGIN_X;
 const TOP_Y = 792;
 const FOOTER_Y = 28;
 
@@ -226,14 +228,29 @@ async function embedImmagineDataUrl(
     return null;
   }
 
-  const mime = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
+  const MAX_PX = 1200;
+  const sharpInstance = sharp(bytes);
+  const metadata = await sharpInstance.metadata();
+  const needsResize =
+    (metadata.width ?? 0) > MAX_PX ||
+    (metadata.height ?? 0) > MAX_PX;
 
-  if (mime === "png") {
-    return pdfDoc.embedPng(bytes);
-  }
+  const compressed = await sharpInstance
+    .resize(
+      needsResize
+        ? {
+            width: MAX_PX,
+            height: MAX_PX,
+            fit: "inside",
+            withoutEnlargement: true,
+          }
+        : undefined
+    )
+    .jpeg({ quality: 75 })
+    .toBuffer();
 
-  return pdfDoc.embedJpg(bytes);
+  return pdfDoc.embedJpg(compressed);
 }
 
 function drawFooter(
@@ -1064,7 +1081,10 @@ async function generaPdf({
       const row = totFoto === 1 ? 0 : Math.floor(index / 2);
       const x =
         MARGIN_X + column * (fotoWidth + fotoGap);
-      const y = 520 - row * (fotoHeight + 52);
+      const cardHeight = fotoHeight + 40;
+      const y = totFoto === 1
+        ? PAGE_HEIGHT - MARGIN_Y - cardHeight - 60
+        : 520 - row * (fotoHeight + 52);
 
       page4.drawRectangle({
         x,
