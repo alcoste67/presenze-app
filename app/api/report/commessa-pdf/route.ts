@@ -1038,9 +1038,11 @@ async function generaPdf({
       color: COLORS.muted,
     });
   } else {
-    const fotoWidth =
-      (PAGE_WIDTH - MARGIN_X * 2 - 16) / 2;
-    const fotoHeight = 220;
+    const totFoto = foto.length;
+    const fotoWidth = totFoto === 1
+      ? PAGE_WIDTH - MARGIN_X * 2
+      : (PAGE_WIDTH - MARGIN_X * 2 - 16) / 2;
+    const fotoHeight = totFoto === 1 ? 320 : 220;
     const fotoGap = 16;
 
     const fotoPdf = await Promise.all(
@@ -1058,8 +1060,8 @@ async function generaPdf({
 
     for (let index = 0; index < fotoPdf.length; index += 1) {
       const fotoItem = fotoPdf[index];
-      const column = index % 2;
-      const row = Math.floor(index / 2);
+      const column = totFoto === 1 ? 0 : index % 2;
+      const row = totFoto === 1 ? 0 : Math.floor(index / 2);
       const x =
         MARGIN_X + column * (fotoWidth + fotoGap);
       const y = 520 - row * (fotoHeight + 52);
