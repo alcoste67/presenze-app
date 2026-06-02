@@ -140,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
       await supabaseAdmin.auth.admin.createUser({
         email: emailAdmin,
         password: admin.password,
-        email_confirm: false,
+        email_confirm: true,
       });
 
     if (authError || !authData.user) {
