@@ -87,10 +87,5 @@ export async function loadSalFreezeMensili({
           ? (payload.data as SalFreezeMensile[])
           : [];
 
-  console.log("[sal-freeze-mensili-loader]", {
-    cantiereId,
-    freezeCount: freezeList.length,
-  });
-
   return freezeList;
 }
