@@ -957,182 +957,546 @@ async function generaPdf({
 }) {
   const pdfDoc = await PDFDocument.create();
   const fonts = {
-    regular: await pdfDoc.embedFont(
-      StandardFonts.Helvetica
-    ),
-    bold: await pdfDoc.embedFont(
-      StandardFonts.HelveticaBold
-    ),
+    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+    bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
   };
 
-  const page1 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page1,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawSummaryPage({
-    page: page1,
-    fonts,
-    dashboard,
-    cantiere,
-  });
+  const dataGenerazione = new Date();
+  const startY = TOP_Y - 80;
+  const limitePagina = FOOTER_Y + 60;
+  const contentWidth = PAGE_WIDTH - MARGIN_X * 2;
 
-  const page2 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page2,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawOreUomoPage({
-    page: page2,
-    fonts,
-    dashboard,
-  });
+  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  drawHeader({ page, fonts, cantiere, dataGenerazione });
 
-  const page3 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page3,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
-  drawRapportiPage({
-    page: page3,
-    fonts,
-    dashboard,
-    mostraCosti,
-  });
+  let currentY = startY;
 
-  const page4 = pdfDoc.addPage([
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-  ]);
-  drawHeader({
-    page: page4,
-    fonts,
-    cantiere,
-    dataGenerazione: new Date(),
-  });
+  const checkNewPage = (y: number, spazioNecessario: number) => {
+    if (y - spazioNecessario >= limitePagina) {
+      return y;
+    }
 
-  drawSectionTitle({
-    page: page4,
-    fonts,
-    title: COMMESSA_TESTI.FOTO_RECENTI,
-    subtitle: COMMESSA_TESTI.NUMERO_FOTO_SAL,
-    y: 752,
-  });
+    page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    drawHeader({ page, fonts, cantiere, dataGenerazione });
+    return startY;
+  };
 
-  const foto = dashboard.fotoRecenti.slice(0, 4);
-  if (foto.length === 0) {
-    page4.drawRectangle({
+  const drawSectionHeader = ({
+    title,
+    subtitle,
+    spazioNecessario = 0,
+  }: {
+    title: string;
+    subtitle?: string;
+    spazioNecessario?: number;
+  }) => {
+    currentY = checkNewPage(currentY, 34 + spazioNecessario);
+    drawSectionTitle({ page, fonts, title, subtitle, y: currentY });
+    currentY -= 34;
+  };
+
+  const drawEmptyState = (message: string) => {
+    const height = 48;
+    currentY = checkNewPage(currentY, height + 14);
+    const y = currentY - height;
+
+    page.drawRectangle({
       x: MARGIN_X,
-      y: 660,
-      width: PAGE_WIDTH - MARGIN_X * 2,
-      height: 48,
+      y,
+      width: contentWidth,
+      height,
       color: COLORS.surface,
       borderColor: COLORS.border,
       borderWidth: 1,
     });
 
-    drawText(page4, COMMESSA_TESTI.NESSUNA_FOTO, {
+    drawText(page, message, {
       x: MARGIN_X + 16,
-      y: 687,
+      y: y + 27,
       size: 10,
       font: fonts.regular,
       color: COLORS.muted,
     });
-  } else {
-    const totFoto = foto.length;
-    const fotoWidth = totFoto === 1
-      ? PAGE_WIDTH - MARGIN_X * 2
-      : (PAGE_WIDTH - MARGIN_X * 2 - 16) / 2;
-    const fotoHeight = totFoto === 1 ? 320 : 220;
-    const fotoGap = 16;
 
-    const fotoPdf = await Promise.all(
-      foto.map(async (item) => ({
-        image: await embedImmagineDataUrl(
-          pdfDoc,
-          item.immagine_data_url
-        ),
-        descrizione:
-          item.descrizione ||
-          COMMESSA_TESTI.FOTO_RECENTI,
-        data: item.data_riferimento,
-      }))
+    currentY = y - 14;
+  };
+
+  const lavorazioni = dashboard.sal.lavorazioni;
+  const summary: Array<{
+    label: string;
+    value: string;
+    tone?: "neutral" | "orange" | "green";
+  }> = [
+    {
+      label: COMMESSA_TESTI.AVANZAMENTO_PERCENTUALE,
+      value: `${dashboard.sal.avanzamentoTotale}%`,
+      tone: "orange",
+    },
+    {
+      label: COMMESSA_TESTI.ORE_UOMO_TOTALI,
+      value: formattaOre(dashboard.sal.oreUomoTotaliMinuti),
+    },
+    {
+      label: COMMESSA_TESTI.LAVORAZIONI_COMPLETATE,
+      value: String(
+        lavorazioni.filter(
+          (lavorazione) => lavorazione.stato === SAL_STATI.COMPLETATA
+        ).length
+      ),
+      tone: "green",
+    },
+    {
+      label: COMMESSA_TESTI.LAVORAZIONI_IN_CORSO,
+      value: String(
+        lavorazioni.filter(
+          (lavorazione) => lavorazione.stato === SAL_STATI.IN_CORSO
+        ).length
+      ),
+      tone: "orange",
+    },
+    {
+      label: COMMESSA_TESTI.NUMERO_RAPPORTI,
+      value: String(dashboard.numeroRapportiIntervento),
+    },
+    {
+      label: COMMESSA_TESTI.NUMERO_FOTO_SAL,
+      value: String(dashboard.numeroFotoSal),
+    },
+    {
+      label: COMMESSA_TESTI.ORE_MACCHINARI,
+      value: formattaOreDecimali(
+        dashboard.costiMacchinari.reduce(
+          (somma, costo) => somma + costo.ore_utilizzo,
+          0
+        )
+      ),
+      tone: "orange",
+    },
+  ];
+
+  const cardWidth = (contentWidth - 24) / 3;
+  const cardHeight = 56;
+
+  for (let index = 0; index < summary.length; index += 3) {
+    const row = summary.slice(index, index + 3);
+    currentY = checkNewPage(currentY, cardHeight + 12);
+    const y = currentY - cardHeight;
+
+    row.forEach((card, column) => {
+      drawStatCard({
+        page,
+        fonts,
+        x: MARGIN_X + column * (cardWidth + 12),
+        y,
+        width: cardWidth,
+        height: cardHeight,
+        label: card.label,
+        value: card.value,
+        tone: card.tone || "neutral",
+      });
+    });
+
+    currentY = y - 12;
+  }
+
+  currentY -= 8;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.STATO_AVANZAMENTO,
+    subtitle: cantiere.nome,
+    spazioNecessario: 82,
+  });
+
+  currentY = checkNewPage(currentY, 82 + 24);
+  const progressY = currentY - 82;
+
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: progressY,
+    width: contentWidth,
+    height: 82,
+    color: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+  });
+
+  drawText(page, `${dashboard.sal.avanzamentoTotale}%`, {
+    x: MARGIN_X + 16,
+    y: progressY + 54,
+    size: 20,
+    font: fonts.bold,
+    color: COLORS.orange,
+  });
+
+  drawProgressBar({
+    page,
+    value: dashboard.sal.avanzamentoTotale,
+    x: MARGIN_X + 16,
+    y: progressY + 34,
+    width: contentWidth - 32,
+    height: 10,
+  });
+
+  drawText(page, COMMESSA_TESTI.AVANZAMENTO_PERCENTUALE, {
+    x: MARGIN_X + 16,
+    y: progressY + 22,
+    size: 9,
+    font: fonts.regular,
+    color: COLORS.muted,
+  });
+
+  currentY = progressY - 28;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.LAVORAZIONI_PRINCIPALI,
+    subtitle: COMMESSA_TESTI.STATO_AVANZAMENTO,
+    spazioNecessario: lavorazioni.length > 0 ? 46 : 0,
+  });
+
+  lavorazioni.slice(0, 5).forEach((lavorazione) => {
+    currentY = checkNewPage(currentY, 46);
+    const boxY = currentY - 38;
+    const colori = getStatoColoriSal(lavorazione.stato);
+
+    page.drawRectangle({
+      x: MARGIN_X,
+      y: boxY,
+      width: contentWidth,
+      height: 38,
+      color: COLORS.white,
+      borderColor: COLORS.border,
+      borderWidth: 1,
+    });
+
+    drawText(page, lavorazione.nome, {
+      x: MARGIN_X + 12,
+      y: boxY + 22,
+      size: 11,
+      font: fonts.bold,
+      color: COLORS.text,
+      maxWidth: 280,
+    });
+
+    drawText(
+      page,
+      `${SAL_TESTI.PERCENTUALE}: ${lavorazione.percentuale_completamento}% · ${SAL_TESTI.ORE_UOMO}: ${formattaOre(lavorazione.oreUomoMinuti)}`,
+      {
+        x: MARGIN_X + 12,
+        y: boxY + 8,
+        size: 8,
+        font: fonts.regular,
+        color: COLORS.muted,
+        maxWidth: 300,
+      }
     );
 
-    for (let index = 0; index < fotoPdf.length; index += 1) {
-      const fotoItem = fotoPdf[index];
-      const column = totFoto === 1 ? 0 : index % 2;
-      const row = totFoto === 1 ? 0 : Math.floor(index / 2);
-      const x =
-        MARGIN_X + column * (fotoWidth + fotoGap);
-      const cardHeight = fotoHeight + 40;
-      const y = totFoto === 1
-        ? 710 - cardHeight
-        : 520 - row * (fotoHeight + 52);
+    page.drawRectangle({
+      x: PAGE_WIDTH - MARGIN_X - 96,
+      y: boxY + 10,
+      width: 84,
+      height: 18,
+      color: colori.background,
+    });
 
-      page4.drawRectangle({
-        x,
-        y,
-        width: fotoWidth,
-        height: fotoHeight + 40,
+    drawText(page, getStatoSalLabel(lavorazione.stato), {
+      x: PAGE_WIDTH - MARGIN_X - 88,
+      y: boxY + 16,
+      size: 7,
+      font: fonts.bold,
+      color: colori.text,
+    });
+
+    currentY = boxY - 8;
+  });
+
+  currentY -= 12;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.ORE_UOMO,
+    subtitle: COMMESSA_TESTI.LAVORAZIONI_PRINCIPALI,
+    spazioNecessario: 48,
+  });
+
+  const lavorazioniOre = dashboard.sal.lavorazioni
+    .filter((lavorazione) => lavorazione.oreUomoMinuti > 0)
+    .sort((a, b) => b.oreUomoMinuti - a.oreUomoMinuti)
+    .slice(0, 5);
+
+  if (lavorazioniOre.length === 0) {
+    drawEmptyState(COMMESSA_TESTI.NESSUN_DATO);
+  } else {
+    lavorazioniOre.forEach((lavorazione) => {
+      currentY = checkNewPage(currentY, 46);
+      const boxY = currentY - 38;
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: boxY,
+        width: contentWidth,
+        height: 38,
         color: COLORS.white,
         borderColor: COLORS.border,
         borderWidth: 1,
       });
 
-      if (fotoItem.image) {
-        const ratio =
-          fotoItem.image.width /
-          fotoItem.image.height;
-        let imageWidth = fotoWidth - 16;
-        let imageHeight = fotoHeight;
+      drawText(page, lavorazione.nome, {
+        x: MARGIN_X + 12,
+        y: boxY + 22,
+        size: 11,
+        font: fonts.bold,
+        color: COLORS.text,
+        maxWidth: 280,
+      });
 
-        if (imageWidth / imageHeight > ratio) {
-          imageWidth = imageHeight * ratio;
-        } else {
-          imageHeight = imageWidth / ratio;
+      drawText(
+        page,
+        `${formattaOre(lavorazione.oreUomoMinuti)} · ${lavorazione.percentuale_completamento}%`,
+        {
+          x: PAGE_WIDTH - MARGIN_X - 120,
+          y: boxY + 16,
+          size: 9,
+          font: fonts.bold,
+          color: COLORS.orange,
+          maxWidth: 110,
+        }
+      );
+
+      currentY = boxY - 8;
+    });
+  }
+
+  currentY -= 12;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.MACCHINARI_UTILIZZATI,
+    subtitle: COMMESSA_TESTI.ORE_MACCHINARI,
+    spazioNecessario: 48,
+  });
+
+  const macchinariById = new Map(
+    dashboard.macchinariPubblici.map((macchinario) => [
+      macchinario.id,
+      macchinario,
+    ])
+  );
+  const macchinari = dashboard.costiMacchinari.slice(0, 5);
+
+  if (macchinari.length === 0) {
+    drawEmptyState(COMMESSA_TESTI.NESSUN_DATO);
+  } else {
+    macchinari.forEach((costo) => {
+      currentY = checkNewPage(currentY, 46);
+      const boxY = currentY - 38;
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: boxY,
+        width: contentWidth,
+        height: 38,
+        color: COLORS.white,
+        borderColor: COLORS.border,
+        borderWidth: 1,
+      });
+
+      drawText(page, getNomeMacchinario(costo, macchinariById), {
+        x: MARGIN_X + 12,
+        y: boxY + 22,
+        size: 11,
+        font: fonts.bold,
+        color: COLORS.text,
+        maxWidth: 260,
+      });
+
+      drawText(
+        page,
+        `${formattaData(costo.data_utilizzo)} · ${formattaOreDecimali(costo.ore_utilizzo)}`,
+        {
+          x: MARGIN_X + 12,
+          y: boxY + 8,
+          size: 8,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 250,
+        }
+      );
+
+      drawText(page, costo.note || costo.descrizione || "-", {
+        x: PAGE_WIDTH - MARGIN_X - 140,
+        y: boxY + 16,
+        size: 8,
+        font: fonts.regular,
+        color: COLORS.muted,
+        maxWidth: 130,
+      });
+
+      currentY = boxY - 8;
+    });
+  }
+
+  currentY -= 12;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.RAPPORTI_RECENTI,
+    subtitle: COMMESSA_TESTI.NUMERO_RAPPORTI,
+    spazioNecessario: 58,
+  });
+
+  const rapporti = dashboard.rapportiRecenti.slice(0, 5);
+
+  if (rapporti.length === 0) {
+    drawEmptyState(COMMESSA_TESTI.NESSUN_RAPPORTO);
+  } else {
+    rapporti.forEach((rapporto) => {
+      currentY = checkNewPage(currentY, 58);
+      const boxY = currentY - 50;
+      const colori = getStatoColoriRapporto(rapporto.stato);
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: boxY,
+        width: contentWidth,
+        height: 50,
+        color: COLORS.white,
+        borderColor: COLORS.border,
+        borderWidth: 1,
+      });
+
+      drawText(page, rapporto.cliente_committente, {
+        x: MARGIN_X + 12,
+        y: boxY + 29,
+        size: 11,
+        font: fonts.bold,
+        color: COLORS.text,
+        maxWidth: 250,
+      });
+
+      drawText(
+        page,
+        `${formattaData(rapporto.data_intervento)} · ${rapporto.responsabile_nome}`,
+        {
+          x: MARGIN_X + 12,
+          y: boxY + 15,
+          size: 8,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 260,
+        }
+      );
+
+      drawText(page, LABEL_STATI_RAPPORTO_INTERVENTO[rapporto.stato], {
+        x: PAGE_WIDTH - MARGIN_X - 90,
+        y: boxY + 30,
+        size: 7,
+        font: fonts.bold,
+        color: colori.text,
+      });
+
+      const oreLabel = mostraCosti
+        ? `${COMMESSA_TESTI.ORE_UOMO_TOTALI}: ${formattaOre(rapporto.ore_uomo_reali_minuti)}`
+        : `${COMMESSA_TESTI.ORE_UOMO}: ${formattaOre(rapporto.ore_uomo_reali_minuti)}`;
+
+      drawText(page, oreLabel, {
+        x: PAGE_WIDTH - MARGIN_X - 150,
+        y: boxY + 15,
+        size: 8,
+        font: fonts.regular,
+        color: COLORS.muted,
+        maxWidth: 140,
+      });
+
+      currentY = boxY - 8;
+    });
+  }
+
+  currentY -= 12;
+
+  drawSectionHeader({
+    title: COMMESSA_TESTI.FOTO_RECENTI,
+    subtitle: COMMESSA_TESTI.NUMERO_FOTO_SAL,
+    spazioNecessario: 48,
+  });
+
+  const foto = dashboard.fotoRecenti.slice(0, 4);
+
+  if (foto.length === 0) {
+    drawEmptyState(COMMESSA_TESTI.NESSUNA_FOTO);
+  } else {
+    const totFoto = foto.length;
+    const fotoWidth =
+      totFoto === 1 ? contentWidth : (contentWidth - 16) / 2;
+    const fotoHeight = totFoto === 1 ? 320 : 220;
+    const fotoGap = 16;
+    const cardHeightFoto = fotoHeight + 40;
+
+    const fotoPdf = await Promise.all(
+      foto.map(async (item) => ({
+        image: await embedImmagineDataUrl(pdfDoc, item.immagine_data_url),
+        descrizione: item.descrizione || COMMESSA_TESTI.FOTO_RECENTI,
+        data: item.data_riferimento,
+      }))
+    );
+
+    for (let index = 0; index < fotoPdf.length; ) {
+      const itemsInRow =
+        totFoto === 1 ? 1 : Math.min(2, fotoPdf.length - index);
+
+      currentY = checkNewPage(currentY, cardHeightFoto + 14);
+      const y = currentY - cardHeightFoto;
+
+      for (let column = 0; column < itemsInRow; column += 1) {
+        const fotoItem = fotoPdf[index + column];
+        const x = MARGIN_X + column * (fotoWidth + fotoGap);
+
+        page.drawRectangle({
+          x,
+          y,
+          width: fotoWidth,
+          height: cardHeightFoto,
+          color: COLORS.white,
+          borderColor: COLORS.border,
+          borderWidth: 1,
+        });
+
+        if (fotoItem.image) {
+          const ratio = fotoItem.image.width / fotoItem.image.height;
+          let imageWidth = fotoWidth - 16;
+          let imageHeight = fotoHeight;
+
+          if (imageWidth / imageHeight > ratio) {
+            imageWidth = imageHeight * ratio;
+          } else {
+            imageHeight = imageWidth / ratio;
+          }
+
+          page.drawImage(fotoItem.image, {
+            x: x + (fotoWidth - imageWidth) / 2,
+            y: y + 24 + (fotoHeight - imageHeight) / 2,
+            width: imageWidth,
+            height: imageHeight,
+          });
         }
 
-        page4.drawImage(fotoItem.image, {
-          x: x + (fotoWidth - imageWidth) / 2,
-          y: y + 24 + (fotoHeight - imageHeight) / 2,
-          width: imageWidth,
-          height: imageHeight,
+        drawText(page, fotoItem.descrizione, {
+          x: x + 10,
+          y: y + 14,
+          size: 8,
+          font: fonts.bold,
+          color: COLORS.text,
+          maxWidth: fotoWidth - 20,
+        });
+
+        drawText(page, formattaData(fotoItem.data), {
+          x: x + fotoWidth - 70,
+          y: y + 14,
+          size: 7,
+          font: fonts.regular,
+          color: COLORS.muted,
+          maxWidth: 60,
         });
       }
 
-      drawText(page4, fotoItem.descrizione, {
-        x: x + 10,
-        y: y + 14,
-        size: 8,
-        font: fonts.bold,
-        color: COLORS.text,
-        maxWidth: fotoWidth - 20,
-      });
-
-      drawText(page4, formattaData(fotoItem.data), {
-        x: x + fotoWidth - 70,
-        y: y + 14,
-        size: 7,
-        font: fonts.regular,
-        color: COLORS.muted,
-        maxWidth: 60,
-      });
+      currentY = y - 14;
+      index += itemsInRow;
     }
   }
 
