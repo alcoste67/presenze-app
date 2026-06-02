@@ -446,16 +446,17 @@ export default function BackofficeRapportiInterventoPage() {
 
   const rapportiFiltrati = useMemo(() => {
     const q = ricercaRapporti.trim().toLowerCase();
-    if (!q) return rapporti.slice(0, 3);
-    return rapporti
-      .filter(
+    const lista = !q
+      ? rapporti
+      : rapporti.filter(
         (r) =>
           r.cantiere_nome_snapshot.toLowerCase().includes(q) ||
           r.cliente_committente.toLowerCase().includes(q) ||
           formattaData(r.data_intervento).toLowerCase().includes(q)
-      )
-      .slice(0, 3);
-  }, [rapporti, ricercaRapporti]);
+      );
+
+    return mostraListaRapporti ? lista : lista.slice(0, 3);
+  }, [rapporti, ricercaRapporti, mostraListaRapporti]);
 
   const caricaDati = useCallback(
     async ({ attivo = true }: { attivo?: boolean } = {}) => {
