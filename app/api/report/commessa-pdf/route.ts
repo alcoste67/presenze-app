@@ -1173,7 +1173,7 @@ async function generaPdf({
   });
 
   lavorazioni.slice(0, 5).forEach((lavorazione) => {
-    const lineHeight = 13;
+    const lineHeight = 11;
     const righe = calcolaRighe(lavorazione.nome, fonts.bold, 11, 280);
     const boxH = Math.max(38, 16 + righe * lineHeight + 16);
 
@@ -1205,7 +1205,7 @@ async function generaPdf({
       `${SAL_TESTI.PERCENTUALE}: ${lavorazione.percentuale_completamento}% · ${SAL_TESTI.ORE_UOMO}: ${formattaOre(lavorazione.oreUomoMinuti)}`,
       {
         x: MARGIN_X + 12,
-        y: boxY + 10,
+        y: boxY + 14,
         size: 8,
         font: fonts.regular,
         color: COLORS.muted,
@@ -1229,7 +1229,7 @@ async function generaPdf({
       color: colori.text,
     });
 
-    currentY = boxY - 8;
+    currentY = boxY - 14;
   });
 
   currentY -= 12;
