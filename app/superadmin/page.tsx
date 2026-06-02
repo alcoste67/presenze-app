@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { APP_ROUTES } from "@/constants/routes";
 import { API_HEADERS } from "@/constants/api";
@@ -29,7 +31,22 @@ type Azienda = {
   created_at: string;
 };
 
+// ─── Form types ───────────────────────────────────────────────────────────────
+
+type FormNuovaAzienda = {
+  nome: string;
+  email: string;
+  partita_iva: string;
+  codice_fiscale: string;
+  indirizzo: string;
+  telefono: string;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+const FORM_NUOVA_AZIENDA_INIZIALE: FormNuovaAzienda = {
+  nome: "", email: "", partita_iva: "", codice_fiscale: "", indirizzo: "", telefono: "",
+};
 
 const STATO_BADGE: Record<StatoAbbonamento, BadgeProps["variant"]> = {
   trial:   "warning",
@@ -78,6 +95,10 @@ export default function SuperadminPage() {
   const [caricamento, setCaricamento] = useState(true);
   const [aziende, setAziende] = useState<Azienda[]>([]);
   const [aggiornamento, setAggiornamento] = useState<string | null>(null);
+  const [mostraModal, setMostraModal] = useState(false);
+  const [formNuova, setFormNuova] = useState<FormNuovaAzienda>(FORM_NUOVA_AZIENDA_INIZIALE);
+  const [creazione, setCreazione] = useState(false);
+  const [erroreNome, setErroreNome] = useState<string | undefined>(undefined);
 
   // ── Auth + caricamento ────────────────────────────────────────────────────
 
@@ -144,6 +165,51 @@ export default function SuperadminPage() {
     }
   };
 
+  // ── Nuova azienda ─────────────────────────────────────────────────────────
+
+  const chiudiModal = () => {
+    setMostraModal(false);
+    setFormNuova(FORM_NUOVA_AZIENDA_INIZIALE);
+    setErroreNome(undefined);
+  };
+
+  const creaNuovaAzienda = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!formNuova.nome.trim()) {
+      setErroreNome("Il nome azienda è obbligatorio");
+      return;
+    }
+    setErroreNome(undefined);
+    try {
+      setCreazione(true);
+      const token = await getAccessToken();
+      const res = await fetch("/api/superadmin/aziende", {
+        method: "POST",
+        headers: {
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
+        },
+        body: JSON.stringify({
+          nome:           formNuova.nome.trim(),
+          email:          formNuova.email.trim() || null,
+          partita_iva:    formNuova.partita_iva.trim() || null,
+          codice_fiscale: formNuova.codice_fiscale.trim() || null,
+          indirizzo:      formNuova.indirizzo.trim() || null,
+          telefono:       formNuova.telefono.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Errore creazione azienda");
+      const nuova = (await res.json()) as Azienda;
+      setAziende((prev) => [nuova, ...prev]);
+      chiudiModal();
+      toast.success("Azienda creata");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore creazione azienda"));
+    } finally {
+      setCreazione(false);
+    }
+  };
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (!autorizzato || caricamento) {
@@ -159,12 +225,24 @@ export default function SuperadminPage() {
   return (
     <div className="min-h-dvh bg-bg-base">
       <main className="mx-auto max-w-5xl px-6 py-10">
-        <h1 className="font-heading text-2xl font-medium text-text-primary">
-          Superadmin — Aziende
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          {aziende.length} {aziende.length === 1 ? "azienda registrata" : "aziende registrate"}
-        </p>
+        <Link
+          href="/"
+          className="text-sm text-text-muted hover:text-text-primary transition-colors duration-150"
+        >
+          ← Home
+        </Link>
+
+        <div className="mt-2 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-2xl font-medium text-text-primary">
+              Superadmin — Aziende
+            </h1>
+            <p className="mt-1 text-sm text-text-muted">
+              {aziende.length} {aziende.length === 1 ? "azienda registrata" : "aziende registrate"}
+            </p>
+          </div>
+          <Button onClick={() => setMostraModal(true)}>+ Nuova azienda</Button>
+        </div>
 
         <Card className="mt-6 overflow-hidden">
           <div className="overflow-x-auto">
@@ -294,6 +372,89 @@ export default function SuperadminPage() {
           </div>
         </Card>
       </main>
+
+      {/* ── Modal nuova azienda ── */}
+      {mostraModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={(e) => { if (e.target === e.currentTarget) chiudiModal(); }}
+        >
+          <Card className="w-full max-w-md p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="font-heading text-lg font-medium text-text-primary">
+                Nuova azienda
+              </h2>
+              <button
+                type="button"
+                onClick={chiudiModal}
+                aria-label="Chiudi"
+                className="text-text-muted hover:text-text-primary transition-colors duration-150"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={(e) => void creaNuovaAzienda(e)} noValidate className="flex flex-col gap-4">
+              <Input
+                label="Nome azienda *"
+                value={formNuova.nome}
+                onChange={(e) => setFormNuova((f) => ({ ...f, nome: e.target.value }))}
+                error={erroreNome}
+                disabled={creazione}
+                autoFocus
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={formNuova.email}
+                onChange={(e) => setFormNuova((f) => ({ ...f, email: e.target.value }))}
+                disabled={creazione}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Partita IVA"
+                  value={formNuova.partita_iva}
+                  onChange={(e) => setFormNuova((f) => ({ ...f, partita_iva: e.target.value }))}
+                  disabled={creazione}
+                />
+                <Input
+                  label="Codice fiscale"
+                  value={formNuova.codice_fiscale}
+                  onChange={(e) => setFormNuova((f) => ({ ...f, codice_fiscale: e.target.value }))}
+                  disabled={creazione}
+                />
+              </div>
+              <Input
+                label="Indirizzo"
+                value={formNuova.indirizzo}
+                onChange={(e) => setFormNuova((f) => ({ ...f, indirizzo: e.target.value }))}
+                disabled={creazione}
+              />
+              <Input
+                label="Telefono"
+                type="tel"
+                value={formNuova.telefono}
+                onChange={(e) => setFormNuova((f) => ({ ...f, telefono: e.target.value }))}
+                disabled={creazione}
+              />
+
+              <div className="mt-2 flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={chiudiModal}
+                  disabled={creazione}
+                >
+                  Annulla
+                </Button>
+                <Button type="submit" loading={creazione} className="flex-1">
+                  Crea azienda
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
