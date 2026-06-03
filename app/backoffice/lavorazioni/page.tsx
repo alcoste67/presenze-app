@@ -200,6 +200,8 @@ export default function BackofficeLavorazioniPage() {
   const [salvataggioImport, setSalvataggioImport] = useState(false);
   const [ricerca, setRicerca] = useState("");
   const [isAdminUtente, setIsAdminUtente] = useState(false);
+  const [cercandoPrezzoIdx, setCercandoPrezzoIdx] = useState<number | null>(null);
+  const [fontePrezzi, setFontePrezzi] = useState<Record<number, string>>({});
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -417,6 +419,41 @@ export default function BackofficeLavorazioniPage() {
         .filter((_, i) => i !== index)
         .map((l, i) => ({ ...l, ordine: i + 1 }))
     );
+  };
+
+  const cercaPrezzoDeI = async (index: number, lavorazione: LavorazioneImportPreview) => {
+    setCercandoPrezzoIdx(index);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error(LAVORAZIONI_TESTI.ERRORI.TOKEN_MANCANTE);
+
+      const response = await fetch("/api/lavorazioni/cerca-prezzo-dei", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nome: lavorazione.nome,
+          categoria: lavorazione.categoria,
+          unita_misura: lavorazione.unita_misura,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as { errore?: string };
+        throw new Error(err.errore ?? "Prezzo non trovato");
+      }
+
+      const { prezzo, fonte } = await response.json() as { prezzo: number; fonte: string };
+      aggiornaPreviewImport(index, { ...lavorazione, prezzo_unitario: prezzo });
+      setFontePrezzi((prev) => ({ ...prev, [index]: fonte }));
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Prezzo non trovato"));
+    } finally {
+      setCercandoPrezzoIdx(null);
+    }
   };
 
   const confermaImportLavorazioni = async () => {
@@ -722,15 +759,39 @@ export default function BackofficeLavorazioniPage() {
                               </td>
                               {isAdminUtente && (
                                 <td className="py-2 pr-4">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={lavorazione.prezzo_unitario ?? ""}
-                                    onChange={(e) => aggiornaPreviewImport(index, { ...lavorazione, prezzo_unitario: e.target.value ? Number(e.target.value) : undefined })}
-                                    disabled={bloccoImport}
-                                    className="w-28 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
-                                  />
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={lavorazione.prezzo_unitario ?? ""}
+                                        onChange={(e) => {
+                                          aggiornaPreviewImport(index, { ...lavorazione, prezzo_unitario: e.target.value ? Number(e.target.value) : undefined });
+                                          setFontePrezzi((prev) => { const n = { ...prev }; delete n[index]; return n; });
+                                        }}
+                                        disabled={bloccoImport}
+                                        className="w-28 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
+                                      />
+                                      {!lavorazione.prezzo_unitario && (
+                                        <button
+                                          type="button"
+                                          onClick={() => void cercaPrezzoDeI(index, lavorazione)}
+                                          disabled={bloccoImport || cercandoPrezzoIdx !== null}
+                                          className="shrink-0 h-8 px-2 text-xs font-medium rounded-md border border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {cercandoPrezzoIdx === index
+                                            ? <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                                            : "DEI"}
+                                        </button>
+                                      )}
+                                    </div>
+                                    {fontePrezzi[index] && (
+                                      <p className="text-xs text-text-muted max-w-[9rem] truncate" title={fontePrezzi[index]}>
+                                        {fontePrezzi[index]}
+                                      </p>
+                                    )}
+                                  </div>
                                 </td>
                               )}
                               <td className="py-2 text-right">
