@@ -204,6 +204,7 @@ export default function BackofficeLavorazioniPage() {
   const [fontePrezzi, setFontePrezzi] = useState<Record<number, string>>({});
   const [prezzandoTutte, setPrezzandoTutte] = useState(false);
   const [prezzandoProgresso, setPrezzandoProgresso] = useState<{ corrente: number; totale: number } | null>(null);
+  const [categorieSelezionate, setCategorieSelezionate] = useState<Set<string>>(new Set());
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -230,6 +231,24 @@ export default function BackofficeLavorazioniPage() {
     return lavorazioni.filter((l) => l.nome.toLowerCase().includes(q));
   }, [lavorazioni, ricerca]);
 
+  const categorieDisponibili = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const lav of previewImport) {
+      const cat = lav.categoria ?? "";
+      map.set(cat, (map.get(cat) ?? 0) + 1);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [previewImport]);
+
+  const previewFiltrata = useMemo(() => {
+    if (categorieSelezionate.size === 0) {
+      return previewImport.map((lav, index) => ({ lav, index }));
+    }
+    return previewImport
+      .map((lav, index) => ({ lav, index }))
+      .filter(({ lav }) => categorieSelezionate.has(lav.categoria ?? ""));
+  }, [previewImport, categorieSelezionate]);
+
   const formTitolo = lavorazioneInModificaId
     ? LAVORAZIONI_TESTI.MODIFICA_LAVORAZIONE
     : LAVORAZIONI_TESTI.NUOVA_LAVORAZIONE;
@@ -246,6 +265,8 @@ export default function BackofficeLavorazioniPage() {
   const resetImport = () => {
     setFileComputo(null);
     setPreviewImport([]);
+    setFontePrezzi({});
+    setCategorieSelezionate(new Set());
   };
 
   const aggiornaLavorazioneInLista = (lavorazioneAggiornata: LavorazioneCantiere) => {
@@ -479,6 +500,25 @@ export default function BackofficeLavorazioniPage() {
     }
   };
 
+  const toggleCategoria = (cat: string) => {
+    setCategorieSelezionate((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const rimuoviNonSelezionate = () => {
+    setPreviewImport((correnti) =>
+      correnti
+        .filter((lav) => categorieSelezionate.has(lav.categoria ?? ""))
+        .map((lav, i) => ({ ...lav, ordine: i + 1 }))
+    );
+    setFontePrezzi({});
+    setCategorieSelezionate(new Set());
+  };
+
   const confermaImportLavorazioni = async () => {
     if (!cantiereId) {
       toast.error(LAVORAZIONI_TESTI.ERRORI.CANTIERE_OBBLIGATORIO);
@@ -706,6 +746,42 @@ export default function BackofficeLavorazioniPage() {
                       </div>
                     </div>
 
+                    {categorieDisponibili.length > 1 && (
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        {categorieDisponibili.map(([cat, count]) => {
+                          const label = cat || "Senza categoria";
+                          const selected = categorieSelezionate.has(cat);
+                          return (
+                            <button
+                              key={cat || "__none__"}
+                              type="button"
+                              onClick={() => toggleCategoria(cat)}
+                              disabled={bloccoImport}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                                selected
+                                  ? "bg-brand-500 text-white"
+                                  : "border border-border bg-bg-subtle text-text-secondary hover:border-brand-400 hover:text-text-primary"
+                              )}
+                            >
+                              {label}
+                              <span className={selected ? "opacity-75" : "opacity-60"}>({count})</span>
+                            </button>
+                          );
+                        })}
+                        {categorieSelezionate.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={rimuoviNonSelezionate}
+                            disabled={bloccoImport}
+                            className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border border-error-200 bg-error-50 text-error-600 hover:bg-error-100 disabled:opacity-50 transition-colors"
+                          >
+                            Rimuovi non selezionate
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -734,7 +810,7 @@ export default function BackofficeLavorazioniPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {previewImport.map((lavorazione, index) => (
+                          {previewFiltrata.map(({ lav: lavorazione, index }) => (
                             <tr key={`${lavorazione.ordine}-${index}`} className="border-b border-border last:border-b-0">
                               <td className="py-2 pr-4">
                                 <input
