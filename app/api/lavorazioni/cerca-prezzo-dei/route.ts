@@ -69,7 +69,7 @@ async function chiamaClaude(
 
   if (!response.ok) {
     const dettaglio = await response.text();
-    console.error("Errore Claude cerca-prezzo-dei", dettaglio);
+    console.error("Claude status:", response.status, "body:", dettaglio);
     throw new Error("Ricerca prezzo non riuscita");
   }
 
