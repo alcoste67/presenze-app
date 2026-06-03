@@ -17,6 +17,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({ actions, className }: AppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null } | null>(null)
   const router = useRouter()
   const toast = useToast()
 
@@ -24,6 +25,21 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setIsLoggedIn(Boolean(session?.user))
+        if (session?.user) {
+          supabase
+            .from('dipendenti')
+            .select('aziende(nome, logo_url)')
+            .eq('auth_user_id', session.user.id)
+            .eq('attivo', true)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data?.aziende) {
+                setAzienda(data.aziende as unknown as { nome: string; logo_url: string | null })
+              }
+            })
+        } else {
+          setAzienda(null)
+        }
       }
     )
     return () => subscription.unsubscribe()
@@ -53,13 +69,19 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
         href="/"
         className="flex items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
-        <Image
-          src="/a2c-logo-arancio.png"
-          alt="A2C"
-          width={120}
-          height={34}
-          priority
-        />
+        {azienda?.logo_url ? (
+          <Image
+            src={azienda.logo_url}
+            alt={azienda.nome}
+            width={120}
+            height={34}
+            priority
+          />
+        ) : (
+          <span className="font-heading font-semibold text-text-primary">
+            {azienda?.nome ?? 'Cantivo'}
+          </span>
+        )}
       </Link>
 
       {hasRight && (
