@@ -328,6 +328,7 @@ async function estraiLavorazioniConClaude(
   }
 
   const payload: unknown = await response.json();
+  console.log("Claude response:", JSON.stringify(payload).slice(0, 1000));
 
   if (!isRecord(payload) || !Array.isArray(payload.content)) {
     throw new Error(LAVORAZIONI_TESTI.ERRORI.AI_RISPOSTA_NON_VALIDA);
