@@ -9,7 +9,7 @@ import type {
 } from "@/types/lavorazioni";
 
 const SELECT_LAVORAZIONE_CANTIERE =
-  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, created_at";
+  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, created_at, categoria, unita_misura, quantita, prezzo_unitario, note";
 
 type Params = {
   cantiereId: string;
@@ -35,11 +35,8 @@ function preparaLavorazioni({
 
   return [...lavorazioni]
     .sort((a, b) => a.ordine - b.ordine)
-    .map((lavorazione) =>
-      normalizzaNome(lavorazione.nome)
-    )
-    .filter((nome) => {
-      const chiave = getChiaveNome(nome);
+    .filter((lavorazione) => {
+      const chiave = getChiaveNome(lavorazione.nome);
 
       if (!chiave || nomiUsati.has(chiave)) {
         return false;
@@ -52,14 +49,19 @@ function preparaLavorazioni({
       0,
       LAVORAZIONI_LIMITI.IMPORT_MAX_LAVORAZIONI
     )
-    .map((nome, index) => ({
+    .map((lavorazione, index) => ({
       cantiere_id: cantiereId,
-      nome,
+      nome: normalizzaNome(lavorazione.nome),
       ordine: ordineIniziale + index,
       attiva: true,
       percentuale_completamento:
         LAVORAZIONI_LIMITI.PERCENTUALE_MIN,
       azienda_id: aziendaId,
+      ...(lavorazione.categoria != null && { categoria: lavorazione.categoria }),
+      ...(lavorazione.unita_misura != null && { unita_misura: lavorazione.unita_misura }),
+      ...(lavorazione.quantita != null && { quantita: lavorazione.quantita }),
+      ...(lavorazione.prezzo_unitario != null && { prezzo_unitario: lavorazione.prezzo_unitario }),
+      ...(lavorazione.note != null && { note: lavorazione.note }),
     }));
 }
 

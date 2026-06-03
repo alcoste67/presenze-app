@@ -14,7 +14,9 @@ import {
 } from "@/constants/lavorazioni";
 import { APP_ROUTES } from "@/constants/routes";
 
+import { supabase } from "@/lib/supabase";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { aggiornaLavorazioneCantiere } from "@/services/lavorazioni/aggiornaLavorazioneCantiere";
 import { creaLavorazioneCantiere } from "@/services/lavorazioni/creaLavorazioneCantiere";
 import { creaLavorazioniCantiere } from "@/services/lavorazioni/creaLavorazioniCantiere";
@@ -37,6 +39,14 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const CATEGORIE_LAVORAZIONE = [
+  "DEMOLIZIONI", "COSTRUZIONI", "IMPIANTI ELETTRICI", "DATI",
+  "ANTIFURTO", "DOMOTICA", "IMPIANTI IDRAULICI", "SANITARI",
+  "SERRAMENTI", "TAMPONAMENTI", "FINITURE", "OPERE ESTERNE", "ALTRO",
+] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,15 +153,18 @@ function normalizzaPreviewImport(
 
   return [...lavorazioniImport]
     .sort((a, b) => a.ordine - b.ordine)
-    .map((l) => normalizzaNomeLavorazione(l.nome))
-    .filter((nome) => {
-      const chiave = getChiaveNome(nome);
+    .filter((l) => {
+      const chiave = getChiaveNome(l.nome);
       if (!chiave || nomiUsati.has(chiave)) return false;
       nomiUsati.add(chiave);
       return true;
     })
     .slice(0, LAVORAZIONI_LIMITI.IMPORT_MAX_LAVORAZIONI)
-    .map((nome, index) => ({ nome, ordine: index + 1 }));
+    .map((lav, index) => ({
+      ...lav,
+      nome: normalizzaNomeLavorazione(lav.nome),
+      ordine: index + 1,
+    }));
 }
 
 function getProssimoOrdine(lavorazioni: LavorazioneCantiere[]) {
@@ -186,6 +199,24 @@ export default function BackofficeLavorazioniPage() {
   const [estrazioneImport, setEstrazioneImport] = useState(false);
   const [salvataggioImport, setSalvataggioImport] = useState(false);
   const [ricerca, setRicerca] = useState("");
+  const [isAdminUtente, setIsAdminUtente] = useState(false);
+
+  // ── Effects ──────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let attivo = true;
+    const verificaRuolo = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const admin = user?.email ? await isAdmin(user.email) : false;
+        if (attivo) setIsAdminUtente(admin);
+      } catch {
+        if (attivo) setIsAdminUtente(false);
+      }
+    };
+    void verificaRuolo();
+    return () => { attivo = false; };
+  }, []);
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
@@ -602,6 +633,20 @@ export default function BackofficeLavorazioniPage() {
                             <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
                               {LAVORAZIONI_TESTI.NOME}
                             </th>
+                            <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                              Categoria
+                            </th>
+                            <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                              U.M.
+                            </th>
+                            <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                              Qtà
+                            </th>
+                            {isAdminUtente && (
+                              <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
+                                Prezzo unit.
+                              </th>
+                            )}
                             <th className="py-2.5 text-right text-xs font-medium text-text-muted" />
                           </tr>
                         </thead>
@@ -632,6 +677,52 @@ export default function BackofficeLavorazioniPage() {
                                   className="w-full min-w-48 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
                                 />
                               </td>
+                              <td className="py-2 pr-4">
+                                <select
+                                  value={lavorazione.categoria ?? ""}
+                                  onChange={(e) => aggiornaPreviewImport(index, { ...lavorazione, categoria: e.target.value || undefined })}
+                                  disabled={bloccoImport}
+                                  className="h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
+                                >
+                                  <option value="">—</option>
+                                  {CATEGORIE_LAVORAZIONE.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="py-2 pr-4">
+                                <input
+                                  value={lavorazione.unita_misura ?? ""}
+                                  onChange={(e) => aggiornaPreviewImport(index, { ...lavorazione, unita_misura: e.target.value || undefined })}
+                                  disabled={bloccoImport}
+                                  placeholder="m², cad…"
+                                  className="w-20 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
+                                />
+                              </td>
+                              <td className="py-2 pr-4">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={lavorazione.quantita ?? ""}
+                                  onChange={(e) => aggiornaPreviewImport(index, { ...lavorazione, quantita: e.target.value ? Number(e.target.value) : undefined })}
+                                  disabled={bloccoImport}
+                                  className="w-24 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
+                                />
+                              </td>
+                              {isAdminUtente && (
+                                <td className="py-2 pr-4">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={lavorazione.prezzo_unitario ?? ""}
+                                    onChange={(e) => aggiornaPreviewImport(index, { ...lavorazione, prezzo_unitario: e.target.value ? Number(e.target.value) : undefined })}
+                                    disabled={bloccoImport}
+                                    className="w-28 h-8 px-2 text-sm border border-border rounded-md bg-bg-card text-text-primary outline-none focus:border-brand-500 disabled:bg-bg-subtle"
+                                  />
+                                </td>
+                              )}
                               <td className="py-2 text-right">
                                 <Button
                                   variant="ghost"
