@@ -202,6 +202,8 @@ export default function BackofficeLavorazioniPage() {
   const [isAdminUtente, setIsAdminUtente] = useState(false);
   const [cercandoPrezzoIdx, setCercandoPrezzoIdx] = useState<number | null>(null);
   const [fontePrezzi, setFontePrezzi] = useState<Record<number, string>>({});
+  const [prezzandoTutte, setPrezzandoTutte] = useState(false);
+  const [prezzandoProgresso, setPrezzandoProgresso] = useState<{ corrente: number; totale: number } | null>(null);
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -456,6 +458,27 @@ export default function BackofficeLavorazioniPage() {
     }
   };
 
+  const prezzaTutteLeVoci = async () => {
+    const daPrezzare = previewImport
+      .map((lav, index) => ({ lav, index }))
+      .filter(({ lav }) => !lav.prezzo_unitario);
+    if (daPrezzare.length === 0) return;
+    setPrezzandoTutte(true);
+    try {
+      for (let i = 0; i < daPrezzare.length; i++) {
+        const { lav, index } = daPrezzare[i];
+        setPrezzandoProgresso({ corrente: i + 1, totale: daPrezzare.length });
+        await cercaPrezzoDeI(index, lav);
+        if (i < daPrezzare.length - 1) {
+          await new Promise<void>((r) => setTimeout(r, 2000));
+        }
+      }
+    } finally {
+      setPrezzandoTutte(false);
+      setPrezzandoProgresso(null);
+    }
+  };
+
   const confermaImportLavorazioni = async () => {
     if (!cantiereId) {
       toast.error(LAVORAZIONI_TESTI.ERRORI.CANTIERE_OBBLIGATORIO);
@@ -650,6 +673,19 @@ export default function BackofficeLavorazioniPage() {
                         {LAVORAZIONI_TESTI.ANTEPRIMA_IMPORT}
                       </h3>
                       <div className="flex items-center gap-2">
+                        {isAdminUtente && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => void prezzaTutteLeVoci()}
+                            disabled={bloccoImport || prezzandoTutte || previewImport.every((l) => !!l.prezzo_unitario)}
+                            loading={prezzandoTutte}
+                          >
+                            {prezzandoProgresso
+                              ? `Elaborazione ${prezzandoProgresso.corrente}/${prezzandoProgresso.totale} voci...`
+                              : "Prezza tutte le voci"}
+                          </Button>
+                        )}
                         <Button
                           variant="secondary"
                           size="sm"
