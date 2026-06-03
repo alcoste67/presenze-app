@@ -260,6 +260,7 @@ async function estraiLavorazioniConClaude(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error(LAVORAZIONI_TESTI.ERRORI.AI_NON_CONFIGURATA);
 
+  console.log("Chiamata Claude, content blocks:", content.length, "tipo:", content[0]?.type);
   const response = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
     headers: {
@@ -322,8 +323,10 @@ async function estraiLavorazioniConClaude(
     }),
   });
 
+  console.log("Claude HTTP status:", response.status);
   if (!response.ok) {
-    console.error("Errore Claude import lavorazioni", await response.text());
+    const dettaglio = await response.text();
+    console.error("Errore Claude import lavorazioni", dettaglio);
     throw new Error(LAVORAZIONI_TESTI.ERRORI.AI_ESTRAZIONE_FALLITA);
   }
 
