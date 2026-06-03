@@ -11,7 +11,7 @@ import { isAdmin } from "@/services/dipendenti/isAdmin";
 import type { LavorazioneImportPreview } from "@/types/lavorazioni";
 
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+const ANTHROPIC_MODEL = "claude-sonnet-4-5";
 const ANTHROPIC_VERSION = "2023-06-01";
 const TOOL_NAME = "registra_lavorazioni";
 
