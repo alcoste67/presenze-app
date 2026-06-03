@@ -43,7 +43,7 @@ export const LAVORAZIONI_TESTI = {
   AGGIORNA: "Aggiorna",
   AGGIORNA_PERCENTUALE: "Aggiorna %",
   IMPORTA_COMPUTO: "Importa computo CSV",
-  FILE_COMPUTO: "File computo CSV",
+  FILE_COMPUTO: "Importa computo (CSV, PDF, Excel)",
   CARICA_FILE: "Carica file",
   NESSUN_FILE_SELEZIONATO:
     "Nessun file selezionato",

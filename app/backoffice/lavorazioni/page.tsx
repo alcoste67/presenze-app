@@ -585,6 +585,9 @@ export default function BackofficeLavorazioniPage() {
                       disabled={!cantiereId || bloccoImport}
                       onChange={handleFileComputoChange}
                     />
+                    <p className="mt-1.5 text-xs text-text-muted">
+                      Formati supportati: CSV, PDF, XLSX, XLS · Max 10 MB
+                    </p>
                   </div>
                   <Button
                     variant="primary"
@@ -595,6 +598,13 @@ export default function BackofficeLavorazioniPage() {
                     {LAVORAZIONI_TESTI.ESTRAI_LAVORAZIONI}
                   </Button>
                 </div>
+
+                {estrazioneImport && (
+                  <div className="mt-4 flex items-center gap-3 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+                    <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                    <span>Elaborazione AI in corso... Potrebbe richiedere qualche secondo</span>
+                  </div>
+                )}
 
                 {previewImport.length > 0 && (
                   <div className="mt-5">
