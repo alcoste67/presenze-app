@@ -269,7 +269,7 @@ async function estraiLavorazioniConClaude(
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system:
         "Sei un assistente specializzato nell'analisi di computi metrici edili. " +
         "Estrai le lavorazioni o fasi operative di cantiere dal documento. " +
@@ -328,7 +328,6 @@ async function estraiLavorazioniConClaude(
   }
 
   const payload: unknown = await response.json();
-  console.log("Claude response:", JSON.stringify(payload).slice(0, 500));
 
   if (!isRecord(payload) || !Array.isArray(payload.content)) {
     throw new Error(LAVORAZIONI_TESTI.ERRORI.AI_RISPOSTA_NON_VALIDA);
