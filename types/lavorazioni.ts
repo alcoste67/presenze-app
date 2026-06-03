@@ -6,6 +6,11 @@ export type LavorazioneCantiere = {
   attiva: boolean;
   percentuale_completamento: number;
   created_at: string;
+  categoria?: string | null;
+  unita_misura?: string | null;
+  quantita?: number | null;
+  prezzo_unitario?: number | null;
+  note?: string | null;
 };
 
 export type LavorazioneCantiereInput = {
@@ -14,6 +19,11 @@ export type LavorazioneCantiereInput = {
   ordine: number;
   attiva: boolean;
   percentuale_completamento: number;
+  categoria?: string | null;
+  unita_misura?: string | null;
+  quantita?: number | null;
+  prezzo_unitario?: number | null;
+  note?: string | null;
 };
 
 export type LavorazioneCantiereUpdate = Omit<
@@ -24,4 +34,9 @@ export type LavorazioneCantiereUpdate = Omit<
 export type LavorazioneImportPreview = {
   nome: string;
   ordine: number;
+  categoria?: string;
+  unita_misura?: string;
+  quantita?: number;
+  prezzo_unitario?: number;
+  note?: string;
 };

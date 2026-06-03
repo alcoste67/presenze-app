@@ -4,10 +4,12 @@ export const LAVORAZIONI_LIMITI = {
   PERCENTUALE_MAX: 100,
   IMPORT_MAX_LAVORAZIONI: 100,
   IMPORT_MAX_CSV_CARATTERI: 60000,
+  IMPORT_MAX_FILE_BYTES: 10 * 1024 * 1024,
 } as const;
 
 export const LAVORAZIONI_IMPORT = {
-  FILE_ACCEPT: ".csv,text/csv",
+  FILE_ACCEPT: ".csv,.pdf,.xlsx,.xls",
+  ESTENSIONI_ACCETTATE: [".csv", ".pdf", ".xlsx", ".xls"] as const,
   OPENAI_MODEL_DEFAULT: "gpt-5.4-mini",
 } as const;
 
@@ -80,6 +82,10 @@ export const LAVORAZIONI_TESTI = {
       "File CSV non valido",
     FILE_CSV_TROPPO_GRANDE:
       "File CSV troppo grande",
+    FILE_NON_SUPPORTATO:
+      "Formato file non supportato",
+    FILE_TROPPO_GRANDE:
+      "File troppo grande (max 10 MB)",
     AI_NON_CONFIGURATA:
       "AI non configurata",
     AI_ESTRAZIONE_FALLITA:
