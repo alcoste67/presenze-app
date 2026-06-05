@@ -29,6 +29,12 @@ export const API_ROUTES = {
     "/api/report/rapporto-intervento-pdf",
   VERIFICA_DIPENDENTE_ATTIVO:
     "/api/dipendenti/verifica-attivo",
+  CONTROLLO_COSTI_CONTRATTO:
+    "/api/controllo-costi/contratto",
+  CONTROLLO_COSTI_DASHBOARD:
+    "/api/controllo-costi/dashboard",
+  CONTROLLO_COSTI_MATERIALI:
+    "/api/controllo-costi/materiali",
 } as const;
 
 export const API_HEADERS = {

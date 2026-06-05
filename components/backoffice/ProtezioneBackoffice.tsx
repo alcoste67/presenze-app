@@ -46,6 +46,9 @@ export function ProtezioneBackoffice({
     const accessoMacchinariAdmin =
       pathname ===
       APP_ROUTES.BACKOFFICE_MACCHINARI;
+    const accessoControlloCosti =
+      pathname ===
+      APP_ROUTES.BACKOFFICE_CONTROLLO_COSTI;
     const accessoHubBackoffice =
       pathname === APP_ROUTES.BACKOFFICE;
 
@@ -79,7 +82,7 @@ export function ProtezioneBackoffice({
           return;
         }
 
-        if (accessoMacchinariAdmin) {
+        if (accessoMacchinariAdmin || accessoControlloCosti) {
           router.replace(APP_ROUTES.HOME);
 
           return;
