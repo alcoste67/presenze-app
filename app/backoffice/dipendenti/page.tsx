@@ -46,6 +46,19 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { getMessaggioErrore } from "@/lib/errors";
 
+// ─── Local types ─────────────────────────────────────────────────────────────
+
+type DipendenteFormState = {
+  nome: string;
+  cognome: string;
+  email: string;
+  ruolo: RuoloDipendente;
+  attivo: boolean;
+  tipo_conteggio_ore: TipoConteggioOre;
+  costo_orario: string;
+  ral: string;
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const LABEL_RUOLI_DIPENDENTE: Record<RuoloDipendente, string> = {
@@ -62,19 +75,27 @@ const RUOLO_BADGE_VARIANT: Record<RuoloDipendente, BadgeProps["variant"]> = {
   [RUOLI_DIPENDENTE.UFFICIO]: "muted",
 };
 
-const FORM_INIZIALE: DipendenteInput = {
+const FORM_INIZIALE: DipendenteFormState = {
   nome: "",
   cognome: "",
   email: "",
   ruolo: RUOLI_DIPENDENTE.OPERAIO,
   attivo: true,
   tipo_conteggio_ore: TIPO_CONTEGGIO_ORE.REALE,
+  costo_orario: "",
+  ral: "",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
-function preparaDipendente(dipendente: DipendenteInput): DipendenteInput {
+function parseNumericoDecimale(value: string): number | null {
+  if (!value.trim()) return null;
+  const n = Number(value.trim().replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function preparaDipendente(dipendente: DipendenteFormState): DipendenteInput {
   return {
     nome: dipendente.nome.trim(),
     cognome: dipendente.cognome.trim(),
@@ -82,6 +103,8 @@ function preparaDipendente(dipendente: DipendenteInput): DipendenteInput {
     ruolo: dipendente.ruolo,
     attivo: dipendente.attivo,
     tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
+    costo_orario: parseNumericoDecimale(dipendente.costo_orario),
+    ral: parseNumericoDecimale(dipendente.ral),
   };
 }
 
@@ -97,7 +120,7 @@ export default function BackofficeDipendentiPage() {
   const toast = useToast();
 
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
-  const [form, setForm] = useState<DipendenteInput>(FORM_INIZIALE);
+  const [form, setForm] = useState<DipendenteFormState>(FORM_INIZIALE);
   const [dipendenteInModificaId, setDipendenteInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [salvataggio, setSalvataggio] = useState(false);
@@ -223,6 +246,8 @@ export default function BackofficeDipendentiPage() {
       ruolo: dipendente.ruolo,
       attivo: dipendente.attivo,
       tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
+      costo_orario: dipendente.costo_orario !== null ? String(dipendente.costo_orario) : "",
+      ral: dipendente.ral !== null ? String(dipendente.ral) : "",
     });
   };
 
@@ -239,6 +264,8 @@ export default function BackofficeDipendentiPage() {
           ruolo: dipendente.ruolo,
           attivo: !dipendente.attivo,
           tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
+          costo_orario: dipendente.costo_orario,
+          ral: dipendente.ral,
         },
       });
 
@@ -256,6 +283,8 @@ export default function BackofficeDipendentiPage() {
           ruolo: dipendenteAggiornato.ruolo,
           attivo: dipendenteAggiornato.attivo,
           tipo_conteggio_ore: dipendenteAggiornato.tipo_conteggio_ore,
+          costo_orario: dipendenteAggiornato.costo_orario !== null ? String(dipendenteAggiornato.costo_orario) : "",
+          ral: dipendenteAggiornato.ral !== null ? String(dipendenteAggiornato.ral) : "",
         });
       }
 
@@ -419,6 +448,51 @@ export default function BackofficeDipendentiPage() {
                   </option>
                 ))}
               </Select>
+
+              <div className="flex flex-col gap-1">
+                <Input
+                  label="Costo orario (€/h)"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={form.costo_orario}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, costo_orario: e.target.value }))
+                  }
+                  disabled={salvataggio}
+                />
+                <p className="text-xs text-text-muted">
+                  Inserisci direttamente il costo orario aziendale
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Input
+                  label="RAL annua lorda (€)"
+                  type="number"
+                  step="100"
+                  min="0"
+                  placeholder="0"
+                  value={form.ral}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, ral: e.target.value }))
+                  }
+                  disabled={salvataggio}
+                />
+                <p className="text-xs text-text-muted">
+                  In alternativa al costo orario — verrà calcolato automaticamente (RAL × 1.30 / 1720h)
+                </p>
+                {form.ral && !form.costo_orario && (() => {
+                  const ralNum = Number(form.ral);
+                  if (!Number.isFinite(ralNum) || ralNum <= 0) return null;
+                  return (
+                    <p className="text-xs font-medium text-brand-600">
+                      Costo orario stimato: €{((ralNum * 1.30) / 1720).toFixed(2)}/h
+                    </p>
+                  );
+                })()}
+              </div>
 
               <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                 <input

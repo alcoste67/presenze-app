@@ -18,7 +18,7 @@ import type {
 } from "@/types/dipendenti";
 
 const SELECT_DIPENDENTE =
-  "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at";
+  "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral";
 
 
 const ERRORI_API = {
@@ -151,6 +151,14 @@ async function leggiDipendenteInput(
     ruolo: payload.ruolo,
     attivo: payload.attivo,
     tipo_conteggio_ore: tipoConteggioOre,
+    costo_orario:
+      typeof payload.costo_orario === "number" && payload.costo_orario >= 0
+        ? payload.costo_orario
+        : null,
+    ral:
+      typeof payload.ral === "number" && payload.ral >= 0
+        ? payload.ral
+        : null,
   };
 }
 
@@ -165,6 +173,8 @@ function normalizzaDipendente(
     attivo: dipendente.attivo,
     tipo_conteggio_ore:
       dipendente.tipo_conteggio_ore,
+    costo_orario: dipendente.costo_orario,
+    ral: dipendente.ral,
   };
 }
 
@@ -399,6 +409,8 @@ export async function POST(
           dipendente.tipo_conteggio_ore,
         auth_user_id: authUser.userId,
         azienda_id: aziendaId,
+        costo_orario: dipendente.costo_orario,
+        ral: dipendente.ral,
       })
       .select(SELECT_DIPENDENTE)
       .single();

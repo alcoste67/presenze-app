@@ -17,6 +17,8 @@ export type Dipendente = {
   tipo_conteggio_ore: TipoConteggioOre;
   auth_user_id: string | null;
   created_at: string;
+  costo_orario: number | null;
+  ral: number | null;
 };
 
 export type DipendenteInput = {
@@ -26,4 +28,6 @@ export type DipendenteInput = {
   ruolo: RuoloDipendente;
   attivo: boolean;
   tipo_conteggio_ore: TipoConteggioOre;
+  costo_orario: number | null;
+  ral: number | null;
 };
