@@ -295,7 +295,7 @@ async function estraiMaterialiConClaude(
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system:
         "Estrai le voci di materiale da questo DDT o fattura di acquisto. " +
         "Per ogni voce estrai descrizione, fornitore, quantità, prezzo unitario, numero DDT e data. " +
@@ -353,7 +353,6 @@ async function estraiMaterialiConClaude(
   }
 
   const payload: unknown = await response.json();
-  console.log("[materiali-importa] Claude response:", JSON.stringify(payload).slice(0, 800));
 
   if (!isRecord(payload) || !Array.isArray(payload.content))
     throw new Error(ERRORI.AI_RISPOSTA_NON_VALIDA);
@@ -379,7 +378,6 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const auth = await verificaAdmin(request);
     if (!auth.ok) return auth.risposta;
-    console.log("[importa-mat] auth ok");
 
     let formData: FormData;
     try {
@@ -391,7 +389,6 @@ export async function POST(request: Request): Promise<Response> {
     const file = formData.get("file");
     if (!isFileEntry(file))
       return jsonErr(ERRORI.FILE_OBBLIGATORIO, HTTP_STATUS.BAD_REQUEST);
-    console.log("[importa-mat] file:", file.name, file.size, file.type);
 
     if (!isEstensioneAccettata(file.name))
       return jsonErr(ERRORI.FILE_NON_SUPPORTATO, HTTP_STATUS.BAD_REQUEST);
@@ -421,9 +418,7 @@ export async function POST(request: Request): Promise<Response> {
         return jsonErr(ERRORI.FILE_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
       content = [{ type: "text", text: `Documento:\n${testo.slice(0, MAX_TESTO_CHARS)}` }];
     }
-    console.log("[importa-mat] content ready, tipo:", content[0]?.type);
 
-    console.log("[importa-mat] chiamata Claude...");
     const materiali = await estraiMaterialiConClaude(content);
 
     if (materiali.length === 0)
