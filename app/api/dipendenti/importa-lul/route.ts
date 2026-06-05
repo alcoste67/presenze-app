@@ -121,10 +121,13 @@ async function estraiDipendentiConClaude(base64: string): Promise<DipendenteLulE
       model: ANTHROPIC_MODEL,
       max_tokens: 4096,
       system:
-        "Sei un esperto di paghe italiane. Estrai da questa LUL (Lista Unica del Lavoro) i dati di ogni dipendente: " +
-        "nome, cognome, retribuzione annua lorda (RAL), qualifica e ore settimanali contrattuali. " +
-        "La RAL si calcola moltiplicando la retribuzione mensile lorda × 13 o 14 mensilità se indicato, " +
-        "oppure cercando il totale annuo. Estrai solo dipendenti con dati completi.",
+        "Sei un esperto di paghe italiane. Analizza questa LUL (Lista Unica del Lavoro). " +
+        "Per ogni dipendente estrai nome, cognome e RAL annua lorda. " +
+        "La RAL annua lorda si trova nella sezione ANNO della busta paga, campo 'IMPONIBILE FISCALE' della riga ANNO (non del mese). " +
+        "In alternativa usa il campo 'IMPONIBILE LORDO' annuo o 'TOTALE COMPETENZE' annuo. " +
+        "NON usare la retribuzione mensile moltiplicata — usa sempre il totale annuo già calcolato nel documento. " +
+        "Ogni dipendente ha il proprio imponibile annuo — non usare lo stesso valore per dipendenti diversi. " +
+        "Estrai anche qualifica e ore settimanali se presenti.",
       messages: [
         {
           role: "user",
