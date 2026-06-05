@@ -35,6 +35,8 @@ export const API_ROUTES = {
     "/api/controllo-costi/dashboard",
   CONTROLLO_COSTI_MATERIALI:
     "/api/controllo-costi/materiali",
+  DIPENDENTI_IMPORTA_LUL:
+    "/api/dipendenti/importa-lul",
 } as const;
 
 export const API_HEADERS = {

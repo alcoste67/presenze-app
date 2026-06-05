@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Home,
   Pencil,
@@ -10,7 +10,10 @@ import {
   Power,
   Search,
   Trash2,
+  Upload,
 } from "lucide-react";
+import { API_HEADERS, API_ROUTES } from "@/constants/api";
+import { supabase } from "@/lib/supabase";
 
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import {
@@ -47,6 +50,18 @@ import { cn } from "@/lib/utils";
 import { getMessaggioErrore } from "@/lib/errors";
 
 // ─── Local types ─────────────────────────────────────────────────────────────
+
+type DipendenteLulEstrato = {
+  nome: string;
+  cognome: string;
+  ral: number;
+  qualifica?: string | null;
+  ore_settimanali?: number | null;
+};
+
+type DipendenteLulRow = DipendenteLulEstrato & {
+  dipendenteEsistente: Dipendente | null;
+};
 
 type DipendenteFormState = {
   nome: string;
@@ -126,6 +141,13 @@ export default function BackofficeDipendentiPage() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [ricerca, setRicerca] = useState("");
   const [confirmDeleteDipendente, setConfirmDeleteDipendente] = useState<Dipendente | null>(null);
+
+  // LUL import
+  const fileLulRef = useRef<HTMLInputElement>(null);
+  const [previewLul, setPreviewLul] = useState<DipendenteLulRow[]>([]);
+  const [previewLulSelezionate, setPreviewLulSelezionate] = useState<Set<number>>(new Set());
+  const [importandoLul, setImportandoLul] = useState(false);
+  const [aggiornandoLul, setAggiornandoLul] = useState(false);
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -330,6 +352,100 @@ export default function BackofficeDipendentiPage() {
     }
   };
 
+  const handleImportaLul = async (file: File | undefined) => {
+    if (fileLulRef.current) fileLulRef.current.value = "";
+    if (!file) return;
+    try {
+      setImportandoLul(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessione non valida");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(API_ROUTES.DIPENDENTI_IMPORTA_LUL, {
+        method: "POST",
+        headers: {
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${session.access_token}`,
+        },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null) as { errore?: string } | null;
+        throw new Error(err?.errore ?? "Errore importazione LUL");
+      }
+      const estratti = await res.json() as DipendenteLulEstrato[];
+      const rows: DipendenteLulRow[] = estratti.map((d) => ({
+        ...d,
+        dipendenteEsistente:
+          dipendenti.find(
+            (dip) =>
+              dip.nome.trim().toLowerCase() === d.nome.trim().toLowerCase() &&
+              dip.cognome.trim().toLowerCase() === d.cognome.trim().toLowerCase()
+          ) ?? null,
+      }));
+      setPreviewLul(rows);
+      setPreviewLulSelezionate(
+        new Set(
+          rows.reduce<number[]>((acc, r, i) => {
+            if (r.dipendenteEsistente) acc.push(i);
+            return acc;
+          }, [])
+        )
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore importazione LUL"));
+    } finally {
+      setImportandoLul(false);
+    }
+  };
+
+  const confermaAggiornaDaLul = async () => {
+    const righe = previewLul
+      .filter((_, i) => previewLulSelezionate.has(i))
+      .filter((r) => r.dipendenteEsistente !== null);
+    if (righe.length === 0) {
+      toast.error("Nessun dipendente trovato selezionato");
+      return;
+    }
+    try {
+      setAggiornandoLul(true);
+      await Promise.all(
+        righe.map((r) => {
+          const d = r.dipendenteEsistente!;
+          return aggiornaDipendente({
+            dipendenteId: d.id,
+            dipendente: {
+              nome: d.nome,
+              cognome: d.cognome,
+              email: d.email,
+              ruolo: d.ruolo,
+              attivo: d.attivo,
+              tipo_conteggio_ore: d.tipo_conteggio_ore,
+              ral: r.ral,
+              costo_orario: Math.round((r.ral * 1.30) / 1720 * 100) / 100,
+            },
+          });
+        })
+      );
+      toast.success(`${righe.length} dipendenti aggiornati`);
+      setPreviewLul([]);
+      setPreviewLulSelezionate(new Set());
+      await caricaDipendenti();
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore aggiornamento dipendenti"));
+    } finally {
+      setAggiornandoLul(false);
+    }
+  };
+
+  const toggleLulRow = (idx: number) => {
+    setPreviewLulSelezionate((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -337,6 +453,22 @@ export default function BackofficeDipendentiPage() {
       <AppHeader
         actions={
           <>
+            <input
+              ref={fileLulRef}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={(e) => void handleImportaLul(e.target.files?.[0])}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Upload className="h-4 w-4" />}
+              loading={importandoLul}
+              onClick={() => fileLulRef.current?.click()}
+            >
+              Importa da LUL
+            </Button>
             <Link href={APP_ROUTES.BACKOFFICE}>
               <Button variant="secondary" size="sm">
                 {PRODUTTIVITA_TESTI.BACKOFFICE}
@@ -690,6 +822,117 @@ export default function BackofficeDipendentiPage() {
           onConfirm={() => void eseguiElimina()}
           onCancel={() => setConfirmDeleteDipendente(null)}
         />
+      )}
+
+      {/* Modal preview LUL */}
+      {previewLul.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-10 overflow-y-auto">
+          <Card className="w-full max-w-3xl p-6 mb-10">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="font-heading text-lg font-medium text-text-primary">
+                  Anteprima import LUL
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {previewLul.filter((r) => r.dipendenteEsistente).length} trovati ·{" "}
+                  {previewLul.filter((r) => !r.dipendenteEsistente).length} nuovi (non importabili)
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={aggiornandoLul}
+                  onClick={() => {
+                    setPreviewLul([]);
+                    setPreviewLulSelezionate(new Set());
+                  }}
+                >
+                  Annulla
+                </Button>
+                <Button
+                  size="sm"
+                  loading={aggiornandoLul}
+                  disabled={previewLulSelezionate.size === 0}
+                  onClick={() => void confermaAggiornaDaLul()}
+                >
+                  Aggiorna selezionati
+                </Button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-bg-base">
+                    <th className="px-4 py-3" />
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
+                      Dipendente
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
+                      Qualifica
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
+                      RAL
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
+                      Costo/h stimato
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
+                      Stato
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewLul.map((r, idx) => {
+                    const trovato = r.dipendenteEsistente !== null;
+                    const costoStimato = (r.ral * 1.30) / 1720;
+                    return (
+                      <tr
+                        key={idx}
+                        className={cn(
+                          "border-b border-border last:border-b-0 transition-colors duration-150",
+                          trovato ? "cursor-pointer hover:bg-bg-base" : "opacity-60"
+                        )}
+                        onClick={() => { if (trovato) toggleLulRow(idx); }}
+                      >
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={previewLulSelezionate.has(idx)}
+                            disabled={!trovato}
+                            onChange={() => toggleLulRow(idx)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded border-border"
+                          />
+                        </td>
+                        <td className="px-4 py-3 font-medium text-text-primary">
+                          {r.cognome} {r.nome}
+                        </td>
+                        <td className="px-4 py-3 text-text-muted">
+                          {r.qualifica ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-muted">
+                          {new Intl.NumberFormat("it-IT", {
+                            style: "currency",
+                            currency: "EUR",
+                          }).format(r.ral)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-text-muted">
+                          €{costoStimato.toFixed(2)}/h
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={trovato ? "success" : "muted"} size="sm">
+                            {trovato ? "Trovato" : "Nuovo"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
