@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { Home, Plus, Trash2 } from "lucide-react";
+import React, { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { Home, Plus, Trash2, Upload } from "lucide-react";
 
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { APP_ROUTES } from "@/constants/routes";
@@ -40,6 +40,15 @@ type DashboardData = {
   };
   margine: number;
   margine_percentuale: number | null;
+};
+
+type MaterialeImportRow = {
+  descrizione: string;
+  fornitore?: string | null;
+  quantita?: number | null;
+  prezzo_unitario: number;
+  numero_ddt?: string | null;
+  data_acquisto?: string | null;
 };
 
 type MaterialeRow = {
@@ -168,6 +177,13 @@ export default function BackofficeControlloCostiPage() {
   const [modalAperta, setModalAperta] = useState(false);
   const [formMateriale, setFormMateriale] = useState<MaterialeForm>(MATERIALE_VUOTO);
   const [salvaggioMateriale, setSalvaggioMateriale] = useState(false);
+
+  // DDT import
+  const fileImportRef = useRef<HTMLInputElement>(null);
+  const [previewMateriali, setPreviewMateriali] = useState<MaterialeImportRow[]>([]);
+  const [previewSelezionate, setPreviewSelezionate] = useState<Set<number>>(new Set());
+  const [importandoMateriali, setImportandoMateriali] = useState(false);
+  const [confermandoImport, setConfermandoImport] = useState(false);
 
   // ── Loaders ────────────────────────────────────────────────────────────────
 
@@ -371,6 +387,87 @@ export default function BackofficeControlloCostiPage() {
     setFormMateriale(MATERIALE_VUOTO);
   };
 
+  const handleImportaDaDDT = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileImportRef.current) fileImportRef.current.value = "";
+    if (!file || !cantiereId) return;
+    try {
+      setImportandoMateriali(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessione non valida");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${API_ROUTES.CONTROLLO_COSTI_MATERIALI}/importa`, {
+        method: "POST",
+        headers: { [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${session.access_token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Errore estrazione materiali");
+      const data = await res.json() as MaterialeImportRow[];
+      if (data.length === 0) {
+        toast.error("Nessun materiale trovato nel documento");
+        return;
+      }
+      setPreviewMateriali(data);
+      setPreviewSelezionate(new Set(data.map((_, i) => i)));
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore importazione DDT"));
+    } finally {
+      setImportandoMateriali(false);
+    }
+  };
+
+  const confermaImportMateriali = async () => {
+    if (!cantiereId || previewSelezionate.size === 0) return;
+    try {
+      setConfermandoImport(true);
+      const headers = await getAuthHeaders();
+      const righe = previewMateriali.filter((_, i) => previewSelezionate.has(i));
+      await Promise.all(
+        righe.map((m) =>
+          fetch(API_ROUTES.CONTROLLO_COSTI_MATERIALI, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              cantiere_id: cantiereId,
+              descrizione: m.descrizione,
+              fornitore: m.fornitore ?? null,
+              quantita: m.quantita ?? 1,
+              prezzo_unitario: m.prezzo_unitario,
+              data_acquisto: m.data_acquisto ?? null,
+              numero_ddt: m.numero_ddt ?? null,
+            }),
+          })
+        )
+      );
+      toast.success(`${righe.length} materiali importati`);
+      setPreviewMateriali([]);
+      setPreviewSelezionate(new Set());
+      await Promise.all([caricaMateriali(cantiereId), caricaDashboard(cantiereId)]);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore importazione materiali"));
+    } finally {
+      setConfermandoImport(false);
+    }
+  };
+
+  const togglePreviewRow = (idx: number) => {
+    setPreviewSelezionate((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleTuttePreview = () => {
+    setPreviewSelezionate((prev) =>
+      prev.size === previewMateriali.length
+        ? new Set()
+        : new Set(previewMateriali.map((_, i) => i))
+    );
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -559,13 +656,31 @@ export default function BackofficeControlloCostiPage() {
                     <p className="text-xs text-text-muted mt-0.5">{materiali.length} voci</p>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  icon={<Plus className="h-4 w-4" />}
-                  onClick={() => setModalAperta(true)}
-                >
-                  Aggiungi materiale
-                </Button>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileImportRef}
+                    type="file"
+                    accept=".pdf,.xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={(e) => void handleImportaDaDDT(e)}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Upload className="h-4 w-4" />}
+                    loading={importandoMateriali}
+                    onClick={() => fileImportRef.current?.click()}
+                  >
+                    Importa da DDT/Fattura
+                  </Button>
+                  <Button
+                    size="sm"
+                    icon={<Plus className="h-4 w-4" />}
+                    onClick={() => setModalAperta(true)}
+                  >
+                    Aggiungi materiale
+                  </Button>
+                </div>
               </div>
 
               {loadingMateriali && (
@@ -625,6 +740,90 @@ export default function BackofficeControlloCostiPage() {
                 </div>
               )}
             </Card>
+
+            {/* 5. Anteprima importazione DDT */}
+            {previewMateriali.length > 0 && (
+              <Card className="mt-5 overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <div>
+                    <h2 className="font-heading text-lg font-medium text-text-primary">Anteprima importazione</h2>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      {previewSelezionate.size} di {previewMateriali.length} righe selezionate
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => { setPreviewMateriali([]); setPreviewSelezionate(new Set()); }}
+                    >
+                      Annulla
+                    </Button>
+                    <Button
+                      size="sm"
+                      loading={confermandoImport}
+                      disabled={previewSelezionate.size === 0}
+                      onClick={() => void confermaImportMateriali()}
+                    >
+                      Importa selezionati
+                    </Button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-bg-base">
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={previewSelezionate.size === previewMateriali.length && previewMateriali.length > 0}
+                            onChange={toggleTuttePreview}
+                            className="rounded border-border"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">Descrizione</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">Fornitore</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">Data</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">DDT</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">Qtà</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">Prezzo unit.</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">Totale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewMateriali.map((m, idx) => (
+                        <tr
+                          key={idx}
+                          className={`border-b border-border last:border-b-0 cursor-pointer transition-colors duration-150 ${
+                            previewSelezionate.has(idx) ? "bg-brand-50" : "hover:bg-bg-base"
+                          }`}
+                          onClick={() => togglePreviewRow(idx)}
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={previewSelezionate.has(idx)}
+                              onChange={() => togglePreviewRow(idx)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="rounded border-border"
+                            />
+                          </td>
+                          <td className="px-4 py-3 font-medium text-text-primary">{m.descrizione}</td>
+                          <td className="px-4 py-3 text-text-muted">{m.fornitore ?? "—"}</td>
+                          <td className="px-4 py-3 text-text-muted">{formattaData(m.data_acquisto ?? null)}</td>
+                          <td className="px-4 py-3 text-text-muted">{m.numero_ddt ?? "—"}</td>
+                          <td className="px-4 py-3 text-right text-text-muted">{m.quantita ?? 1}</td>
+                          <td className="px-4 py-3 text-right text-text-muted">{formattaEuro(m.prezzo_unitario)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-text-primary">
+                            {formattaEuro((m.quantita ?? 1) * m.prezzo_unitario)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </>
         )}
       </main>
