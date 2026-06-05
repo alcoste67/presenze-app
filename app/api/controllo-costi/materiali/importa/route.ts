@@ -379,6 +379,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const auth = await verificaAdmin(request);
     if (!auth.ok) return auth.risposta;
+    console.log("[importa-mat] auth ok");
 
     let formData: FormData;
     try {
@@ -390,6 +391,7 @@ export async function POST(request: Request): Promise<Response> {
     const file = formData.get("file");
     if (!isFileEntry(file))
       return jsonErr(ERRORI.FILE_OBBLIGATORIO, HTTP_STATUS.BAD_REQUEST);
+    console.log("[importa-mat] file:", file.name, file.size, file.type);
 
     if (!isEstensioneAccettata(file.name))
       return jsonErr(ERRORI.FILE_NON_SUPPORTATO, HTTP_STATUS.BAD_REQUEST);
@@ -419,7 +421,9 @@ export async function POST(request: Request): Promise<Response> {
         return jsonErr(ERRORI.FILE_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
       content = [{ type: "text", text: `Documento:\n${testo.slice(0, MAX_TESTO_CHARS)}` }];
     }
+    console.log("[importa-mat] content ready, tipo:", content[0]?.type);
 
+    console.log("[importa-mat] chiamata Claude...");
     const materiali = await estraiMaterialiConClaude(content);
 
     if (materiali.length === 0)
