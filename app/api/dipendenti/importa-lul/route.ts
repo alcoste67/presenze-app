@@ -127,7 +127,11 @@ async function estraiDipendentiConClaude(base64: string): Promise<DipendenteLulE
         "In alternativa usa il campo 'IMPONIBILE LORDO' annuo o 'TOTALE COMPETENZE' annuo. " +
         "NON usare la retribuzione mensile moltiplicata — usa sempre il totale annuo già calcolato nel documento. " +
         "Ogni dipendente ha il proprio imponibile annuo — non usare lo stesso valore per dipendenti diversi. " +
-        "Estrai anche qualifica e ore settimanali se presenti.",
+        "Estrai anche qualifica e ore settimanali se presenti. " +
+        "ATTENZIONE: L'imponibile fiscale nella sezione ANNO è il cumulato dall'inizio dell'anno al mese corrente, NON la RAL annua completa. " +
+        "Per calcolare la RAL annua: dividi l'imponibile fiscale annuo per il numero di mesi trascorsi e moltiplica per 12. " +
+        "Il mese della busta paga è indicato nell'intestazione. " +
+        "In alternativa, usa la RETRIBUZIONE MENSILE e moltiplicala per 13 mensilità.",
       messages: [
         {
           role: "user",
