@@ -409,24 +409,28 @@ export default function BackofficeDipendentiPage() {
     try {
       setAggiornandoLul(true);
       console.log("[lul] righe da aggiornare:", righe.map((r) => ({ id: r.dipendenteEsistente?.id, ral: r.ral })));
-      await Promise.all(
-        righe.map((r) => {
+      const risultati = await Promise.all(
+        righe.map(async (r) => {
           const d = r.dipendenteEsistente!;
-          return aggiornaDipendente({
-            dipendenteId: d.id,
-            dipendente: {
-              nome: d.nome,
-              cognome: d.cognome,
-              email: d.email,
-              ruolo: d.ruolo,
-              attivo: d.attivo,
-              tipo_conteggio_ore: d.tipo_conteggio_ore,
-              ral: r.ral,
-              costo_orario: Math.round((r.ral * 1.30) / 1720 * 100) / 100,
-            },
-          });
+          try {
+            const res = await aggiornaDipendente({
+              dipendenteId: d.id,
+              dipendente: {
+                nome: d.nome, cognome: d.cognome, email: d.email,
+                ruolo: d.ruolo, attivo: d.attivo, tipo_conteggio_ore: d.tipo_conteggio_ore,
+                ral: r.ral,
+                costo_orario: Math.round((r.ral * 1.30) / 1720 * 100) / 100,
+              },
+            });
+            console.log("[lul] aggiornato:", d.id, res);
+            return res;
+          } catch (err) {
+            console.error("[lul] errore aggiornamento:", d.id, err);
+            throw err;
+          }
         })
       );
+      console.log("[lul] tutti aggiornati:", risultati.length);
       toast.success(`${righe.length} dipendenti aggiornati`);
       setPreviewLul([]);
       setPreviewLulSelezionate(new Set());
