@@ -408,6 +408,7 @@ export default function BackofficeDipendentiPage() {
     }
     try {
       setAggiornandoLul(true);
+      console.log("[lul] righe da aggiornare:", righe.map((r) => ({ id: r.dipendenteEsistente?.id, ral: r.ral })));
       await Promise.all(
         righe.map((r) => {
           const d = r.dipendenteEsistente!;
@@ -430,6 +431,16 @@ export default function BackofficeDipendentiPage() {
       setPreviewLul([]);
       setPreviewLulSelezionate(new Set());
       await caricaDipendenti();
+      if (dipendenteInModificaId) {
+        const aggiornato = righe.find((r) => r.dipendenteEsistente?.id === dipendenteInModificaId);
+        if (aggiornato) {
+          setForm((prev) => ({
+            ...prev,
+            ral: String(aggiornato.ral),
+            costo_orario: String(Math.round((aggiornato.ral * 1.30) / 1720 * 100) / 100),
+          }));
+        }
+      }
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, "Errore aggiornamento dipendenti"));
     } finally {
