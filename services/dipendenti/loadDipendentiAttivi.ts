@@ -7,7 +7,7 @@ export async function loadDipendentiAttivi(): Promise<
   const { data, error } = await supabase
     .from("dipendenti")
     .select(
-      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at"
+      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral"
     )
     .eq("attivo", true)
     .order("cognome", {
