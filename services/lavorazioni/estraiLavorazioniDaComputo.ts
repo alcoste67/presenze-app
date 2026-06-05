@@ -27,9 +27,14 @@ async function leggiJsonResponse(
 }
 
 
+export type RisultatoEstraiLavorazioni = {
+  lavorazioni: LavorazioneImportPreview[];
+  importo_totale_contratto?: number;
+};
+
 export async function estraiLavorazioniDaComputo(
   file: File
-): Promise<LavorazioneImportPreview[]> {
+): Promise<RisultatoEstraiLavorazioni> {
   const { data, error } =
     await supabase.auth.getSession();
 
@@ -71,10 +76,9 @@ export async function estraiLavorazioniDaComputo(
   }
 
   if (
-    !Array.isArray(payload) ||
-    !payload.every(
-      isLavorazioneImportPreview
-    )
+    !isRecord(payload) ||
+    !Array.isArray(payload.lavorazioni) ||
+    !payload.lavorazioni.every(isLavorazioneImportPreview)
   ) {
     throw new Error(
       LAVORAZIONI_TESTI.ERRORI
@@ -82,5 +86,11 @@ export async function estraiLavorazioniDaComputo(
     );
   }
 
-  return payload;
+  return {
+    lavorazioni: payload.lavorazioni as LavorazioneImportPreview[],
+    importo_totale_contratto:
+      typeof payload.importo_totale_contratto === "number"
+        ? payload.importo_totale_contratto
+        : undefined,
+  };
 }

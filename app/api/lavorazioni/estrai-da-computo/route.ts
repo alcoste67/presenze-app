@@ -254,9 +254,14 @@ type ContentBlock =
       source: { type: "base64"; media_type: "application/pdf"; data: string };
     };
 
+type RisultatoEstrazione = {
+  lavorazioni: LavorazioneImportPreview[];
+  importo_totale_contratto?: number;
+};
+
 async function estraiLavorazioniConClaude(
   content: ContentBlock[]
-): Promise<LavorazioneImportPreview[]> {
+): Promise<RisultatoEstrazione> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error(LAVORAZIONI_TESTI.ERRORI.AI_NON_CONFIGURATA);
 
@@ -277,7 +282,8 @@ async function estraiLavorazioniConClaude(
         "Per ogni lavorazione inferisci la categoria tra: DEMOLIZIONI, COSTRUZIONI, " +
         "IMPIANTI ELETTRICI, DATI, ANTIFURTO, DOMOTICA, IMPIANTI IDRAULICI, SANITARI, " +
         "SERRAMENTI, TAMPONAMENTI, FINITURE, OPERE ESTERNE, ALTRO. " +
-        "Scarta codici identificativi, totali, subtotali, intestazioni e voci non operative.",
+        "Scarta codici identificativi, totali, subtotali, intestazioni e voci non operative. " +
+        "Se presente nel documento, estrai anche l'importo totale del contratto o preventivo.",
       messages: [
         {
           role: "user",
@@ -314,6 +320,10 @@ async function estraiLavorazioniConClaude(
                   required: ["nome", "ordine"],
                 },
               },
+              importo_totale_contratto: {
+                type: "number",
+                description: "Importo totale del contratto/preventivo se presente nel documento (solo il numero, in euro)",
+              },
             },
             required: ["lavorazioni"],
           },
@@ -345,9 +355,15 @@ async function estraiLavorazioniConClaude(
       isRecord(block.input) &&
       Array.isArray(block.input.lavorazioni)
     ) {
-      return normalizzaLavorazioniImport(
-        block.input.lavorazioni as LavorazioneImportPreview[]
-      );
+      return {
+        lavorazioni: normalizzaLavorazioniImport(
+          block.input.lavorazioni as LavorazioneImportPreview[]
+        ),
+        importo_totale_contratto:
+          typeof block.input.importo_totale_contratto === "number"
+            ? block.input.importo_totale_contratto
+            : undefined,
+      };
     }
   }
 
@@ -422,16 +438,16 @@ export async function POST(request: Request): Promise<Response> {
       content = [{ type: "text", text: `Computo CSV:\n${testo}` }];
     }
 
-    const lavorazioni = await estraiLavorazioniConClaude(content);
+    const risultato = await estraiLavorazioniConClaude(content);
 
-    if (lavorazioni.length === 0) {
+    if (risultato.lavorazioni.length === 0) {
       return jsonErrore(
         LAVORAZIONI_TESTI.ERRORI.NESSUNA_LAVORAZIONE_IMPORT,
         HTTP_STATUS.BAD_REQUEST
       );
     }
 
-    return jsonOk(lavorazioni);
+    return jsonOk(risultato);
   } catch (error: unknown) {
     console.error("Errore import lavorazioni da computo", error);
     const msg =

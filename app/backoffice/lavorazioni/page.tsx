@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, Home, Pencil, Plus, Power, Search } from "lucide-react";
 
 import { getMessaggioErrore } from "@/lib/errors";
+import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import {
   LAVORAZIONI_IMPORT,
@@ -205,6 +206,7 @@ export default function BackofficeLavorazioniPage() {
   const [prezzandoTutte, setPrezzandoTutte] = useState(false);
   const [prezzandoProgresso, setPrezzandoProgresso] = useState<{ corrente: number; totale: number } | null>(null);
   const [categorieSelezionate, setCategorieSelezionate] = useState<Set<string>>(new Set());
+  const [importoContrattoEstratto, setImportoContrattoEstratto] = useState<number | null>(null);
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -267,6 +269,7 @@ export default function BackofficeLavorazioniPage() {
     setPreviewImport([]);
     setFontePrezzi({});
     setCategorieSelezionate(new Set());
+    setImportoContrattoEstratto(null);
   };
 
   const aggiornaLavorazioneInLista = (lavorazioneAggiornata: LavorazioneCantiere) => {
@@ -411,8 +414,9 @@ export default function BackofficeLavorazioniPage() {
     }
     try {
       setEstrazioneImport(true);
-      const estratte = await estraiLavorazioniDaComputo(fileComputo);
-      const preview = normalizzaPreviewImport(estratte, lavorazioni);
+      const risultato = await estraiLavorazioniDaComputo(fileComputo);
+      setImportoContrattoEstratto(risultato.importo_totale_contratto ?? null);
+      const preview = normalizzaPreviewImport(risultato.lavorazioni, lavorazioni);
       if (preview.length === 0) {
         setPreviewImport([]);
         toast.error(LAVORAZIONI_TESTI.ERRORI.NESSUNA_LAVORAZIONE_IMPORT);
@@ -541,8 +545,30 @@ export default function BackofficeLavorazioniPage() {
         ...correnti,
         ...getPercentualiDraft(nuove),
       }));
+      const importo = importoContrattoEstratto;
       resetImport();
       toast.success(LAVORAZIONI_TESTI.MESSAGGI.IMPORT_COMPLETATO);
+
+      if (importo !== null && cantiereId) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (token) {
+            await fetch(API_ROUTES.CONTROLLO_COSTI_CONTRATTO, {
+              method: "PATCH",
+              headers: {
+                [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
+                [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+              },
+              body: JSON.stringify({ cantiere_id: cantiereId, importo_contratto: importo }),
+            });
+            const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(importo);
+            toast.success(`Importo contratto ${euro} salvato automaticamente nel controllo costi`);
+          }
+        } catch {
+          // non-critical: non blocca il flusso import
+        }
+      }
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {

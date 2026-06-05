@@ -28,6 +28,7 @@ import { APP_ROUTES } from "@/constants/routes";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
+import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
 
 function ModuloCard({
   href,
@@ -189,6 +190,7 @@ export default function BackofficePage() {
                 nome={MACCHINARI_TESTI.TITOLO}
                 descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
               />
+              <CardControlloCostiAdmin />
             </div>
           </section>
         </div>
