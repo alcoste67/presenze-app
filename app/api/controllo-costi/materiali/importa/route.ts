@@ -353,6 +353,7 @@ async function estraiMaterialiConClaude(
   }
 
   const payload: unknown = await response.json();
+  console.log("[materiali-importa] Claude response:", JSON.stringify(payload).slice(0, 800));
 
   if (!isRecord(payload) || !Array.isArray(payload.content))
     throw new Error(ERRORI.AI_RISPOSTA_NON_VALIDA);
