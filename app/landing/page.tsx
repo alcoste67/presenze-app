@@ -404,6 +404,9 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-white/20">Powered by Anthropic Claude</p>
         </div>
+        <p className="text-xs text-white/20 text-center mt-1">
+          Cantivo è un servizio di A2C Sistemi S.r.l. · P.IVA 13078970962
+        </p>
       </footer>
 
     </div>
