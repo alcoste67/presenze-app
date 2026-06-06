@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 
 const LANDING_DOMAIN = 'cantivo.it'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hostname = request.headers.get('host') ?? ''
   const pathname = request.nextUrl.pathname
 
