@@ -18,6 +18,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Cantivo",
   description: "Il gestionale che lavora quanto te. Timbrature, rapporti, SAL e computi metrici gestiti dall'AI.",
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: [
       { url: "/cantivo-logo.png", type: "image/png" },
