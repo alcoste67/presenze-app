@@ -178,7 +178,7 @@ export default function LandingPage() {
     <div className="min-h-dvh bg-white font-sans antialiased">
 
       {/* ── Navbar ── */}
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0f0f1a]/95 backdrop-blur-sm">
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#1e2d4a]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <span className="text-xl font-bold tracking-tight text-white">Cantivo</span>
           <div className="flex items-center gap-3">
@@ -199,7 +199,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="bg-[#0f0f1a] px-6 pb-28 pt-24">
+      <section className="bg-[#1e2d4a] px-6 pb-28 pt-24">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-8 flex justify-center">
             <img src="/cantivo-logo.png" alt="Cantivo" width={140} height={140} className="object-contain" />
@@ -239,16 +239,18 @@ export default function LandingPage() {
       {/* ── Social proof ── */}
       <section className="border-y border-neutral-200 bg-neutral-50 px-6 py-5">
         <p className="text-center text-sm font-medium uppercase tracking-widest text-neutral-400">
-          Progettato per&nbsp;&nbsp;
-          <span className="text-neutral-700">impiantisti</span>
-          &nbsp;·&nbsp;
-          <span className="text-neutral-700">elettricisti</span>
-          &nbsp;·&nbsp;
-          <span className="text-neutral-700">idraulici</span>
-          &nbsp;·&nbsp;
-          <span className="text-neutral-700">muratori</span>
-          &nbsp;·&nbsp;
-          <span className="text-neutral-700">serramentisti</span>
+          Progettato per
+        </p>
+        <p className="text-center text-sm font-medium text-neutral-700 flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
+          <span>Impiantisti</span>
+          <span>·</span>
+          <span>Elettricisti</span>
+          <span>·</span>
+          <span>Idraulici</span>
+          <span>·</span>
+          <span>Muratori</span>
+          <span>·</span>
+          <span>Serramentisti</span>
         </p>
       </section>
 
@@ -328,7 +330,7 @@ export default function LandingPage() {
                 key={piano.nome}
                 className={`relative flex flex-col rounded-2xl p-7 ${
                   piano.evidenziato
-                    ? "bg-[#0f0f1a] text-white shadow-2xl shadow-black/20 ring-2 ring-[#e95624]"
+                    ? "bg-[#1e2d4a] text-white shadow-2xl shadow-black/20 ring-2 ring-[#e95624]"
                     : "border border-neutral-200 bg-white"
                 }`}
               >
@@ -375,7 +377,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA finale ── */}
-      <section className="bg-[#0f0f1a] px-6 py-28">
+      <section className="bg-[#1e2d4a] px-6 py-28">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-5xl font-extrabold leading-tight tracking-tight text-white">
             Inizia oggi,
@@ -395,7 +397,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="bg-[#0a0a12] px-6 py-10">
+      <footer className="bg-[#162038] px-6 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <p className="text-sm text-white/30">© Cantivo 2026</p>
           <div className="flex gap-6 text-sm text-white/40">
