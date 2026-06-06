@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Cantivo',
     short_name: 'Cantivo',
     description: 'Il gestionale che lavora quanto te',
-    start_url: '/',
+    start_url: '/login',
     display: 'standalone',
     background_color: '#fafafa',
     theme_color: '#e95624',
