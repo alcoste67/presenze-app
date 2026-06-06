@@ -201,11 +201,11 @@ export default function LoginPage() {
         <img
           src="/cantivo-logo.png"
           alt="Cantivo"
-          className="mx-auto mb-4 block h-[120px] w-[120px] object-contain"
+          className="mx-auto mb-4 block h-[160px] w-[160px] object-contain"
           style={{ background: 'transparent' }}
         />
         <h1 className="mb-4 text-center font-heading text-2xl font-medium text-text-primary">
-          Accedi a Cantivo
+          Accedi
         </h1>
 
         <Card className="p-6">
