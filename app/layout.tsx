@@ -16,8 +16,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Presenze",
-  description: "Gestione presenze e timbrature",
+  title: "Cantivo",
+  description: "Il gestionale che lavora quanto te. Timbrature, rapporti, SAL e computi metrici gestiti dall'AI.",
   icons: {
     icon: [
       { url: "/cantivo-logo.png", type: "image/png" },
