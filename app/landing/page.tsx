@@ -181,7 +181,7 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0f0f1a]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Image src="/cantivo-logo.png" alt="Cantivo" width={100} height={32} priority className="object-contain" />
+          <span className="text-xl font-bold tracking-tight text-white">Cantivo</span>
           <div className="flex items-center gap-3">
             <Link
               href="/login"
@@ -202,6 +202,9 @@ export default function LandingPage() {
       {/* ── Hero ── */}
       <section className="bg-[#0f0f1a] px-6 pb-28 pt-24">
         <div className="mx-auto max-w-4xl text-center">
+          <div className="mb-8 flex justify-center">
+            <Image src="/cantivo-logo.png" alt="Cantivo" width={140} height={140} priority className="object-contain" />
+          </div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#e95624]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#e95624]" />
             Powered by Claude AI

@@ -18,6 +18,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Presenze",
   description: "Gestione presenze e timbrature",
+  icons: {
+    icon: "/cantivo-logo.png",
+    apple: "/cantivo-logo.png",
+  },
 };
 
 export default function RootLayout({
