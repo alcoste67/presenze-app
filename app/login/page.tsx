@@ -198,16 +198,14 @@ export default function LoginPage() {
     <div className="min-h-dvh bg-bg-base flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
 
-        <div className="mb-8 flex flex-col items-center text-center">
-          <img
-            src="/cantivo-logo.png"
-            alt="Cantivo"
-            className="h-12 w-auto"
-          />
-          <h1 className="mt-6 font-heading text-2xl font-medium text-text-primary">
-            Accedi a Cantivo
-          </h1>
-        </div>
+        <img
+          src="/cantivo-logo.png"
+          alt="Cantivo"
+          className="mx-auto mb-4 block h-20 w-20 object-contain"
+        />
+        <h1 className="mb-4 text-center font-heading text-2xl font-medium text-text-primary">
+          Accedi a Cantivo
+        </h1>
 
         <Card className="p-6">
           <form onSubmit={handleInviaCodiceOtp} noValidate className="space-y-4">
