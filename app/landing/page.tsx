@@ -206,7 +206,7 @@ export default function LandingPage() {
           </div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#e95624]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#e95624]" />
-            Powered by Claude AI
+            Powered with Claude AI
           </div>
           <h1 className="text-5xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl">
             Il cantiere in tasca.
