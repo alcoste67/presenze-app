@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Montserrat, Inter } from "next/font/google";
 import "./globals.css";
+import Script from "next/script";
 import { ToastProvider } from "@/components/ui/Toast";
-import { CookieBanner } from "@/components/ui/CookieBanner";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -41,7 +41,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <ToastProvider>{children}</ToastProvider>
-        <CookieBanner />
+        <Script
+          src="https://embeds.iubenda.com/widgets/c376aaf4-4c91-4945-b867-9c5e1fb8215a.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
