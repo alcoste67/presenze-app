@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Script from "next/script";
 
 export default function PrivacyPage() {
   return (
@@ -21,12 +22,20 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
 
-        <p className="text-text-muted leading-relaxed">
-          La presente Privacy Policy è in fase di redazione. Cantivo è un servizio di A2C Sistemi S.r.l. · P.IVA 13078970962. Per informazioni:{" "}
-          <a href="mailto:privacy@cantivo.it" className="text-brand-500 hover:underline">
-            privacy@cantivo.it
+        <div className="mt-6">
+          <a
+            href="https://www.iubenda.com/privacy-policy/34327883"
+            className="iubenda-white iubenda-noiframe iubenda-embed"
+            title="Privacy Policy"
+          >
+            Privacy Policy
           </a>
-        </p>
+        </div>
+
+        <Script
+          src="https://cdn.iubenda.com/iubenda.js"
+          strategy="afterInteractive"
+        />
 
       </div>
     </div>

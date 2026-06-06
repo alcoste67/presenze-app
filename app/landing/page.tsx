@@ -398,7 +398,7 @@ export default function LandingPage() {
 
       {/* ── Footer ── */}
       <footer className="bg-[#162038] px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-center">
           <p className="text-sm text-white/30">© Cantivo 2026</p>
           <div className="flex gap-6 text-sm text-white/40">
             <Link href="/login" className="transition-colors hover:text-white">Accedi</Link>
@@ -406,11 +406,15 @@ export default function LandingPage() {
             <Link href="/privacy" className="transition-colors hover:text-white">Privacy</Link>
             <Link href="/termini" className="transition-colors hover:text-white">Termini</Link>
           </div>
-          <p className="text-xs text-white/20">Powered by Anthropic Claude</p>
+          <p className="text-xs text-white/20">Powered with Anthropic Claude</p>
+          <p className="flex items-center justify-center gap-1.5 text-xs text-white/60 mt-1">
+            Cantivo è un servizio di{" "}
+            <a href="https://www.a2csistemi.it" target="_blank" rel="noopener noreferrer">
+              <img src="/a2c-logo-arancio.png" alt="A2C Sistemi" className="h-5 w-auto inline-block opacity-60 hover:opacity-90 transition-opacity" />
+            </a>
+            {" "}· P.IVA 13078970962
+          </p>
         </div>
-        <p className="text-xs text-white/20 text-center mt-1">
-          Cantivo è un servizio di A2C Sistemi S.r.l. · P.IVA 13078970962
-        </p>
       </footer>
 
     </div>

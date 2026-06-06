@@ -22,10 +22,7 @@ export default function TerminiPage() {
         </h1>
 
         <p className="text-text-muted leading-relaxed">
-          I presenti Termini di Servizio sono in fase di redazione. Cantivo è un servizio di A2C Sistemi S.r.l. · P.IVA 13078970962. Per informazioni:{" "}
-          <a href="mailto:info@cantivo.it" className="text-brand-500 hover:underline">
-            info@cantivo.it
-          </a>
+          I presenti Termini di Servizio sono in fase di redazione. Cantivo è un servizio di A2C Sistemi S.r.l. · P.IVA 13078970962. Per informazioni: info@cantivo.it
         </p>
 
       </div>
