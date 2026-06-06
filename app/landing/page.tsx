@@ -202,7 +202,7 @@ export default function LandingPage() {
       <section className="bg-[#1e2d4a] px-6 pb-28 pt-24">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-8 flex justify-center">
-            <img src="/cantivo-logo.png" alt="Cantivo" width={140} height={140} className="object-contain" />
+            <img src="/cantivo-logo-w.png" alt="Cantivo" width={140} height={140} className="object-contain" />
           </div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#e95624]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#e95624]" />
