@@ -19,8 +19,11 @@ export const metadata: Metadata = {
   title: "Presenze",
   description: "Gestione presenze e timbrature",
   icons: {
-    icon: "/cantivo-logo.png",
+    icon: [
+      { url: "/cantivo-logo.png", type: "image/png" },
+    ],
     apple: "/cantivo-logo.png",
+    shortcut: "/cantivo-logo.png",
   },
 };
 
