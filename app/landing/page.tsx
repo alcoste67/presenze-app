@@ -403,6 +403,8 @@ export default function LandingPage() {
           <div className="flex gap-6 text-sm text-white/40">
             <Link href="/login" className="transition-colors hover:text-white">Accedi</Link>
             <Link href="/registrati" className="transition-colors hover:text-white">Registrati</Link>
+            <Link href="/privacy" className="transition-colors hover:text-white">Privacy</Link>
+            <Link href="/termini" className="transition-colors hover:text-white">Termini</Link>
           </div>
           <p className="text-xs text-white/20">Powered by Anthropic Claude</p>
         </div>
