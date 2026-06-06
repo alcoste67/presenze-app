@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0f0f1a]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <span className="text-xl font-bold tracking-tight text-[#e95624]">Cantivo</span>
+          <Image src="/cantivo-logo.png" alt="Cantivo" width={140} height={40} priority />
           <div className="flex items-center gap-3">
             <Link
               href="/login"
