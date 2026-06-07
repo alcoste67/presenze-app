@@ -6,6 +6,7 @@ import {
 } from "@/constants/reportLibroPresenze";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { loadLibroPresenzeReport } from "@/services/report/loadLibroPresenzeReport";
 import type { LibroPresenzeReportFiltri } from "@/types/reportLibroPresenze";
 
@@ -266,8 +267,10 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
     const report =
-      await loadLibroPresenzeReport(filtri);
+      await loadLibroPresenzeReport(filtri, aziendaId);
 
     return jsonOk(report);
   } catch (error: unknown) {

@@ -590,12 +590,14 @@ function creaRigaReport({
 }
 
 async function loadDipendente(
-  dipendenteId: string
+  dipendenteId: string,
+  aziendaId: string
 ): Promise<DipendenteReport | null> {
   const { data, error } = await supabaseAdmin
     .from("dipendenti")
     .select(SELECT_DIPENDENTE_REPORT)
     .eq("id", dipendenteId)
+    .eq("azienda_id", aziendaId)
     .maybeSingle();
 
   if (error) {
@@ -620,7 +622,8 @@ async function loadDipendente(
 }
 
 async function loadDipendentiByAuthUserIds(
-  authUserIds: string[]
+  authUserIds: string[],
+  aziendaId: string
 ): Promise<Map<string, DipendenteReport>> {
   if (authUserIds.length === 0) {
     return new Map();
@@ -629,7 +632,8 @@ async function loadDipendentiByAuthUserIds(
   const { data, error } = await supabaseAdmin
     .from("dipendenti")
     .select(SELECT_DIPENDENTE_REPORT)
-    .in("auth_user_id", authUserIds);
+    .in("auth_user_id", authUserIds)
+    .eq("azienda_id", aziendaId);
 
   if (error) {
     throw error;
@@ -663,7 +667,8 @@ async function loadDipendentiByAuthUserIds(
 }
 
 async function loadCantieriByIds(
-  cantiereIds: string[]
+  cantiereIds: string[],
+  aziendaId: string
 ): Promise<Map<string, CantiereReportRow>> {
   if (cantiereIds.length === 0) {
     return new Map();
@@ -672,7 +677,8 @@ async function loadCantieriByIds(
   const { data, error } = await supabaseAdmin
     .from("cantieri")
     .select(SELECT_CANTIERE_REPORT)
-    .in("id", cantiereIds);
+    .in("id", cantiereIds)
+    .eq("azienda_id", aziendaId);
 
   if (error) {
     throw error;
@@ -690,12 +696,14 @@ async function loadCantieriByIds(
 }
 
 export async function loadLibroPresenzeReport(
-  filtri: LibroPresenzeReportFiltri
+  filtri: LibroPresenzeReportFiltri,
+  aziendaId: string
 ): Promise<LibroPresenzeReportRisposta> {
   const dipendenteSelezionato =
     filtri.dipendenteId
       ? await loadDipendente(
-          filtri.dipendenteId
+          filtri.dipendenteId,
+          aziendaId
         )
       : null;
 
@@ -723,6 +731,7 @@ export async function loadLibroPresenzeReport(
   const baseQuery = supabaseAdmin
     .from("timbrature")
     .select(SELECT_TIMBRATURA_REPORT)
+    .eq("azienda_id", aziendaId)
     .gte("created_at", dataInizioUtc)
     .lt("created_at", dataFineEsclusivaUtc);
 
@@ -786,9 +795,10 @@ export async function loadLibroPresenzeReport(
     cantieriById,
   ] = await Promise.all([
     loadDipendentiByAuthUserIds(
-      authUserIds
+      authUserIds,
+      aziendaId
     ),
-    loadCantieriByIds(cantiereIds),
+    loadCantieriByIds(cantiereIds, aziendaId),
   ]);
 
   if (dipendenteSelezionato?.auth_user_id) {
