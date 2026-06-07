@@ -16,4 +16,5 @@ export const APP_ROUTES = {
   BACKOFFICE_CONTROLLO_COSTI:
     "/backoffice/controllo-costi",
   SUPERADMIN: "/superadmin",
+  IMPOSTAZIONI: "/impostazioni",
 } as const;
