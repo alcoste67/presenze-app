@@ -3,6 +3,7 @@ import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import type { RuoloDipendente } from "@/types/dipendenti";
 
 
@@ -111,9 +112,13 @@ function isAdminCorrente(
 }
 
 async function verificaAdminResidui(
-  dipendente: DipendenteEliminabile
+  dipendente: DipendenteEliminabile,
+  aziendaId: string
 ): Promise<boolean> {
-  if (dipendente.ruolo !== RUOLI_DIPENDENTE.ADMIN) {
+  if (
+    dipendente.ruolo !== RUOLI_DIPENDENTE.ADMIN &&
+    dipendente.ruolo !== RUOLI_DIPENDENTE.SUPERADMIN
+  ) {
     return true;
   }
 
@@ -123,8 +128,9 @@ async function verificaAdminResidui(
       count: "exact",
       head: true,
     })
-    .eq("ruolo", RUOLI_DIPENDENTE.ADMIN)
+    .in("ruolo", [RUOLI_DIPENDENTE.ADMIN, RUOLI_DIPENDENTE.SUPERADMIN])
     .eq("attivo", true)
+    .eq("azienda_id", aziendaId)
     .neq("id", dipendente.id);
 
   if (error) {
@@ -174,6 +180,8 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
     const dipendenteId =
       await leggiDipendenteId(request);
 
@@ -193,6 +201,7 @@ export async function POST(
         "id, email, ruolo, attivo, auth_user_id"
       )
       .eq("id", dipendenteId)
+      .eq("azienda_id", aziendaId)
       .maybeSingle();
 
     if (dipendenteError) {
@@ -231,7 +240,8 @@ export async function POST(
 
     const adminResidui =
       await verificaAdminResidui(
-        dipendenteEliminabile
+        dipendenteEliminabile,
+        aziendaId
       );
 
     if (!adminResidui) {
@@ -254,7 +264,8 @@ export async function POST(
         .eq(
           "user_id",
           dipendenteEliminabile.auth_user_id
-        );
+        )
+        .eq("azienda_id", aziendaId);
 
       if (timbratureError) {
         throw timbratureError;
@@ -289,7 +300,8 @@ export async function POST(
       await supabaseAdmin
         .from("dipendenti")
         .delete()
-        .eq("id", dipendenteId);
+        .eq("id", dipendenteId)
+        .eq("azienda_id", aziendaId);
 
     if (deleteError) {
       throw deleteError;
