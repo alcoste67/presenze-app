@@ -64,6 +64,10 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/registrati") &&
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/timbrature") &&
+    !pathname.startsWith("/storico") &&
+    !pathname.startsWith("/backoffice") &&
+    !pathname.startsWith("/impostazioni") &&
+    !pathname.startsWith("/superadmin") &&
     !pathname.startsWith("/api")
   ) {
     if (user) {
