@@ -14,7 +14,6 @@ import {
   Home,
   ListCheck,
   MapPin,
-  Settings,
   ShieldAlert,
   Users,
 } from "lucide-react";
@@ -138,12 +137,6 @@ export default function BackofficePage() {
                 icon={<MapPin className="h-5 w-5" />}
                 nome="Cantieri"
                 descrizione="Gestione anagrafica cantieri"
-              />
-              <ModuloCard
-                href={APP_ROUTES.IMPOSTAZIONI}
-                icon={<Settings className="h-5 w-5" />}
-                nome="Impostazioni"
-                descrizione="Logo, colori e dati azienda"
               />
               <CardMacchinariAdmin />
             </div>

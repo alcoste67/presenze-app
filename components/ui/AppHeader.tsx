@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { cn } from '@/lib/utils'
+import { APP_ROUTES } from '@/constants/routes'
 
 export interface AppHeaderProps {
   actions?: ReactNode
@@ -89,6 +90,15 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
       {hasRight && (
         <div className="flex items-center gap-2">
           {actions}
+          {isLoggedIn && (
+            <Link
+              href={APP_ROUTES.IMPOSTAZIONI}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-base hover:text-text-primary"
+              aria-label="Impostazioni"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          )}
           {isLoggedIn && (
             <Button
               variant="secondary"
