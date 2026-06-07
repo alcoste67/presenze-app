@@ -1,4 +1,6 @@
-import { type ReactNode } from "react";
+"use client";
+
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BarChart2,
@@ -12,6 +14,7 @@ import {
   Home,
   ListCheck,
   MapPin,
+  ShieldAlert,
   Users,
 } from "lucide-react";
 
@@ -29,6 +32,8 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
 import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
+import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
+import { isSuperadmin } from "@/services/dipendenti/isSuperadmin";
 
 function ModuloCard({
   href,
@@ -58,6 +63,22 @@ function ModuloCard({
 }
 
 export default function BackofficePage() {
+  const [superadmin, setSuperadmin] = useState(false);
+
+  useEffect(() => {
+    const controlla = async () => {
+      try {
+        const user = await loadUtenteAuth();
+        if (!user?.email) return;
+        const ok = await isSuperadmin(user.email);
+        setSuperadmin(ok);
+      } catch {
+        // silently ignore — user simply won't see the section
+      }
+    };
+    void controlla();
+  }, []);
+
   return (
     <div className="min-h-dvh bg-bg-base">
       <AppHeader
@@ -193,6 +214,23 @@ export default function BackofficePage() {
               <CardControlloCostiAdmin />
             </div>
           </section>
+
+          {/* ── Sezione 4: Piattaforma (solo superadmin) ── */}
+          {superadmin && (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Piattaforma
+              </h2>
+              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                <ModuloCard
+                  href={APP_ROUTES.SUPERADMIN}
+                  icon={<ShieldAlert className="h-5 w-5" />}
+                  nome="Superadmin"
+                  descrizione="Gestione aziende e utenti della piattaforma"
+                />
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </div>
