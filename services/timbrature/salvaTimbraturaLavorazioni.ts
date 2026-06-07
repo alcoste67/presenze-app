@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import {
   LAVORAZIONI_LIMITI,
   LAVORAZIONI_TESTI,
@@ -53,6 +54,10 @@ export async function salvaTimbraturaLavorazioni({
     return [];
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Utente non autenticato");
+  const aziendaId = await getAziendaIdFromAuthUser(supabase, user.id);
+
   const percentualiValide =
     lavorazioniUniche.every(
       (lavorazione) =>
@@ -75,6 +80,7 @@ export async function salvaTimbraturaLavorazioni({
         lavorazione.lavorazioneId,
       percentuale_avanzamento:
         lavorazione.percentualeAvanzamento,
+      azienda_id: aziendaId,
     })
   );
 
