@@ -68,6 +68,7 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/backoffice") &&
     !pathname.startsWith("/impostazioni") &&
     !pathname.startsWith("/superadmin") &&
+    !pathname.startsWith("/admin") &&
     !pathname.startsWith("/api")
   ) {
     if (user) {
