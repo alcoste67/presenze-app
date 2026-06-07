@@ -43,7 +43,7 @@ type Payload = {
   admin: FormAdmin;
   gdpr_marketing: boolean;
   gdpr_terzi: boolean;
-  turnstile_token: string;
+  // TODO: re-enable Turnstile captcha before go-live
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,7 +91,6 @@ function leggiPayload(body: unknown): Payload | null {
     },
     gdpr_marketing: body.gdpr_marketing === true,
     gdpr_terzi: body.gdpr_terzi === true,
-    turnstile_token: typeof body.turnstile_token === "string" ? body.turnstile_token : "",
   };
 }
 

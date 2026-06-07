@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -47,9 +46,6 @@ const FORME_SOCIETARIE = [
   "Associazione",
   "Altro",
 ] as const;
-
-// Replace with real sitekey before launch
-const TURNSTILE_SITEKEY = "0x000000000000000000000000";
 
 const FORM_AZIENDA_INIZIALE: FormAzienda = {
   nome: "",
@@ -121,28 +117,12 @@ export default function RegistratiPage() {
   const [gdprMarketing, setGdprMarketing] = useState(false);
   const [gdprTerzi, setGdprTerzi] = useState(false);
 
-  // Turnstile
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // TODO: re-enable Turnstile captcha before go-live
 
-  // Register global Turnstile callbacks
-  useEffect(() => {
-    const w = window as Window & {
-      onTurnstileCallback?: (token: string) => void;
-      onTurnstileExpired?: () => void;
-    };
-    w.onTurnstileCallback = (token) => setTurnstileToken(token);
-    w.onTurnstileExpired = () => setTurnstileToken(null);
-    return () => {
-      delete w.onTurnstileCallback;
-      delete w.onTurnstileExpired;
-    };
-  }, []);
-
-  // Reset token when returning to step 1
+  // Reset state when returning to step 1
   const tornaAStep1 = () => {
     setStep(1);
     setErrori({});
-    setTurnstileToken(null);
   };
 
   // ── Step 1 submit ──────────────────────────────────────────────────────────
@@ -173,7 +153,6 @@ export default function RegistratiPage() {
           admin: formAdmin,
           gdpr_marketing: gdprMarketing,
           gdpr_terzi: gdprTerzi,
-          turnstile_token: turnstileToken,
         }),
       });
       if (!res.ok) {
@@ -190,7 +169,7 @@ export default function RegistratiPage() {
     }
   };
 
-  const canSubmit = gdprPrivacy && turnstileToken !== null;
+  const canSubmit = gdprPrivacy;
 
   // ── Success ────────────────────────────────────────────────────────────────
 
@@ -230,14 +209,7 @@ export default function RegistratiPage() {
   // ── Form ───────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      {/* Load Turnstile script globally — rendered when step 2 mounts */}
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-        strategy="afterInteractive"
-      />
-
-      <div className="min-h-dvh bg-bg-base flex items-center justify-center px-4 py-12">
+    <div className="min-h-dvh bg-bg-base flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
 
           <div className="mb-8 text-center">
@@ -528,21 +500,6 @@ export default function RegistratiPage() {
                   </label>
                 </div>
 
-                {/* Cloudflare Turnstile */}
-                <div>
-                  <div
-                    className="cf-turnstile"
-                    data-sitekey={TURNSTILE_SITEKEY}
-                    data-callback="onTurnstileCallback"
-                    data-expired-callback="onTurnstileExpired"
-                  />
-                  {!turnstileToken && (
-                    <p className="mt-1 text-xs text-text-muted">
-                      Completa la verifica per continuare.
-                    </p>
-                  )}
-                </div>
-
                 {erroreGlobale && (
                   <p className="rounded-md bg-error-500/10 px-3 py-2 text-sm text-error-500">
                     {erroreGlobale}
@@ -585,6 +542,5 @@ export default function RegistratiPage() {
           </p>
         </div>
       </div>
-    </>
   );
 }
