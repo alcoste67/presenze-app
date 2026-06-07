@@ -108,7 +108,6 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
     }
 
-    console.log("[registra-azienda] STEP 1: parsing payload");
     const payload = leggiPayload(body);
     if (!payload) {
       return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
@@ -125,7 +124,6 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErrore(ERRORI_API.CAMPI_OBBLIGATORI, HTTP_STATUS.BAD_REQUEST);
     }
 
-    console.log("[registra-azienda] STEP 2: createUser starting", { email: emailAdmin });
     const createUserRes = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users`,
       {
@@ -148,12 +146,6 @@ export async function POST(request: Request): Promise<Response> {
       code?: string;
     };
 
-    console.log("[registra-azienda] STEP 2 result:", {
-      status: createUserRes.status,
-      userId: createUserData.id ?? null,
-      error: !createUserRes.ok ? JSON.stringify(createUserData) : null,
-    });
-
     if (!createUserRes.ok || !createUserData.id) {
       const msg = (createUserData.message ?? createUserData.msg ?? "").toLowerCase();
       const isEmailExists =
@@ -169,7 +161,6 @@ export async function POST(request: Request): Promise<Response> {
 
     authUserId = createUserData.id;
 
-    console.log("[registra-azienda] STEP 3: insert azienda starting");
     const { data: aziendaData, error: aziendaError } = await supabaseAdmin
       .from("aziende")
       .insert({
@@ -197,7 +188,6 @@ export async function POST(request: Request): Promise<Response> {
 
     aziendaId = aziendaData.id as string;
 
-    console.log("[registra-azienda] STEP 4: insert dipendente starting", { aziendaId });
     const { error: dipendenteError } = await supabaseAdmin
       .from("dipendenti")
       .insert({
@@ -218,7 +208,6 @@ export async function POST(request: Request): Promise<Response> {
       throw dipendenteError;
     }
 
-    console.log("[registra-azienda] success");
     return Response.json({ success: true }, { status: HTTP_STATUS.CREATED });
   } catch (error: unknown) {
     // Rollback: prima azienda (dipendente non creato), poi auth user
