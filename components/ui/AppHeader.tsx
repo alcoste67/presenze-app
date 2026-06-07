@@ -19,7 +19,7 @@ export interface AppHeaderProps {
 export function AppHeader({ actions, className }: AppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isAdminUser, setIsAdminUser] = useState(false)
-  const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null; colori: { primary: string; secondary: string } | null } | null>(null)
+  const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null } | null>(null)
   const router = useRouter()
   const toast = useToast()
 
@@ -30,17 +30,13 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
         if (session?.user) {
           supabase
             .from('dipendenti')
-            .select('aziende(nome, logo_url, colori)')
+            .select('aziende(nome, logo_url)')
             .eq('auth_user_id', session.user.id)
             .eq('attivo', true)
             .maybeSingle()
             .then(({ data }) => {
               if (data?.aziende) {
-                const az = data.aziende as unknown as { nome: string; logo_url: string | null; colori: { primary: string; secondary: string } | null }
-                setAzienda(az)
-                if (az.colori?.primary) {
-                  document.documentElement.style.setProperty('--color-brand-500', az.colori.primary)
-                }
+                setAzienda(data.aziende as unknown as { nome: string; logo_url: string | null })
               }
             })
           if (session.user.email) {

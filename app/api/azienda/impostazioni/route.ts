@@ -18,7 +18,7 @@ const ERRORI_API = {
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 
 const SELECT_AZIENDA =
-  "nome, partita_iva, codice_fiscale, indirizzo, email, telefono, sito_web, logo_url, colori";
+  "nome, partita_iva, codice_fiscale, indirizzo, email, telefono, sito_web, logo_url";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,16 +67,6 @@ async function verificaAdmin(
 
 // ─── PATCH payload ────────────────────────────────────────────────────────────
 
-type ColoriInput = { primary: string; secondary: string };
-
-function isColori(v: unknown): v is ColoriInput {
-  return (
-    isRecord(v) &&
-    typeof v.primary === "string" &&
-    typeof v.secondary === "string"
-  );
-}
-
 function strOrNull(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
@@ -85,7 +75,6 @@ function leggiPatchPayload(body: unknown): Record<string, unknown> | null {
   if (!isRecord(body)) return null;
   if ("nome" in body && (typeof body.nome !== "string" || !body.nome.trim()))
     return null;
-  if ("colori" in body && !isColori(body.colori)) return null;
 
   const p: Record<string, unknown> = {};
   if (typeof body.nome === "string" && body.nome.trim()) p.nome = body.nome.trim();
@@ -95,7 +84,6 @@ function leggiPatchPayload(body: unknown): Record<string, unknown> | null {
   if ("email" in body)          p.email          = strOrNull(body.email);
   if ("telefono" in body)       p.telefono       = strOrNull(body.telefono);
   if ("sito_web" in body)       p.sito_web       = strOrNull(body.sito_web);
-  if (isColori(body.colori))    p.colori         = body.colori;
 
   return Object.keys(p).length > 0 ? p : null;
 }
