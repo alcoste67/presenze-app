@@ -13,7 +13,7 @@ export async function isAdmin(
     .from("dipendenti")
     .select("id")
     .ilike("email", emailNormalizzata)
-    .eq("ruolo", RUOLI_DIPENDENTE.ADMIN)
+    .in("ruolo", [RUOLI_DIPENDENTE.ADMIN, RUOLI_DIPENDENTE.SUPERADMIN])
     .eq("attivo", true)
     .limit(1)
     .maybeSingle();
