@@ -178,7 +178,7 @@ export default function LoginPage() {
 
       await verificaCodiceOtp({ email: emailNormalizzata, token });
 
-      router.push(APP_ROUTES.HOME);
+      router.push(APP_ROUTES.TIMBRATURE);
     } catch (error: unknown) {
       setErroreAuth(getMessaggioErroreAuth(error));
     } finally {
