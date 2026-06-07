@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Settings } from 'lucide-react'
+import { LayoutDashboard, LogOut, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from './Button'
 import { useToast } from './Toast'
 import { cn } from '@/lib/utils'
 import { APP_ROUTES } from '@/constants/routes'
+import { isAdmin } from '@/services/dipendenti/isAdmin'
 
 export interface AppHeaderProps {
   actions?: ReactNode
@@ -17,6 +18,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({ actions, className }: AppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isAdminUser, setIsAdminUser] = useState(false)
   const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null; colori: { primary: string; secondary: string } | null } | null>(null)
   const router = useRouter()
   const toast = useToast()
@@ -41,8 +43,12 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
                 }
               }
             })
+          if (session.user.email) {
+            isAdmin(session.user.email).then(setIsAdminUser).catch(() => {})
+          }
         } else {
           setAzienda(null)
+          setIsAdminUser(false)
         }
       }
     )
@@ -90,6 +96,15 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
       {hasRight && (
         <div className="flex items-center gap-2">
           {actions}
+          {isLoggedIn && isAdminUser && (
+            <Link
+              href={APP_ROUTES.ADMIN}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-base hover:text-text-primary"
+              aria-label="Portale admin"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+            </Link>
+          )}
           {isLoggedIn && (
             <Link
               href={APP_ROUTES.IMPOSTAZIONI}
