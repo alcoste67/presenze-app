@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -240,6 +241,13 @@ export default function ImpostazioniPage() {
   return (
     <div className="min-h-dvh bg-bg-base">
       <main className="mx-auto max-w-2xl px-6 py-10">
+        <Link
+          href={APP_ROUTES.BACKOFFICE}
+          className="mb-6 inline-flex items-center gap-1 text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
+        >
+          ← Back-office
+        </Link>
+
         <h1 className="font-heading text-2xl font-medium text-text-primary">
           Impostazioni azienda
         </h1>
