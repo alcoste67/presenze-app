@@ -63,6 +63,8 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/landing") &&
     !pathname.startsWith("/registrati") &&
     !pathname.startsWith("/login") &&
+    !pathname.startsWith("/privacy") &&
+    !pathname.startsWith("/termini") &&
     !pathname.startsWith("/timbrature") &&
     !pathname.startsWith("/storico") &&
     !pathname.startsWith("/backoffice") &&
