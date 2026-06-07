@@ -12,6 +12,7 @@ const ERRORI_API = {
   PAYLOAD_NON_VALIDO: "Dati non validi",
   AZIENDA_NON_TROVATA: "Azienda non trovata",
   ERRORE_GENERICO: "Errore aggiornamento azienda",
+  ERRORE_ELIMINAZIONE: "Errore eliminazione azienda",
 } as const;
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
@@ -132,5 +133,94 @@ export async function PATCH(
   } catch (error: unknown) {
     console.error("Errore PATCH superadmin azienda", error);
     return jsonErrore(ERRORI_API.ERRORE_GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Response> {
+  try {
+    const auth = await verificaSuperadmin(request);
+    if (!auth.ok) return auth.risposta;
+
+    const { id } = await params;
+    if (!id?.trim())
+      return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
+
+    // Read auth_user_ids before deletion so we can clean up auth accounts
+    const { data: dipendenti, error: dipendentiReadError } = await supabaseAdmin
+      .from("dipendenti")
+      .select("auth_user_id")
+      .eq("azienda_id", id)
+      .not("auth_user_id", "is", null);
+
+    if (dipendentiReadError) throw dipendentiReadError;
+
+    // Delete in FK-safe order
+    const tabelleLeaf = [
+      "timbrature_lavorazioni",
+      "sal_lavorazioni_foto",
+      "costi_macchinari_commessa",
+      "contratti_cantiere",
+      "costi_materiali_cantiere",
+      "sal_freeze_lavorazioni",
+      "sal_freeze_foto",
+      "sal_freeze_macchinari",
+    ];
+
+    for (const tabella of tabelleLeaf) {
+      const { error } = await supabaseAdmin
+        .from(tabella)
+        .delete()
+        .eq("azienda_id", id);
+      if (error) throw error;
+    }
+
+    // rapporti_intervento deletion cascades to all rapporti_intervento_* children
+    const tabelleParent = [
+      "sal_freeze_mensili",
+      "rapporti_intervento",
+      "lavorazioni_cantiere",
+      "timbrature",
+      "macchinari",
+      "cantieri",
+    ];
+
+    for (const tabella of tabelleParent) {
+      const { error } = await supabaseAdmin
+        .from(tabella)
+        .delete()
+        .eq("azienda_id", id);
+      if (error) throw error;
+    }
+
+    // Delete Supabase auth accounts for each dipendente
+    const authUserIds = (dipendenti ?? [])
+      .map((d) => d.auth_user_id as string)
+      .filter(Boolean);
+
+    for (const userId of authUserIds) {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (error) console.error(`Errore eliminazione auth user ${userId}:`, error);
+    }
+
+    // Delete dipendenti and the azienda record
+    const { error: dipendentiDelError } = await supabaseAdmin
+      .from("dipendenti")
+      .delete()
+      .eq("azienda_id", id);
+    if (dipendentiDelError) throw dipendentiDelError;
+
+    const { error: aziendaError } = await supabaseAdmin
+      .from("aziende")
+      .delete()
+      .eq("id", id);
+    if (aziendaError) throw aziendaError;
+
+    return Response.json({ success: true }, { headers: NO_STORE_HEADERS });
+  } catch (error: unknown) {
+    console.error("Errore DELETE superadmin azienda", error);
+    return jsonErrore(ERRORI_API.ERRORE_ELIMINAZIONE, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }

@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -99,6 +100,10 @@ export default function SuperadminPage() {
   const [formNuova, setFormNuova] = useState<FormNuovaAzienda>(FORM_NUOVA_AZIENDA_INIZIALE);
   const [creazione, setCreazione] = useState(false);
   const [erroreNome, setErroreNome] = useState<string | undefined>(undefined);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [deleteModalAzienda, setDeleteModalAzienda] = useState<Azienda | null>(null);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // ── Auth + caricamento ────────────────────────────────────────────────────
 
@@ -171,6 +176,33 @@ export default function SuperadminPage() {
     setMostraModal(false);
     setFormNuova(FORM_NUOVA_AZIENDA_INIZIALE);
     setErroreNome(undefined);
+  };
+
+  const chiudiDeleteModal = () => {
+    setDeleteModalAzienda(null);
+    setDeleteInput("");
+  };
+
+  const eliminaAzienda = async () => {
+    if (!deleteModalAzienda) return;
+    try {
+      setDeleting(true);
+      const token = await getAccessToken();
+      const res = await fetch(`/api/superadmin/aziende/${deleteModalAzienda.id}`, {
+        method: "DELETE",
+        headers: {
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Errore eliminazione azienda");
+      setAziende((prev) => prev.filter((a) => a.id !== deleteModalAzienda.id));
+      chiudiDeleteModal();
+      toast.success("Azienda eliminata");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore eliminazione azienda"));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const creaNuovaAzienda = async (e: FormEvent) => {
@@ -351,18 +383,50 @@ export default function SuperadminPage() {
                         </Badge>
                       </td>
 
-                      {/* Toggle attiva */}
+                      {/* Toggle attiva + Elimina */}
                       <td className="px-4 py-3">
-                        <Button
-                          variant={az.attiva ? "destructive" : "secondary"}
-                          size="sm"
-                          loading={loading}
-                          onClick={() =>
-                            void aggiornaAzienda(az.id, { attiva: !az.attiva })
-                          }
-                        >
-                          {az.attiva ? "Disattiva" : "Attiva"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant={az.attiva ? "destructive" : "secondary"}
+                            size="sm"
+                            loading={loading}
+                            onClick={() =>
+                              void aggiornaAzienda(az.id, { attiva: !az.attiva })
+                            }
+                          >
+                            {az.attiva ? "Disattiva" : "Attiva"}
+                          </Button>
+                          {confirmingDeleteId === az.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDeleteModalAzienda(az);
+                                  setConfirmingDeleteId(null);
+                                }}
+                                className="rounded border border-error-500 px-2 py-1 text-xs font-medium text-error-500 transition-colors hover:bg-error-500/10"
+                              >
+                                Sei sicuro?
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmingDeleteId(null)}
+                                className="text-xs text-text-muted hover:text-text-primary"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingDeleteId(az.id)}
+                              className="rounded p-1 text-text-muted transition-colors hover:text-error-500"
+                              aria-label="Elimina azienda"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -372,6 +436,64 @@ export default function SuperadminPage() {
           </div>
         </Card>
       </main>
+
+      {/* ── Modal elimina azienda ── */}
+      {deleteModalAzienda && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={(e) => { if (e.target === e.currentTarget) chiudiDeleteModal(); }}
+        >
+          <Card className="w-full max-w-sm p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-heading text-lg font-medium text-error-500">
+                Elimina azienda
+              </h2>
+              <button
+                type="button"
+                onClick={chiudiDeleteModal}
+                aria-label="Chiudi"
+                className="text-text-muted hover:text-text-primary transition-colors duration-150"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-text-secondary">
+              Questa operazione è <strong>irreversibile</strong>. Tutti i dati
+              dell&apos;azienda verranno eliminati definitivamente.
+            </p>
+            <p className="mb-2 text-xs text-text-muted">
+              Digita <span className="font-semibold text-text-primary">{deleteModalAzienda.nome}</span> per confermare:
+            </p>
+            <Input
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder={deleteModalAzienda.nome}
+              disabled={deleting}
+              autoFocus
+            />
+            <div className="mt-4 flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={chiudiDeleteModal}
+                disabled={deleting}
+              >
+                Annulla
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                loading={deleting}
+                disabled={deleteInput !== deleteModalAzienda.nome}
+                onClick={() => void eliminaAzienda()}
+                className="flex-1"
+              >
+                Elimina definitivamente
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* ── Modal nuova azienda ── */}
       {mostraModal && (
