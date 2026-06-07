@@ -501,9 +501,17 @@ export default function RegistratiPage() {
                 </div>
 
                 {erroreGlobale && (
-                  <p className="rounded-md bg-error-500/10 px-3 py-2 text-sm text-error-500">
+                  <div className="rounded-md bg-error-500/10 px-3 py-2 text-sm text-error-500">
                     {erroreGlobale}
-                  </p>
+                    {erroreGlobale.includes("già registrata") && (
+                      <>
+                        {" "}
+                        <Link href="/login" className="font-semibold underline">
+                          Vai al login →
+                        </Link>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 <div className="mt-2 flex gap-3">

@@ -10,7 +10,7 @@ const ERRORI_API = {
   PAYLOAD_NON_VALIDO: "Dati non validi",
   CAMPI_OBBLIGATORI: "Nome azienda, nome, cognome ed email sono obbligatori",
   GDPR_OBBLIGATORIO: "Devi accettare la Privacy Policy per continuare",
-  EMAIL_GIA_REGISTRATA: "Esiste già un account con questa email",
+  EMAIL_GIA_REGISTRATA: "Email già registrata. Accedi con questa email.",
   ERRORE_GENERICO: "Errore durante la registrazione",
 } as const;
 
@@ -141,11 +141,14 @@ export async function POST(request: Request): Promise<Response> {
       });
 
     if (authError || !authData.user) {
-      if (
+      const msg = authError?.message?.toLowerCase() ?? "";
+      const isEmailExists =
         authError?.code === "email_exists" ||
-        authError?.message?.toLowerCase().includes("already")
-      ) {
-        return jsonErrore(ERRORI_API.EMAIL_GIA_REGISTRATA, HTTP_STATUS.CONFLICT);
+        msg.includes("already") ||
+        msg.includes("email exists") ||
+        msg.includes("already registered");
+      if (isEmailExists) {
+        return jsonErrore(ERRORI_API.EMAIL_GIA_REGISTRATA, HTTP_STATUS.BAD_REQUEST);
       }
       throw authError ?? new Error("Creazione utente Auth fallita");
     }
