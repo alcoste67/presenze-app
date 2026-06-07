@@ -81,10 +81,12 @@ const LABEL_RUOLI_DIPENDENTE: Record<RuoloDipendente, string> = {
   [RUOLI_DIPENDENTE.RESPONSABILE]: "Responsabile",
   [RUOLI_DIPENDENTE.UFFICIO]: "Ufficio",
   [RUOLI_DIPENDENTE.ADMIN]: "Admin",
+  [RUOLI_DIPENDENTE.SUPERADMIN]: "Superadmin",
 };
 
 const RUOLO_BADGE_VARIANT: Record<RuoloDipendente, BadgeProps["variant"]> = {
   [RUOLI_DIPENDENTE.ADMIN]: "brand",
+  [RUOLI_DIPENDENTE.SUPERADMIN]: "brand",
   [RUOLI_DIPENDENTE.RESPONSABILE]: "info",
   [RUOLI_DIPENDENTE.OPERAIO]: "success",
   [RUOLI_DIPENDENTE.UFFICIO]: "muted",
