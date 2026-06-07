@@ -20,6 +20,7 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+  console.log('[proxy] REQUEST:', request.method, request.nextUrl.pathname, request.headers.get('host') ?? '')
   // Must run first so any token refresh gets written to the response cookies.
   let supabaseResponse = NextResponse.next({ request });
 
@@ -51,6 +52,8 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log('[proxy] USER:', user?.email ?? 'null', 'cookies:', request.cookies.getAll().map(c => c.name))
+
   const hostname = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
 
@@ -65,6 +68,7 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/api")
   ) {
+    console.log('[proxy] LANDING DOMAIN HIT, user:', user?.email ?? 'null')
     if (user) {
       return NextResponse.redirect(new URL(APP_ROUTES.TIMBRATURE, request.url));
     }
