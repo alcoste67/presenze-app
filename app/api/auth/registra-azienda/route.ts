@@ -137,7 +137,7 @@ export async function POST(request: Request): Promise<Response> {
       await supabaseAdmin.auth.admin.createUser({
         email: emailAdmin,
         password: randomPassword,
-        email_confirm: false, // Supabase invia email di conferma
+        email_confirm: true, // email già confermata — primo contatto sarà l'OTP al login
       });
 
     if (authError || !authData.user) {
