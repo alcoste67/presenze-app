@@ -108,6 +108,7 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
     }
 
+    console.log("[registra-azienda] STEP 1: parsing payload");
     const payload = leggiPayload(body);
     if (!payload) {
       return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
@@ -124,21 +125,21 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErrore(ERRORI_API.CAMPI_OBBLIGATORI, HTTP_STATUS.BAD_REQUEST);
     }
 
-    // GDPR: privacy consent is mandatory
-    // (client enforces this too, but verify server-side)
-    // Note: we don't block on this server-side since the client already guards it,
-    // but we log it for audit purposes.
-
-    // 1. Crea utente Auth (password casuale — l'utente la imposterà via email)
     const randomPassword =
       globalThis.crypto.randomUUID() + "-" + globalThis.crypto.randomUUID();
 
+    console.log("[registra-azienda] STEP 2: createUser starting", { email: emailAdmin });
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email: emailAdmin,
         password: randomPassword,
         email_confirm: true, // email già confermata — primo contatto sarà l'OTP al login
       });
+
+    console.log("[registra-azienda] STEP 2 result:", {
+      userId: authData?.user?.id ?? null,
+      error: authError ? JSON.stringify(authError) : null,
+    });
 
     if (authError || !authData.user) {
       const msg = authError?.message?.toLowerCase() ?? "";
@@ -155,7 +156,7 @@ export async function POST(request: Request): Promise<Response> {
 
     authUserId = authData.user.id;
 
-    // 2. Crea azienda
+    console.log("[registra-azienda] STEP 3: insert azienda starting");
     const { data: aziendaData, error: aziendaError } = await supabaseAdmin
       .from("aziende")
       .insert({
@@ -177,12 +178,13 @@ export async function POST(request: Request): Promise<Response> {
       .single();
 
     if (aziendaError || !aziendaData) {
+      console.error("[registra-azienda] INSERT aziende error:", JSON.stringify(aziendaError, null, 2));
       throw aziendaError ?? new Error("Creazione azienda fallita");
     }
 
     aziendaId = aziendaData.id as string;
 
-    // 3. Crea dipendente ADMIN con consensi GDPR
+    console.log("[registra-azienda] STEP 4: insert dipendente starting", { aziendaId });
     const { error: dipendenteError } = await supabaseAdmin
       .from("dipendenti")
       .insert({
@@ -199,9 +201,11 @@ export async function POST(request: Request): Promise<Response> {
       });
 
     if (dipendenteError) {
+      console.error("[registra-azienda] INSERT dipendenti error:", JSON.stringify(dipendenteError, null, 2));
       throw dipendenteError;
     }
 
+    console.log("[registra-azienda] success");
     return Response.json({ success: true }, { status: HTTP_STATUS.CREATED });
   } catch (error: unknown) {
     // Rollback: prima azienda (dipendente non creato), poi auth user
