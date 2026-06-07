@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -17,7 +16,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({ actions, className }: AppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null } | null>(null)
+  const [azienda, setAzienda] = useState<{ nome: string; logo_url: string | null; colori: { primary: string; secondary: string } | null } | null>(null)
   const router = useRouter()
   const toast = useToast()
 
@@ -28,13 +27,17 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
         if (session?.user) {
           supabase
             .from('dipendenti')
-            .select('aziende(nome, logo_url)')
+            .select('aziende(nome, logo_url, colori)')
             .eq('auth_user_id', session.user.id)
             .eq('attivo', true)
             .maybeSingle()
             .then(({ data }) => {
               if (data?.aziende) {
-                setAzienda(data.aziende as unknown as { nome: string; logo_url: string | null })
+                const az = data.aziende as unknown as { nome: string; logo_url: string | null; colori: { primary: string; secondary: string } | null }
+                setAzienda(az)
+                if (az.colori?.primary) {
+                  document.documentElement.style.setProperty('--color-brand-500', az.colori.primary)
+                }
               }
             })
         } else {
@@ -70,12 +73,11 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
         className="flex items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         {azienda?.logo_url ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={azienda.logo_url}
             alt={azienda.nome}
-            width={120}
-            height={34}
-            priority
+            className="h-8 w-auto object-contain"
           />
         ) : (
           <span className="font-heading font-semibold text-text-primary">

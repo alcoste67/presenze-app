@@ -157,6 +157,9 @@ export default function ImpostazioniPage() {
         }),
       });
       if (!res.ok) throw new Error("Errore salvataggio");
+      if (form.colori.primary) {
+        document.documentElement.style.setProperty('--color-brand-500', form.colori.primary);
+      }
       toast.success("Impostazioni salvate");
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, "Errore salvataggio impostazioni"));

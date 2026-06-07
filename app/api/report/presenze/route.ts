@@ -6,6 +6,7 @@ import {
 } from "@/constants/reportPresenze";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { loadPresenzeReport } from "@/services/report/loadPresenzeReport";
 import type { PresenzeReportFiltri } from "@/types/reportPresenze";
 
@@ -266,8 +267,10 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
     const report =
-      await loadPresenzeReport(filtri);
+      await loadPresenzeReport(filtri, aziendaId);
 
     return jsonOk(report);
   } catch (error: unknown) {
