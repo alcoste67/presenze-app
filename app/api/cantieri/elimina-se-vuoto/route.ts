@@ -2,6 +2,7 @@ import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 
 
 const ERRORI_API = {
@@ -123,6 +124,8 @@ export async function POST(
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
     const cantiereId =
       await leggiCantiereId(request);
 
@@ -140,6 +143,7 @@ export async function POST(
       .from("cantieri")
       .select("id, attivo")
       .eq("id", cantiereId)
+      .eq("azienda_id", aziendaId)
       .maybeSingle();
 
     if (cantiereError) {
@@ -172,7 +176,8 @@ export async function POST(
         count: "exact",
         head: true,
       })
-      .eq("cantiere_id", cantiereId);
+      .eq("cantiere_id", cantiereId)
+      .eq("azienda_id", aziendaId);
 
     if (timbratureError) {
       throw timbratureError;
@@ -192,6 +197,7 @@ export async function POST(
       .from("cantieri")
       .delete()
       .eq("id", cantiereId)
+      .eq("azienda_id", aziendaId)
       .select("id")
       .single();
 

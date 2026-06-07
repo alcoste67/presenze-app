@@ -4,6 +4,7 @@ import { API_HEADERS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import type {
   SalFreezeDettaglio,
   SalFreezeFoto,
@@ -271,6 +272,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
     const [
       freezeResult,
       lavorazioniResult,
@@ -281,21 +284,25 @@ export async function GET(request: NextRequest) {
         .from("sal_freeze_mensili")
         .select(SELECT_SAL_FREEZE_MENSILE)
         .eq("id", freezeId)
+        .eq("azienda_id", aziendaId)
         .maybeSingle(),
       supabaseAdmin
         .from("sal_freeze_lavorazioni")
         .select(SELECT_SAL_FREEZE_LAVORAZIONI)
         .eq("freeze_id", freezeId)
+        .eq("azienda_id", aziendaId)
         .order("ordine", { ascending: true }),
       supabaseAdmin
         .from("sal_freeze_foto")
         .select(SELECT_SAL_FREEZE_FOTO)
         .eq("freeze_id", freezeId)
+        .eq("azienda_id", aziendaId)
         .order("ordine", { ascending: true }),
       supabaseAdmin
         .from("sal_freeze_macchinari")
         .select(SELECT_SAL_FREEZE_MACCHINARI)
         .eq("freeze_id", freezeId)
+        .eq("azienda_id", aziendaId)
         .order("ordine", { ascending: true }),
     ]);
 

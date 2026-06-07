@@ -9,6 +9,7 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import {
   createSalFreeze,
   SAL_FREEZE_ERRORI,
@@ -299,6 +300,7 @@ async function buildSheetsForCantieri({
   utenteAdmin,
   userEmail,
   userId,
+  aziendaId,
 }: {
   periodStart: string;
   periodEnd: string;
@@ -306,6 +308,7 @@ async function buildSheetsForCantieri({
   utenteAdmin: boolean;
   userEmail: string;
   userId: string;
+  aziendaId: string;
 }) {
   const sheets: ExportSheet[] = [];
   const usedNames = new Set<string>();
@@ -328,6 +331,7 @@ async function buildSheetsForCantieri({
           .eq("cantiere_id", cantiere.id)
           .eq("period_start", periodStart)
           .eq("period_end", periodEnd)
+          .eq("azienda_id", aziendaId)
           .is("annullato_at", null)
           .order("freeze_at", { ascending: false })
           .order("period_start", { ascending: false })
@@ -398,6 +402,7 @@ async function buildSheetsForCantieri({
                 .eq("cantiere_id", cantiere.id)
                 .eq("period_start", periodStart)
                 .eq("period_end", periodEnd)
+                .eq("azienda_id", aziendaId)
                 .is("annullato_at", null)
                 .order("freeze_at", { ascending: false })
                 .order("period_start", { ascending: false })
@@ -555,6 +560,8 @@ export async function POST(
     );
   }
 
+  const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
   let payload: unknown = null;
 
   try {
@@ -593,7 +600,8 @@ export async function POST(
       await supabaseAdmin
         .from("cantieri")
         .select("id, nome")
-        .in("id", body.cantiereIds);
+        .in("id", body.cantiereIds)
+        .eq("azienda_id", aziendaId);
 
     if (cantieriError) {
       return jsonErrore(
@@ -628,6 +636,7 @@ export async function POST(
       utenteAdmin,
       userEmail: user.email,
       userId: user.id,
+      aziendaId,
     });
 
     const workbook = buildCommessaWorkbook(sheets);

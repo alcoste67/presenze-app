@@ -4,6 +4,7 @@ import { API_HEADERS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
+import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import type { SalFreezeMensile } from "@/types/salFreeze";
 
 export const runtime = "nodejs";
@@ -98,6 +99,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, user.id);
+
   const cantiereId = leggiCantiereId(request);
 
   if (!cantiereId) {
@@ -111,6 +114,7 @@ export async function GET(request: NextRequest) {
     .from("sal_freeze_mensili")
     .select(SELECT_SAL_FREEZE_MENSILI)
     .eq("cantiere_id", cantiereId)
+    .eq("azienda_id", aziendaId)
     .order("freeze_at", { ascending: false })
     .order("period_start", { ascending: false });
 
