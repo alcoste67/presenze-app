@@ -16,8 +16,6 @@ import { isAdmin } from "@/services/dipendenti/isAdmin";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Colori = { primary: string; secondary: string };
-
 type DatiAzienda = {
   nome: string;
   partita_iva: string;
@@ -27,7 +25,6 @@ type DatiAzienda = {
   telefono: string;
   sito_web: string;
   logo_url: string | null;
-  colori: Colori;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,18 +38,9 @@ const FORM_INIZIALE: DatiAzienda = {
   telefono: "",
   sito_web: "",
   logo_url: null,
-  colori: { primary: "#e95624", secondary: "#1a1a2e" },
 };
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
-
-const PALETTE_COLORI = [
-  "#e95624",
-  "#1e2d4a",
-  "#16a34a",
-  "#7c3aed",
-  "#dc2626",
-] as const;
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -120,10 +108,6 @@ export default function ImpostazioniPage() {
             telefono: data.telefono ?? "",
             sito_web: data.sito_web ?? "",
             logo_url: data.logo_url ?? null,
-            colori: {
-              primary: data.colori?.primary ?? "#e95624",
-              secondary: data.colori?.secondary ?? "#1a1a2e",
-            },
           });
         }
       } catch (error: unknown) {
@@ -161,13 +145,9 @@ export default function ImpostazioniPage() {
           email: form.email.trim() || null,
           telefono: form.telefono.trim() || null,
           sito_web: form.sito_web.trim() || null,
-          colori: form.colori,
         }),
       });
       if (!res.ok) throw new Error("Errore salvataggio");
-      if (form.colori.primary) {
-        document.documentElement.style.setProperty('--color-brand-500', form.colori.primary);
-      }
       toast.success("Impostazioni salvate");
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, "Errore salvataggio impostazioni"));
@@ -325,70 +305,6 @@ export default function ImpostazioniPage() {
                 onChange={(e) => setForm((f) => ({ ...f, sito_web: e.target.value }))}
                 disabled={salvataggio}
               />
-
-              {/* ── Sezione 3: Colori brand ── */}
-              <div className="border-t border-border pt-4 mt-2">
-                <p className="text-sm font-medium text-text-primary mb-3">Colori brand</p>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-xs text-text-muted">Colore primario</span>
-                    <div className="flex gap-2">
-                      {PALETTE_COLORI.map((colore) => (
-                        <button
-                          key={colore}
-                          type="button"
-                          disabled={salvataggio}
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              colori: { ...f.colori, primary: colore },
-                            }))
-                          }
-                          style={{ backgroundColor: colore }}
-                          aria-label={colore}
-                          className={`h-8 w-8 rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50${form.colori.primary === colore ? " ring-2 ring-offset-2 ring-gray-800" : " cursor-pointer"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-xs text-text-muted">Colore secondario</span>
-                    <div className="flex gap-2">
-                      {PALETTE_COLORI.map((colore) => (
-                        <button
-                          key={colore}
-                          type="button"
-                          disabled={salvataggio}
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              colori: { ...f.colori, secondary: colore },
-                            }))
-                          }
-                          style={{ backgroundColor: colore }}
-                          aria-label={colore}
-                          className={`h-8 w-8 rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50${form.colori.secondary === colore ? " ring-2 ring-offset-2 ring-gray-800" : " cursor-pointer"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {/* Live preview */}
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-flex items-center rounded-md px-3 py-1 text-xs font-medium text-white"
-                      style={{ backgroundColor: form.colori.primary }}
-                    >
-                      Primario
-                    </span>
-                    <span
-                      className="inline-flex items-center rounded-md px-3 py-1 text-xs font-medium text-white"
-                      style={{ backgroundColor: form.colori.secondary }}
-                    >
-                      Secondario
-                    </span>
-                  </div>
-                </div>
-              </div>
 
               <Button type="submit" loading={salvataggio} className="mt-2 self-start">
                 Salva impostazioni
