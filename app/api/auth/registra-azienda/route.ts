@@ -125,36 +125,49 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErrore(ERRORI_API.CAMPI_OBBLIGATORI, HTTP_STATUS.BAD_REQUEST);
     }
 
-    const randomPassword =
-      globalThis.crypto.randomUUID() + "-" + globalThis.crypto.randomUUID();
-
     console.log("[registra-azienda] STEP 2: createUser starting", { email: emailAdmin });
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: emailAdmin,
-        password: randomPassword,
-        email_confirm: true, // email già confermata — primo contatto sarà l'OTP al login
-      });
+    const createUserRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+        body: JSON.stringify({
+          email: emailAdmin,
+          email_confirm: true,
+        }),
+      }
+    );
+    const createUserData = (await createUserRes.json()) as {
+      id?: string;
+      message?: string;
+      msg?: string;
+      code?: string;
+    };
 
     console.log("[registra-azienda] STEP 2 result:", {
-      userId: authData?.user?.id ?? null,
-      error: authError ? JSON.stringify(authError) : null,
+      status: createUserRes.status,
+      userId: createUserData.id ?? null,
+      error: !createUserRes.ok ? JSON.stringify(createUserData) : null,
     });
 
-    if (authError || !authData.user) {
-      const msg = authError?.message?.toLowerCase() ?? "";
+    if (!createUserRes.ok || !createUserData.id) {
+      const msg = (createUserData.message ?? createUserData.msg ?? "").toLowerCase();
       const isEmailExists =
-        authError?.code === "email_exists" ||
+        createUserData.code === "email_exists" ||
         msg.includes("already") ||
         msg.includes("email exists") ||
         msg.includes("already registered");
       if (isEmailExists) {
         return jsonErrore(ERRORI_API.EMAIL_GIA_REGISTRATA, HTTP_STATUS.BAD_REQUEST);
       }
-      throw authError ?? new Error("Creazione utente Auth fallita");
+      throw new Error(createUserData.message ?? createUserData.msg ?? "Creazione utente Auth fallita");
     }
 
-    authUserId = authData.user.id;
+    authUserId = createUserData.id;
 
     console.log("[registra-azienda] STEP 3: insert azienda starting");
     const { data: aziendaData, error: aziendaError } = await supabaseAdmin
