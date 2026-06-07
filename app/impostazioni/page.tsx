@@ -46,6 +46,14 @@ const FORM_INIZIALE: DatiAzienda = {
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
+const PALETTE_COLORI = [
+  "#e95624",
+  "#1e2d4a",
+  "#16a34a",
+  "#7c3aed",
+  "#dc2626",
+] as const;
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 async function getAccessToken(): Promise<string> {
@@ -321,39 +329,51 @@ export default function ImpostazioniPage() {
               {/* ── Sezione 3: Colori brand ── */}
               <div className="border-t border-border pt-4 mt-2">
                 <p className="text-sm font-medium text-text-primary mb-3">Colori brand</p>
-                <div className="flex flex-wrap items-end gap-6">
-                  <label className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
                     <span className="text-xs text-text-muted">Colore primario</span>
-                    <input
-                      type="color"
-                      value={form.colori.primary}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          colori: { ...f.colori, primary: e.target.value },
-                        }))
-                      }
-                      disabled={salvataggio}
-                      className="h-10 w-20 cursor-pointer rounded-md border border-border bg-bg-card p-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
+                    <div className="flex gap-2">
+                      {PALETTE_COLORI.map((colore) => (
+                        <button
+                          key={colore}
+                          type="button"
+                          disabled={salvataggio}
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              colori: { ...f.colori, primary: colore },
+                            }))
+                          }
+                          style={{ backgroundColor: colore }}
+                          aria-label={colore}
+                          className={`h-8 w-8 rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50${form.colori.primary === colore ? " ring-2 ring-offset-2 ring-gray-800" : " cursor-pointer"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
                     <span className="text-xs text-text-muted">Colore secondario</span>
-                    <input
-                      type="color"
-                      value={form.colori.secondary}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          colori: { ...f.colori, secondary: e.target.value },
-                        }))
-                      }
-                      disabled={salvataggio}
-                      className="h-10 w-20 cursor-pointer rounded-md border border-border bg-bg-card p-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                  </label>
+                    <div className="flex gap-2">
+                      {PALETTE_COLORI.map((colore) => (
+                        <button
+                          key={colore}
+                          type="button"
+                          disabled={salvataggio}
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              colori: { ...f.colori, secondary: colore },
+                            }))
+                          }
+                          style={{ backgroundColor: colore }}
+                          aria-label={colore}
+                          className={`h-8 w-8 rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50${form.colori.secondary === colore ? " ring-2 ring-offset-2 ring-gray-800" : " cursor-pointer"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   {/* Live preview */}
-                  <div className="flex items-center gap-2 pb-0.5">
+                  <div className="flex items-center gap-2">
                     <span
                       className="inline-flex items-center rounded-md px-3 py-1 text-xs font-medium text-white"
                       style={{ backgroundColor: form.colori.primary }}
