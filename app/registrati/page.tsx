@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -141,6 +142,12 @@ export default function RegistratiPage() {
           <p className="mt-2 text-sm text-text-muted">
             Controlla la tua email per confermare l&apos;account.
           </p>
+          <Link
+            href="/login"
+            className="mt-6 inline-flex h-9 items-center rounded-md bg-[#e95624] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Accedi ora
+          </Link>
         </Card>
       </div>
     );
