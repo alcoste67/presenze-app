@@ -1,6 +1,7 @@
 export const RAPPORTI_INTERVENTO_STATI = {
   BOZZA: "BOZZA",
   FIRMATO: "FIRMATO",
+  INVIATO: "INVIATO",
   ANNULLATO: "ANNULLATO",
 } as const;
 
@@ -34,6 +35,8 @@ export const LABEL_STATI_RAPPORTO_INTERVENTO: Record<
   [RAPPORTI_INTERVENTO_STATI.BOZZA]: "Bozza",
   [RAPPORTI_INTERVENTO_STATI.FIRMATO]:
     "Firmato",
+  [RAPPORTI_INTERVENTO_STATI.INVIATO]:
+    "Inviato",
   [RAPPORTI_INTERVENTO_STATI.ANNULLATO]:
     "Annullato",
 };
@@ -118,6 +121,18 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   NOME_FIRMA_CLIENTE:
     "Nome firma cliente",
   CANCELLA_FIRMA: "Cancella firma",
+  FIRMA_PAGINA_TITOLO: "Firma rapporto",
+  FIRMA_RIEPILOGO: "Riepilogo rapporto",
+  FIRMA_AVVISO:
+    "Stai per firmare questo rapporto: dopo la conferma non potrà più essere modificato.",
+  CONFERMA_FIRMA: "Conferma firma",
+  FIRMA_IN_CORSO: "Firma in corso...",
+  FIRMA_CONFERMATA: "Rapporto firmato",
+  VAI_ALLA_FIRMA: "Firma rapporto",
+  RAPPORTO_NON_FIRMABILE:
+    "Il rapporto non è in bozza e non può essere firmato",
+  FIRMA_DISPONIBILE_DOPO_SALVATAGGIO:
+    "Salva il rapporto come bozza: la firma avviene da pagina dedicata.",
   AGGIUNGI_LAVORAZIONE:
     "Aggiungi lavorazione",
   RIMUOVI: "Rimuovi",
@@ -172,6 +187,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Inserisci la descrizione lavorazione",
     FIRMA_TROPPO_GRANDE:
       "Firma troppo grande",
+    FIRME_OBBLIGATORIE:
+      "Inserisci entrambe le firme prima di confermare",
     FOTO_NON_VALIDA:
       "Foto non valida",
     FOTO_TROPPO_GRANDE:

@@ -246,14 +246,14 @@ export function FirmaCanvas({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-industrial-muted">
+        <span className="text-sm font-medium text-text-muted">
           {label}
         </span>
         <button
           type="button"
           onClick={handleClear}
           disabled={disabled || !value}
-          className="rounded-xl border border-industrial-border bg-industrial-control px-3 py-2 text-xs font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange disabled:cursor-not-allowed disabled:text-industrial-muted-strong"
+          className="rounded-md border border-border bg-bg-card px-3 py-2 text-xs font-medium text-text-primary transition-colors duration-150 hover:bg-bg-subtle disabled:cursor-not-allowed disabled:opacity-50"
         >
           {clearLabel}
         </button>
@@ -268,7 +268,7 @@ export function FirmaCanvas({
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         onPointerLeave={handlePointerEnd}
-        className="h-[180px] w-full touch-none rounded-xl border border-industrial-border bg-industrial-surface shadow-inner"
+        className="h-[180px] w-full touch-none rounded-md border border-border bg-bg-card shadow-inner"
       />
     </div>
   );

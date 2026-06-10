@@ -33,7 +33,10 @@ export function ProtezioneBackoffice({
     let attivo = true;
     const accessoOperativoRapporti =
       pathname ===
-      APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO;
+        APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO ||
+      pathname.startsWith(
+        `${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}/`
+      );
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;

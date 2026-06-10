@@ -4,11 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Download, Home, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Home, PenLine, Plus, Search, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { getMessaggioErrore } from "@/lib/errors";
-import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 import {
   LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
   LABEL_STATI_RAPPORTO_INTERVENTO,
@@ -876,7 +875,10 @@ export default function BackofficeRapportiInterventoPage() {
       }
 
       setRapportoInModificaId(rapportoCompleto.id);
-      setReadonly(rapportoCompleto.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO);
+      setReadonly(
+        rapportoCompleto.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO ||
+          rapportoCompleto.stato === RAPPORTI_INTERVENTO_STATI.INVIATO
+      );
       setForm({
         cantiere_id: rapportoCompleto.cantiere_id,
         data_intervento: rapportoCompleto.data_intervento,
@@ -966,8 +968,13 @@ export default function BackofficeRapportiInterventoPage() {
         });
         toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.AGGIORNATO);
       } else {
-        await creaRapportoIntervento(preparazione.payload);
+        const nuovo = await creaRapportoIntervento(preparazione.payload);
         toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.CREATO);
+        // Resta sul rapporto appena creato: così il tasto "Firma
+        // rapporto" è subito visibile
+        await caricaDati();
+        await caricaRapportoInForm(nuovo);
+        return;
       }
 
       await caricaDati();
@@ -1472,51 +1479,59 @@ export default function BackofficeRapportiInterventoPage() {
                 </div>
               </section>
 
-              {/* Firme (FirmaCanvas x2) */}
+              {/* Firme: pagina dedicata; qui anteprima se già firmate */}
               <section className="space-y-4">
                 <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.FIRMA}</h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Firma Responsabile */}
-                  <div className="space-y-2">
-                    <FirmaCanvas
-                      label={RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
-                      clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
-                      value={form.firma_responsabile_data_url}
-                      onChange={(dataUrl) => handleFormChange("firma_responsabile_data_url", dataUrl)}
-                      disabled={readonly}
-                    />
-
-                    <Input
-                      label={RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_RESPONSABILE}
-                      type="text"
-                      value={form.firma_responsabile_nome}
-                      onChange={(e) => handleFormChange("firma_responsabile_nome", e.target.value)}
-                      disabled={readonly}
-                      placeholder={form.responsabile_nome}
-                    />
+                {readonly &&
+                (form.firma_responsabile_data_url || form.firma_cliente_data_url) ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {form.firma_responsabile_data_url && (
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-text-muted">
+                          {RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
+                          {form.firma_responsabile_nome
+                            ? ` — ${form.firma_responsabile_nome}`
+                            : ""}
+                        </p>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={form.firma_responsabile_data_url}
+                          alt={RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
+                          className="h-[120px] w-full rounded-md border border-border bg-bg-card object-contain"
+                        />
+                      </div>
+                    )}
+                    {form.firma_cliente_data_url && (
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-text-muted">
+                          {RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                          {form.firma_cliente_nome
+                            ? ` — ${form.firma_cliente_nome}`
+                            : ""}
+                        </p>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={form.firma_cliente_data_url}
+                          alt={RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                          className="h-[120px] w-full rounded-md border border-border bg-bg-card object-contain"
+                        />
+                      </div>
+                    )}
                   </div>
-
-                  {/* Firma Cliente */}
-                  <div className="space-y-2">
-                    <FirmaCanvas
-                      label={RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
-                      clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
-                      value={form.firma_cliente_data_url}
-                      onChange={(dataUrl) => handleFormChange("firma_cliente_data_url", dataUrl)}
-                      disabled={readonly}
-                    />
-
-                    <Input
-                      label={RAPPORTI_INTERVENTO_TESTI.NOME_FIRMA_CLIENTE}
-                      type="text"
-                      value={form.firma_cliente_nome}
-                      onChange={(e) => handleFormChange("firma_cliente_nome", e.target.value)}
-                      disabled={readonly}
-                      placeholder={form.cliente_committente}
-                    />
-                  </div>
-                </div>
+                ) : rapportoInModificaId && !readonly ? (
+                  <Link
+                    href={`${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}/${rapportoInModificaId}/firma`}
+                  >
+                    <Button type="button" variant="secondary">
+                      {RAPPORTI_INTERVENTO_TESTI.VAI_ALLA_FIRMA}
+                    </Button>
+                  </Link>
+                ) : !rapportoInModificaId ? (
+                  <p className="text-sm text-text-muted">
+                    {RAPPORTI_INTERVENTO_TESTI.FIRMA_DISPONIBILE_DOPO_SALVATAGGIO}
+                  </p>
+                ) : null}
               </section>
 
               {/* Pulsanti finali */}
@@ -1614,6 +1629,17 @@ export default function BackofficeRapportiInterventoPage() {
                             <Badge variant={getStatoBadgeVariant(r.stato)} size="sm">
                               {LABEL_STATI_RAPPORTO_INTERVENTO[r.stato]}
                             </Badge>
+                            {r.stato === RAPPORTI_INTERVENTO_STATI.BOZZA && (
+                              <Link
+                                href={`${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}/${r.id}/firma`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                                aria-label={RAPPORTI_INTERVENTO_TESTI.VAI_ALLA_FIRMA}
+                              >
+                                <PenLine className="h-4 w-4" />
+                                {RAPPORTI_INTERVENTO_TESTI.FIRMA_PAGINA_TITOLO}
+                              </Link>
+                            )}
                             {r.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO && (
                               <button
                                 onClick={(e) => {
