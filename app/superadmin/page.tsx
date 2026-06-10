@@ -257,12 +257,20 @@ export default function SuperadminPage() {
   return (
     <div className="min-h-dvh bg-bg-base">
       <main className="mx-auto max-w-5xl px-6 py-10">
-        <Link
-          href="/"
-          className="text-sm text-text-muted hover:text-text-primary transition-colors duration-150"
-        >
-          ← Home
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-sm text-text-muted hover:text-text-primary transition-colors duration-150"
+          >
+            ← Home
+          </Link>
+          <Link
+            href="/backoffice"
+            className="text-sm text-text-muted hover:text-text-primary transition-colors duration-150"
+          >
+            Back-office
+          </Link>
+        </div>
 
         <div className="mt-2 flex items-center justify-between gap-4">
           <div>

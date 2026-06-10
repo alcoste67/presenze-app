@@ -8,6 +8,10 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Home } from "lucide-react";
+
+import { AppHeader } from "@/components/ui/AppHeader";
+import { Button } from "@/components/ui/Button";
 
 import { APP_ROUTES } from "@/constants/routes";
 import { MACCHINARI_TESTI } from "@/constants/macchinari";
@@ -649,34 +653,59 @@ export default function BackofficeCostiMacchinariPage() {
     loading || loadingRuolo || loadingCosti || loadingMacchinari;
 
   return (
-    <main className="min-h-dvh bg-bg-base p-6 text-text-primary">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="font-heading text-[28px] font-medium text-text-primary">
-              {MACCHINARI_TESTI.TITOLO}
-            </h1>
-            {cantiereSelezionato && (
-              <p className="mt-1 text-sm text-text-muted">
-                {cantiereSelezionato.nome}
-              </p>
-            )}
-          </div>
+    <div className="min-h-dvh bg-bg-base">
+      <AppHeader
+        actions={
+          <>
+            <Link href={APP_ROUTES.BACKOFFICE}>
+              <Button variant="secondary" size="sm">
+                {MACCHINARI_TESTI.BACKOFFICE}
+              </Button>
+            </Link>
+            <Link href="/">
+              <Button variant="secondary" size="sm">
+                {MACCHINARI_TESTI.TIMBRATURE}
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
-          <div className="flex gap-4 text-sm font-semibold">
-            <Link
-              href={APP_ROUTES.BACKOFFICE}
-              className="rounded-md border border-border bg-bg-card px-3 py-2 text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
-            >
-              {MACCHINARI_TESTI.BACKOFFICE}
-            </Link>
-            <Link
-              href="/"
-              className="rounded-md border border-border bg-bg-card px-3 py-2 text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
-            >
-              {MACCHINARI_TESTI.TIMBRATURE}
-            </Link>
-          </div>
+      <main className="mx-auto max-w-[1000px] px-6 py-6 text-text-primary">
+        {/* Breadcrumb */}
+        <nav
+          aria-label="breadcrumb"
+          className="mb-5 flex items-center gap-1.5 text-sm text-text-muted"
+        >
+          <Link
+            href="/"
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            <Home className="h-4 w-4" />
+          </Link>
+          <span>/</span>
+          <Link
+            href={APP_ROUTES.BACKOFFICE}
+            className="hover:text-text-primary transition-colors duration-150"
+          >
+            {MACCHINARI_TESTI.BACKOFFICE}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-text-primary">
+            {MACCHINARI_TESTI.TITOLO}
+          </span>
+        </nav>
+
+        {/* Titolo */}
+        <div className="mb-6">
+          <h1 className="font-heading text-2xl font-medium text-text-primary">
+            {MACCHINARI_TESTI.TITOLO}
+          </h1>
+          {cantiereSelezionato && (
+            <p className="mt-1 text-sm text-text-muted">
+              {cantiereSelezionato.nome}
+            </p>
+          )}
         </div>
 
         {errore && (
@@ -1013,7 +1042,7 @@ export default function BackofficeCostiMacchinariPage() {
             )}
           </section>
         </section>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

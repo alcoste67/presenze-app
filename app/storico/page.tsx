@@ -17,6 +17,8 @@ import {
   loadStoricoTimbrature,
   type TimbraturaStorico,
 } from "@/services/timbrature/loadStoricoTimbrature";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { isResponsabile } from "@/services/dipendenti/isResponsabile";
 import type { TipoAttivita } from "@/types/attivita";
 import type { TipoTimbratura } from "@/types/timbrature";
 
@@ -96,6 +98,7 @@ export default function StoricoPage() {
   const [user, setUser] = useState<User | null>(null);
   const [timbrature, setTimbrature] = useState<TimbraturaStorico[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mostraBackoffice, setMostraBackoffice] = useState(false);
 
   const oreLavorate = calcolaOreLavorate(timbrature);
   const timbratureVisualizzate = [...timbrature].reverse();
@@ -113,6 +116,15 @@ export default function StoricoPage() {
         if (!user) {
           setTimbrature([]);
           return;
+        }
+
+        if (user.email) {
+          void Promise.all([
+            isAdmin(user.email),
+            isResponsabile(user.email),
+          ]).then(([admin, responsabile]) => {
+            if (attivo) setMostraBackoffice(admin || responsabile);
+          });
         }
 
         const { dataInizio, dataFine } = getIntervalloOggi();
@@ -135,11 +147,20 @@ export default function StoricoPage() {
     <div className="min-h-dvh bg-bg-base">
       <AppHeader
         actions={
-          <Link href={APP_ROUTES.HOME}>
-            <Button variant="secondary" size="sm">
-              {TIMBRATURE_TESTI.UI.APP_TITOLO}
-            </Button>
-          </Link>
+          <>
+            {mostraBackoffice && (
+              <Link href={APP_ROUTES.BACKOFFICE}>
+                <Button variant="secondary" size="sm">
+                  Back-office
+                </Button>
+              </Link>
+            )}
+            <Link href={APP_ROUTES.HOME}>
+              <Button variant="secondary" size="sm">
+                {TIMBRATURE_TESTI.UI.APP_TITOLO}
+              </Button>
+            </Link>
+          </>
         }
       />
 

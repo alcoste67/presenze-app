@@ -13,6 +13,7 @@ import {
 
 import { APP_ROUTES } from "@/constants/routes";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { Button } from "@/components/ui/Button";
 import { ProtezioneAdmin } from "@/components/admin/ProtezioneAdmin";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <ProtezioneAdmin>
       <div className="min-h-dvh bg-bg-base">
-        <AppHeader />
+        <AppHeader
+          actions={
+            <>
+              <Link href={APP_ROUTES.BACKOFFICE}>
+                <Button variant="secondary" size="sm">
+                  Back-office
+                </Button>
+              </Link>
+              <Link href={APP_ROUTES.HOME}>
+                <Button variant="secondary" size="sm">
+                  Timbrature
+                </Button>
+              </Link>
+            </>
+          }
+        />
 
         <div className="mx-auto max-w-[1100px] px-4 py-6">
           <div className="flex gap-6">
