@@ -80,5 +80,7 @@ export const TIMBRATURE_TESTI = {
       "Seleziona un cantiere diverso da quello corrente",
     CAMBIO_CANTIERE_ATTIVITA_NON_CONSENTITA:
       "Cambio cantiere non consentito su attività generica",
+    CANTIERE_NON_DISPONIBILE:
+      "Cantiere non più disponibile: ricarica la pagina e riprova",
   },
 } as const;

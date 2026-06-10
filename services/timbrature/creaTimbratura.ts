@@ -108,6 +108,29 @@ export async function creaTimbratura({
     );
   }
 
+  // Verifica che il cantiere esista ed è visibile (stessa azienda, RLS):
+  // protegge da liste cantieri rimaste in memoria nella PWA dopo un
+  // cambio utente o una modifica al DB
+  if (destinazioneCantiereId) {
+    const { data: cantiereValido, error: erroreCantiere } =
+      await supabase
+        .from("cantieri")
+        .select("id")
+        .eq("id", destinazioneCantiereId)
+        .maybeSingle();
+
+    if (erroreCantiere) {
+      throw erroreCantiere;
+    }
+
+    if (!cantiereValido) {
+      throw new Error(
+        TIMBRATURE_TESTI.ERRORI
+          .CANTIERE_NON_DISPONIBILE
+      );
+    }
+  }
+
   const aziendaId = await getAziendaIdFromAuthUser(
     supabase,
     userId

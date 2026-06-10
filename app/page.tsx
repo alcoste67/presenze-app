@@ -412,6 +412,7 @@ export default function HomePage() {
           setUser(null);
           setDipendente(null);
           setMostraBackoffice(false);
+          setCantieri([]);
           await refreshUltimaTimbratura(null);
           return null;
         }
@@ -433,6 +434,9 @@ export default function HomePage() {
           refreshMostraBackoffice(currentUser),
           refreshDipendente(currentUser),
           refreshUltimaTimbratura(currentUser.id),
+          // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
+          // della PWA non deve sopravvivere a login/logout/switch account
+          loadCantieri().then(setCantieri),
         ]);
 
         return currentUser;
