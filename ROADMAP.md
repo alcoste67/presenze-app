@@ -38,6 +38,13 @@ ALTER VIEW public.costi_macchinari_pubblici SET (security_invoker = true);
 
 ---
 
+## TASK 0.4 — Navigazione omogenea: tasto Back-office in ogni header
+**Priorità: BASSA · Complessità: BASSA · Rischio: BASSO**
+
+Ogni pagina vista da ADMIN/SUPERADMIN/RESPONSABILE deve avere il link "Back-office" nell'header (pattern `mostraBackoffice` già esistente in home timbrature). Pagine mancanti al 2026-06-10: `/storico`, `/timbrature`, `/admin` (+ `/abbonamento`, `/consumi`, `/dati`, `/fatturazione`), `/superadmin`. Le pagine pubbliche (login, landing, privacy, termini, registrati) restano senza.
+
+---
+
 ## TASK 0.5 — Tipi macchinario gestibili per azienda
 **Priorità: MEDIA · Complessità: MEDIA · Rischio: MEDIO (migrazione dati su 2 tabelle)**
 

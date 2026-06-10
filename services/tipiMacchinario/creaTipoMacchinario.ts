@@ -1,23 +1,17 @@
 import { supabase } from "@/lib/supabase";
 import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
-import type {
-  Macchinario,
-  MacchinarioInput,
-} from "@/types/macchinari";
+import type { TipoMacchinarioRecord } from "@/types/macchinari";
 
 type SupabaseClient = typeof supabase;
 
-const SELECT_MACCHINARIO =
-  "id, nome, tipo, tipo_id, descrizione, costo_orario, attivo, created_at, updated_at";
-
-export async function creaMacchinario({
-  macchinario,
+export async function creaTipoMacchinario({
+  nome,
   supabaseClient = supabase,
 }: {
-  macchinario: MacchinarioInput;
+  nome: string;
   supabaseClient?: SupabaseClient;
-}): Promise<Macchinario> {
+}): Promise<TipoMacchinarioRecord> {
   const {
     data: { user },
   } = await supabaseClient.auth.getUser();
@@ -32,21 +26,18 @@ export async function creaMacchinario({
   );
 
   const { data, error } = await supabaseClient
-    .from("macchinari")
-    .insert({ ...macchinario, azienda_id: aziendaId })
-    .select(SELECT_MACCHINARIO)
+    .from("tipi_macchinario")
+    .insert({ nome: nome.trim(), azienda_id: aziendaId })
+    .select("id, nome, attivo")
     .maybeSingle();
 
   if (error) {
-    throwErroreSupabase(
-      "Creazione macchinario",
-      error
-    );
+    throwErroreSupabase("Creazione tipo macchinario", error);
   }
 
   if (!data) {
-    throw new Error("Macchinario non creato");
+    throw new Error("Tipo macchinario non creato");
   }
 
-  return data as Macchinario;
+  return data as TipoMacchinarioRecord;
 }

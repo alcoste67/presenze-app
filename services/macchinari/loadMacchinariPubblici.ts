@@ -5,7 +5,7 @@ import type { MacchinarioPubblico } from "@/types/macchinari";
 type SupabaseClient = typeof supabase;
 
 const SELECT_MACCHINARI_PUBBLICI =
-  "id, nome, tipo, descrizione, attivo";
+  "id, nome, tipo, tipo_id, tipo_nome, descrizione, attivo";
 
 export async function loadMacchinariPubblici({
   supabaseClient = supabase,

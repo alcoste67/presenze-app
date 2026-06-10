@@ -8,7 +8,7 @@ import type {
 type SupabaseClient = typeof supabase;
 
 const SELECT_MACCHINARIO =
-  "id, nome, tipo, descrizione, costo_orario, attivo, created_at, updated_at";
+  "id, nome, tipo, tipo_id, descrizione, costo_orario, attivo, created_at, updated_at";
 
 export async function aggiornaMacchinario({
   macchinarioId,

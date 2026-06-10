@@ -95,6 +95,16 @@ export const MACCHINARI_TESTI = {
     ACCESSO_NEGATO:
       "Accesso non autorizzato",
   },
+  TIPI_TITOLO: "Tipi macchinario",
+  TIPI_DESCRIZIONE:
+    "Categorie usate per classificare i macchinari della tua azienda",
+  TIPI_PLACEHOLDER: "Nuovo tipo (es. Gru)",
+  TIPI_AGGIUNGI: "Aggiungi",
+  TIPI_NESSUNO: "Nessun tipo definito",
+  TIPI_RINOMINA: "Rinomina",
+  TIPI_RINOMINA_PROMPT: "Nuovo nome del tipo:",
+  TIPI_DISATTIVA: "Disattiva",
+  TIPI_RIATTIVA: "Riattiva",
   MESSAGGI: {
     CREATO: "Utilizzo macchinario creato",
     AGGIORNATO:
@@ -106,5 +116,7 @@ export const MACCHINARI_TESTI = {
       "Macchinario aggiornato",
     MACCHINARIO_ELIMINATO:
       "Macchinario eliminato",
+    TIPO_CREATO: "Tipo macchinario creato",
+    TIPO_AGGIORNATO: "Tipo macchinario aggiornato",
   },
 } as const;

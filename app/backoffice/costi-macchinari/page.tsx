@@ -217,14 +217,24 @@ function preparaPayload({
   };
 }
 
-function getTitoloTipoMacchinario(
-  tipo: TipoMacchinario
-) {
-  return MACCHINARI_TESTI.TIPI_LABEL[tipo];
+// Label: per i vecchi codici (SCAVATORE, ...) usa la mappa legacy,
+// per i tipi gestiti a DB il testo è già il nome leggibile
+function getTipoLabel(tipo: TipoMacchinario) {
+  const legacy =
+    MACCHINARI_TESTI.TIPI_LABEL[
+      tipo as keyof typeof MACCHINARI_TESTI.TIPI_LABEL
+    ];
+  return legacy ?? tipo;
 }
 
-function getTipoLabel(tipo: TipoMacchinario) {
-  return getTitoloTipoMacchinario(tipo);
+function getLabelMacchinario(
+  macchinario: Macchinario | MacchinarioPubblico
+) {
+  const tipoNome =
+    "tipo_nome" in macchinario && macchinario.tipo_nome
+      ? macchinario.tipo_nome
+      : getTipoLabel(macchinario.tipo);
+  return `${macchinario.nome} - ${tipoNome}`;
 }
 
 export default function BackofficeCostiMacchinariPage() {
@@ -387,6 +397,8 @@ export default function BackofficeCostiMacchinariPage() {
               id: macchinario.id,
               nome: macchinario.nome,
               tipo: macchinario.tipo,
+              tipo_id: macchinario.tipo_id,
+              tipo_nome: null,
               descrizione: macchinario.descrizione,
               attivo: macchinario.attivo,
             }))
@@ -740,8 +752,7 @@ export default function BackofficeCostiMacchinariPage() {
                       key={macchinario.id}
                       value={macchinario.id}
                     >
-                      {macchinario.nome} -{" "}
-                      {getTipoLabel(macchinario.tipo)}
+                      {getLabelMacchinario(macchinario)}
                     </option>
                   ))}
                 </select>
@@ -935,7 +946,7 @@ export default function BackofficeCostiMacchinariPage() {
                               );
 
                             return macchinario
-                              ? `${macchinario.nome} - ${getTipoLabel(macchinario.tipo)}`
+                              ? getLabelMacchinario(macchinario)
                               : getTipoLabel(
                                   costo.tipo_macchinario
                                 );

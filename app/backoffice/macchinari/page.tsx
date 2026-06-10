@@ -6,14 +6,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Home, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
-import { MACCHINARI_TESTI, TIPI_MACCHINARIO } from "@/constants/macchinari";
+import { MACCHINARI_TESTI } from "@/constants/macchinari";
 
 import { aggiornaMacchinario } from "@/services/macchinari/aggiornaMacchinario";
 import { creaMacchinario } from "@/services/macchinari/creaMacchinario";
 import { eliminaMacchinario } from "@/services/macchinari/eliminaMacchinario";
 import { loadMacchinariAdmin } from "@/services/macchinari/loadMacchinariAdmin";
+import { aggiornaTipoMacchinario } from "@/services/tipiMacchinario/aggiornaTipoMacchinario";
+import { creaTipoMacchinario } from "@/services/tipiMacchinario/creaTipoMacchinario";
+import { loadTipiMacchinario } from "@/services/tipiMacchinario/loadTipiMacchinario";
 
-import type { Macchinario, MacchinarioInput } from "@/types/macchinari";
+import type {
+  Macchinario,
+  MacchinarioInput,
+  TipoMacchinarioRecord,
+} from "@/types/macchinari";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -30,7 +37,7 @@ import { getMessaggioErrore } from "@/lib/errors";
 
 type MacchinarioForm = {
   nome: string;
-  tipo: MacchinarioInput["tipo"] | "";
+  tipo_id: string;
   descrizione: string;
   costo_orario: string;
   attivo: boolean;
@@ -40,7 +47,7 @@ type MacchinarioForm = {
 
 const FORM_INIZIALE: MacchinarioForm = {
   nome: "",
-  tipo: "",
+  tipo_id: "",
   descrizione: "",
   costo_orario: "",
   attivo: true,
@@ -54,20 +61,32 @@ function parseNumeroDecimale(value: string) {
   return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
-function getTipoLabel(tipo: MacchinarioInput["tipo"]) {
-  return MACCHINARI_TESTI.CODA_TIPI[tipo];
+// Label legacy per i vecchi codici (SCAVATORE, PLE, ...) salvati prima
+// della tabella tipi_macchinario
+function getTipoLabelLegacy(tipo: string) {
+  const legacy =
+    MACCHINARI_TESTI.CODA_TIPI[
+      tipo as keyof typeof MACCHINARI_TESTI.CODA_TIPI
+    ];
+  return legacy ?? tipo;
 }
 
 function preparaPayload(
-  form: MacchinarioForm
+  form: MacchinarioForm,
+  tipi: TipoMacchinarioRecord[]
 ): { payload: MacchinarioInput } | { errore: string } {
   const nome = form.nome.trim();
   if (!nome) return { errore: MACCHINARI_TESTI.ERRORI.NOME_OBBLIGATORIO };
-  if (!form.tipo) return { errore: MACCHINARI_TESTI.ERRORI.TIPO_ANAGRAFICA_OBBLIGATORIO };
+
+  const tipoSelezionato = tipi.find((t) => t.id === form.tipo_id);
+  if (!tipoSelezionato)
+    return { errore: MACCHINARI_TESTI.ERRORI.TIPO_ANAGRAFICA_OBBLIGATORIO };
+
   return {
     payload: {
       nome,
-      tipo: form.tipo,
+      tipo: tipoSelezionato.nome,
+      tipo_id: tipoSelezionato.id,
       descrizione: form.descrizione.trim(),
       costo_orario: parseNumeroDecimale(form.costo_orario),
       attivo: form.attivo,
@@ -86,6 +105,9 @@ export default function BackofficeMacchinariPage() {
   const toast = useToast();
 
   const [macchinari, setMacchinari] = useState<Macchinario[]>([]);
+  const [tipi, setTipi] = useState<TipoMacchinarioRecord[]>([]);
+  const [nuovoTipoNome, setNuovoTipoNome] = useState("");
+  const [salvataggioTipo, setSalvataggioTipo] = useState(false);
   const [form, setForm] = useState<MacchinarioForm>(FORM_INIZIALE);
   const [macchinarioInModificaId, setMacchinarioInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,13 +117,25 @@ export default function BackofficeMacchinariPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
+  const tipoLabelById = useMemo(
+    () => new Map(tipi.map((t) => [t.id, t.nome])),
+    [tipi]
+  );
+
+  const getTipoLabel = useCallback(
+    (m: Macchinario) =>
+      (m.tipo_id && tipoLabelById.get(m.tipo_id)) ||
+      getTipoLabelLegacy(m.tipo),
+    [tipoLabelById]
+  );
+
   const macchinariFiltrarti = useMemo(() => {
     const q = ricerca.trim().toLowerCase();
     if (!q) return macchinari;
     return macchinari.filter((m) =>
-      `${m.nome} ${getTipoLabel(m.tipo)}`.toLowerCase().includes(q)
+      `${m.nome} ${getTipoLabel(m)}`.toLowerCase().includes(q)
     );
-  }, [macchinari, ricerca]);
+  }, [macchinari, ricerca, getTipoLabel]);
 
   const formTitolo = macchinarioInModificaId ? "Modifica macchinario" : "Nuovo macchinario";
 
@@ -124,9 +158,13 @@ export default function BackofficeMacchinariPage() {
 
     const init = async () => {
       try {
-        const dati = await loadMacchinariAdmin();
+        const [dati, tipiData] = await Promise.all([
+          loadMacchinariAdmin(),
+          loadTipiMacchinario(),
+        ]);
         if (!attivo) return;
         setMacchinari(dati);
+        setTipi(tipiData);
       } catch (error: unknown) {
         if (attivo) toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
       } finally {
@@ -148,7 +186,7 @@ export default function BackofficeMacchinariPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const risultato = preparaPayload(form);
+    const risultato = preparaPayload(form, tipi);
 
     if ("errore" in risultato) {
       toast.error(risultato.errore);
@@ -187,11 +225,70 @@ export default function BackofficeMacchinariPage() {
     setMacchinarioInModificaId(macchinario.id);
     setForm({
       nome: macchinario.nome,
-      tipo: macchinario.tipo,
+      tipo_id: macchinario.tipo_id || "",
       descrizione: macchinario.descrizione,
       costo_orario: macchinario.costo_orario === null ? "" : String(macchinario.costo_orario),
       attivo: macchinario.attivo,
     });
+  };
+
+  // ── Handlers tipi macchinario ──────────────────────────────────────────────
+
+  const handleAggiungiTipo = async () => {
+    const nome = nuovoTipoNome.trim();
+    if (!nome) return;
+
+    try {
+      setSalvataggioTipo(true);
+      const nuovo = await creaTipoMacchinario({ nome });
+      setTipi((correnti) =>
+        [...correnti, nuovo].sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      setNuovoTipoNome("");
+      toast.success(MACCHINARI_TESTI.MESSAGGI.TIPO_CREATO);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvataggioTipo(false);
+    }
+  };
+
+  const handleRinominaTipo = async (tipo: TipoMacchinarioRecord) => {
+    const nome = window.prompt(MACCHINARI_TESTI.TIPI_RINOMINA_PROMPT, tipo.nome)?.trim();
+    if (!nome || nome === tipo.nome) return;
+
+    try {
+      setSalvataggioTipo(true);
+      const aggiornato = await aggiornaTipoMacchinario({ tipoId: tipo.id, nome });
+      setTipi((correnti) =>
+        correnti
+          .map((t) => (t.id === aggiornato.id ? aggiornato : t))
+          .sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      toast.success(MACCHINARI_TESTI.MESSAGGI.TIPO_AGGIORNATO);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvataggioTipo(false);
+    }
+  };
+
+  const handleToggleTipo = async (tipo: TipoMacchinarioRecord) => {
+    try {
+      setSalvataggioTipo(true);
+      const aggiornato = await aggiornaTipoMacchinario({
+        tipoId: tipo.id,
+        attivo: !tipo.attivo,
+      });
+      setTipi((correnti) =>
+        correnti.map((t) => (t.id === aggiornato.id ? aggiornato : t))
+      );
+      toast.success(MACCHINARI_TESTI.MESSAGGI.TIPO_AGGIORNATO);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, MACCHINARI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvataggioTipo(false);
+    }
   };
 
   const confirmElimina = (macchinario: Macchinario) => {
@@ -279,7 +376,8 @@ export default function BackofficeMacchinariPage() {
         {/* Grid 2 colonne */}
         <div className="mt-6 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
 
-          {/* ── Colonna sinistra: Form ── */}
+          {/* ── Colonna sinistra: Form + tipi ── */}
+          <div className="flex flex-col gap-5">
           <Card className="p-5">
             <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
               {formTitolo}
@@ -296,21 +394,20 @@ export default function BackofficeMacchinariPage() {
 
               <Select
                 label={MACCHINARI_TESTI.TIPO}
-                value={form.tipo}
+                value={form.tipo_id}
                 onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    tipo: e.target.value as MacchinarioInput["tipo"] | "",
-                  }))
+                  setForm((f) => ({ ...f, tipo_id: e.target.value }))
                 }
                 disabled={salvataggio}
               >
                 <option value="">{MACCHINARI_TESTI.TIPO}</option>
-                {Object.values(TIPI_MACCHINARIO).map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {getTipoLabel(tipo)}
-                  </option>
-                ))}
+                {tipi
+                  .filter((t) => t.attivo || t.id === form.tipo_id)
+                  .map((tipo) => (
+                    <option key={tipo.id} value={tipo.id}>
+                      {tipo.nome}
+                    </option>
+                  ))}
               </Select>
 
               <div className="flex flex-col gap-1">
@@ -371,6 +468,85 @@ export default function BackofficeMacchinariPage() {
               </div>
             </form>
           </Card>
+
+          {/* ── Tipi macchinario ── */}
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-1">
+              {MACCHINARI_TESTI.TIPI_TITOLO}
+            </h2>
+            <p className="text-xs text-text-muted mb-4">
+              {MACCHINARI_TESTI.TIPI_DESCRIZIONE}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                value={nuovoTipoNome}
+                onChange={(e) => setNuovoTipoNome(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleAggiungiTipo();
+                  }
+                }}
+                placeholder={MACCHINARI_TESTI.TIPI_PLACEHOLDER}
+                disabled={salvataggioTipo}
+                className="h-9 flex-1 min-w-0 px-3 text-sm border border-border rounded-md bg-bg-card text-text-primary placeholder:text-text-subtle outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors duration-150"
+              />
+              <Button
+                size="sm"
+                onClick={() => void handleAggiungiTipo()}
+                disabled={salvataggioTipo || !nuovoTipoNome.trim()}
+                icon={<Plus className="h-4 w-4" />}
+              >
+                {MACCHINARI_TESTI.TIPI_AGGIUNGI}
+              </Button>
+            </div>
+
+            {tipi.length === 0 && !loading && (
+              <p className="text-sm text-text-muted">{MACCHINARI_TESTI.TIPI_NESSUNO}</p>
+            )}
+
+            <ul className="flex flex-col">
+              {tipi.map((tipo) => (
+                <li
+                  key={tipo.id}
+                  className="flex items-center justify-between gap-2 border-b border-border last:border-b-0 py-2"
+                >
+                  <span
+                    className={cn(
+                      "text-sm",
+                      tipo.attivo ? "text-text-primary" : "text-text-subtle line-through"
+                    )}
+                  >
+                    {tipo.nome}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      aria-label={MACCHINARI_TESTI.TIPI_RINOMINA}
+                      onClick={() => void handleRinominaTipo(tipo)}
+                      disabled={salvataggioTipo}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void handleToggleTipo(tipo)}
+                      disabled={salvataggioTipo}
+                    >
+                      {tipo.attivo
+                        ? MACCHINARI_TESTI.TIPI_DISATTIVA
+                        : MACCHINARI_TESTI.TIPI_RIATTIVA}
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          </div>
 
           {/* ── Colonna destra: Lista ── */}
           <Card className="p-5">
@@ -443,7 +619,7 @@ export default function BackofficeMacchinariPage() {
                         <td className="py-3 pr-4 min-w-[160px]">
                           <p className="font-medium text-text-primary">{m.nome}</p>
                           <p className="text-xs text-text-muted mt-0.5">
-                            {getTipoLabel(m.tipo)}
+                            {getTipoLabel(m)}
                           </p>
                           {m.descrizione && (
                             <p className="text-xs text-text-subtle mt-0.5 truncate max-w-[200px]">

@@ -1,7 +1,6 @@
-import type { TIPI_MACCHINARIO } from "@/constants/macchinari";
-
-export type TipoMacchinario =
-  (typeof TIPI_MACCHINARIO)[keyof typeof TIPI_MACCHINARIO];
+// Stringa libera: snapshot del nome tipo al momento della registrazione
+// (i tipi sono gestiti a DB, tabella tipi_macchinario)
+export type TipoMacchinario = string;
 
 export type CostoMacchinarioCommessa = {
   id: string;

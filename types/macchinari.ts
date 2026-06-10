@@ -1,12 +1,19 @@
-import type { TIPI_MACCHINARIO } from "@/constants/macchinari";
+// Il tipo macchinario è gestito a DB (tabella tipi_macchinario, per
+// azienda). La stringa `tipo` resta come snapshot/compatibilità con i
+// vecchi codici (SCAVATORE, PLE, ...).
+export type TipoMacchinario = string;
 
-export type TipoMacchinario =
-  (typeof TIPI_MACCHINARIO)[keyof typeof TIPI_MACCHINARIO];
+export type TipoMacchinarioRecord = {
+  id: string;
+  nome: string;
+  attivo: boolean;
+};
 
 export type Macchinario = {
   id: string;
   nome: string;
   tipo: TipoMacchinario;
+  tipo_id: string | null;
   descrizione: string;
   costo_orario: number | null;
   attivo: boolean;
@@ -16,12 +23,15 @@ export type Macchinario = {
 
 export type MacchinarioPubblico = Pick<
   Macchinario,
-  "id" | "nome" | "tipo" | "descrizione" | "attivo"
->;
+  "id" | "nome" | "tipo" | "tipo_id" | "descrizione" | "attivo"
+> & {
+  tipo_nome: string | null;
+};
 
 export type MacchinarioInput = {
   nome: string;
   tipo: TipoMacchinario;
+  tipo_id: string | null;
   descrizione: string;
   costo_orario: number | null;
   attivo: boolean;
