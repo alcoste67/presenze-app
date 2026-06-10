@@ -10,10 +10,7 @@ import {
 } from "react";
 
 import { APP_ROUTES } from "@/constants/routes";
-import {
-  MACCHINARI_TESTI,
-  TIPI_MACCHINARIO,
-} from "@/constants/macchinari";
+import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { aggiornaCostoMacchinarioCommessa } from "@/services/costiMacchinari/aggiornaCostoMacchinarioCommessa";
@@ -648,15 +645,15 @@ export default function BackofficeCostiMacchinariPage() {
     loading || loadingRuolo || loadingCosti || loadingMacchinari;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-industrial-bg to-industrial-bg-soft p-6 text-industrial-text">
+    <main className="min-h-dvh bg-bg-base p-6 text-text-primary">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">
+            <h1 className="font-heading text-[28px] font-medium text-text-primary">
               {MACCHINARI_TESTI.TITOLO}
             </h1>
             {cantiereSelezionato && (
-              <p className="mt-1 text-sm text-industrial-muted">
+              <p className="mt-1 text-sm text-text-muted">
                 {cantiereSelezionato.nome}
               </p>
             )}
@@ -665,13 +662,13 @@ export default function BackofficeCostiMacchinariPage() {
           <div className="flex gap-4 text-sm font-semibold">
             <Link
               href={APP_ROUTES.BACKOFFICE}
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              className="rounded-md border border-border bg-bg-card px-3 py-2 text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
             >
               {MACCHINARI_TESTI.BACKOFFICE}
             </Link>
             <Link
               href="/"
-              className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange active:border-industrial-orange-active active:bg-industrial-orange-active active:text-white"
+              className="rounded-md border border-border bg-bg-card px-3 py-2 text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
             >
               {MACCHINARI_TESTI.TIMBRATURE}
             </Link>
@@ -679,20 +676,20 @@ export default function BackofficeCostiMacchinariPage() {
         </div>
 
         {errore && (
-          <p className="mb-4 rounded-lg bg-industrial-danger-bg p-4 text-sm text-industrial-danger-text">
+          <p className="mb-4 rounded-md bg-error-50 p-4 text-sm text-error-500">
             {errore}
           </p>
         )}
 
         {messaggio && (
-          <p className="mb-4 rounded-lg bg-industrial-success-bg p-4 text-sm text-industrial-success-text">
+          <p className="mb-4 rounded-md bg-success-50 p-4 text-sm text-success-500">
             {messaggio}
           </p>
         )}
 
-        <section className="mb-6 rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+        <section className="mb-6 rounded-lg border border-border bg-bg-card p-5">
           <label className="block max-w-xl">
-            <span className="mb-1 block text-sm font-medium text-industrial-muted">
+            <span className="mb-1 block text-sm font-medium text-text-muted">
               {MACCHINARI_TESTI.CANTIERE}
             </span>
             <select
@@ -703,7 +700,7 @@ export default function BackofficeCostiMacchinariPage() {
                 )
               }
               disabled={loading}
-              className="w-full min-w-0 box-border rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange disabled:bg-industrial-surface-strong"
+              className="w-full min-w-0 box-border rounded-md border border-border bg-bg-card p-3 text-text-primary outline-none transition-colors duration-150 focus:border-brand-500 disabled:bg-bg-subtle"
             >
               <option value="">
                 {MACCHINARI_TESTI.SELEZIONA_CANTIERE}
@@ -723,11 +720,11 @@ export default function BackofficeCostiMacchinariPage() {
         <section className="mb-6 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]"
+            className="rounded-lg border border-border bg-bg-card p-5"
           >
             <div className="grid gap-4">
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                <span className="mb-1 block text-sm font-medium text-text-muted">
                   {MACCHINARI_TESTI.MACCHINARIO}
                 </span>
                 <select
@@ -738,7 +735,7 @@ export default function BackofficeCostiMacchinariPage() {
                     )
                   }
                   disabled={loadingMacchinari || loadingRuolo}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card p-3 text-text-primary outline-none transition-colors duration-150 focus:border-brand-500 disabled:bg-bg-subtle"
                 >
                   <option value="">
                     {MACCHINARI_TESTI.SELEZIONA_MACCHINARIO}
@@ -759,35 +756,7 @@ export default function BackofficeCostiMacchinariPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
-                  {MACCHINARI_TESTI.TIPO_MACCHINARIO}
-                </span>
-                <select
-                  value={form.tipo_macchinario}
-                  onChange={(event) =>
-                    setForm((formCorrente) => ({
-                      ...formCorrente,
-                      tipo_macchinario: event.target
-                        .value as TipoMacchinario | "",
-                    }))
-                  }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
-                >
-                  <option value="">
-                    {MACCHINARI_TESTI.TIPO_MACCHINARIO}
-                  </option>
-                  {Object.values(TIPI_MACCHINARIO).map(
-                    (tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {getTipoLabel(tipo)}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                <span className="mb-1 block text-sm font-medium text-text-muted">
                   {MACCHINARI_TESTI.DATA_UTILIZZO}
                 </span>
                 <input
@@ -805,7 +774,7 @@ export default function BackofficeCostiMacchinariPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                <span className="mb-1 block text-sm font-medium text-text-muted">
                   {MACCHINARI_TESTI.ORE_UTILIZZO}
                 </span>
                 <input
@@ -820,12 +789,12 @@ export default function BackofficeCostiMacchinariPage() {
                         event.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card p-3 text-text-primary outline-none transition-colors duration-150 focus:border-brand-500"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                <span className="mb-1 block text-sm font-medium text-text-muted">
                   {MACCHINARI_TESTI.DESCRIZIONE}
                 </span>
                 <input
@@ -838,12 +807,12 @@ export default function BackofficeCostiMacchinariPage() {
                         event.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card p-3 text-text-primary outline-none transition-colors duration-150 focus:border-brand-500"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                <span className="mb-1 block text-sm font-medium text-text-muted">
                   {MACCHINARI_TESTI.NOTE}
                 </span>
                 <textarea
@@ -855,14 +824,14 @@ export default function BackofficeCostiMacchinariPage() {
                     }))
                   }
                   rows={3}
-                  className="w-full rounded-lg border border-industrial-border bg-industrial-control p-3 text-industrial-text outline-none transition-colors duration-200 ease-out focus:border-industrial-orange"
+                  className="w-full rounded-md border border-border bg-bg-card p-3 text-text-primary outline-none transition-colors duration-150 focus:border-brand-500"
                 />
               </label>
 
               {isAdminUser && (
                 <>
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    <span className="mb-1 block text-sm font-medium text-text-muted">
                       {MACCHINARI_TESTI.TARIFFA_ORARIA}
                     </span>
                     <input
@@ -873,19 +842,19 @@ export default function BackofficeCostiMacchinariPage() {
                           | null)?.costo_orario ?? null
                       )}
                       readOnly
-                      className="w-full rounded-lg border border-industrial-border bg-industrial-surface-strong p-3 text-industrial-text outline-none"
+                      className="w-full rounded-md border border-border bg-bg-subtle p-3 text-text-primary outline-none"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-industrial-muted">
+                    <span className="mb-1 block text-sm font-medium text-text-muted">
                       {MACCHINARI_TESTI.COSTO_TOTALE}
                     </span>
                     <input
                       type="text"
                       value={formattaEuro(costoStimato)}
                       readOnly
-                      className="w-full rounded-lg border border-industrial-border bg-industrial-surface-strong p-3 text-industrial-text outline-none"
+                      className="w-full rounded-md border border-border bg-bg-subtle p-3 text-text-primary outline-none"
                     />
                   </label>
                 </>
@@ -896,7 +865,7 @@ export default function BackofficeCostiMacchinariPage() {
               <button
                 type="submit"
                 disabled={salvataggio || !cantiereId}
-                className="rounded-lg border border-industrial-orange bg-industrial-orange px-4 py-3 text-sm font-semibold text-white transition-colors duration-200 ease-out hover:border-industrial-orange-hover hover:bg-industrial-orange-hover disabled:border-industrial-border-soft disabled:bg-industrial-surface-strong disabled:text-industrial-muted-strong"
+                className="rounded-md bg-brand-500 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {salvataggio
                   ? MACCHINARI_TESTI.SALVATAGGIO
@@ -909,7 +878,7 @@ export default function BackofficeCostiMacchinariPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-lg border border-industrial-border bg-industrial-control px-4 py-3 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                  className="rounded-md border border-border bg-bg-card px-4 py-3 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
                 >
                   {MACCHINARI_TESTI.ANNULLA}
                 </button>
@@ -917,13 +886,13 @@ export default function BackofficeCostiMacchinariPage() {
             </div>
           </form>
 
-          <section className="rounded-xl border border-industrial-border-soft bg-industrial-surface p-5 shadow-[0_12px_28px_rgb(36_38_43/0.08)]">
+          <section className="rounded-lg border border-border bg-bg-card p-5">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold">
+                <h2 className="font-heading text-xl font-medium">
                   {MACCHINARI_TESTI.LISTA}
                 </h2>
-                <p className="mt-1 text-sm text-industrial-muted">
+                <p className="mt-1 text-sm text-text-muted">
                   {loadingCosti
                     ? MACCHINARI_TESTI.CARICAMENTO
                     : `${costi.length} ${MACCHINARI_TESTI.VOCI}`}
@@ -931,7 +900,7 @@ export default function BackofficeCostiMacchinariPage() {
               </div>
 
               {isAdminUser && (
-                <p className="max-w-sm text-xs text-industrial-muted">
+                <p className="max-w-sm text-xs text-text-muted">
                   {MACCHINARI_TESTI.TARIFFA_VISIBILE}
                   {" "}
                   {MACCHINARI_TESTI.COSTO_VISIBILE}
@@ -940,14 +909,14 @@ export default function BackofficeCostiMacchinariPage() {
             </div>
 
             {loadingTotale && (
-              <p className="text-sm text-industrial-muted">
+              <p className="text-sm text-text-muted">
                 {MACCHINARI_TESTI.CARICAMENTO}
               </p>
             )}
 
             {!loadingTotale &&
               costi.length === 0 && (
-                <p className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4 text-sm text-industrial-muted">
+                <p className="rounded-md border border-border bg-bg-subtle p-4 text-sm text-text-muted">
                   {MACCHINARI_TESTI.NESSUNO}
                 </p>
               )}
@@ -957,11 +926,11 @@ export default function BackofficeCostiMacchinariPage() {
                 {costi.map((costo) => (
                   <article
                     key={costo.id}
-                    className="rounded-lg border border-industrial-border-soft bg-industrial-bg-soft p-4"
+                    className="rounded-md border border-border bg-bg-subtle p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-industrial-text">
+                        <h3 className="font-semibold text-text-primary">
                           {(() => {
                             const macchinario =
                               (isAdminUser
@@ -980,7 +949,7 @@ export default function BackofficeCostiMacchinariPage() {
                                 );
                           })()}
                         </h3>
-                        <p className="mt-1 text-sm text-industrial-muted">
+                        <p className="mt-1 text-sm text-text-muted">
                           {formattaData(
                             costo.data_utilizzo
                           )}
@@ -988,12 +957,12 @@ export default function BackofficeCostiMacchinariPage() {
                           - {costo.ore_utilizzo} h
                         </p>
                         {costo.descrizione && (
-                          <p className="mt-1 text-sm text-industrial-muted">
+                          <p className="mt-1 text-sm text-text-muted">
                             {costo.descrizione}
                           </p>
                         )}
                         {costo.note && (
-                          <p className="mt-1 text-xs text-industrial-muted">
+                          <p className="mt-1 text-xs text-text-muted">
                             {costo.note}
                           </p>
                         )}
@@ -1001,12 +970,12 @@ export default function BackofficeCostiMacchinariPage() {
 
                       {isAdminUser && (
                         <div className="text-right text-sm">
-                          <p className="font-semibold text-industrial-text">
+                          <p className="font-semibold text-text-primary">
                             {formattaEuro(
                               costo.tariffa_oraria
                             )}
                           </p>
-                          <p className="mt-1 text-industrial-muted">
+                          <p className="mt-1 text-text-muted">
                             {formattaEuro(
                               costo.costo_totale
                             )}
@@ -1021,7 +990,7 @@ export default function BackofficeCostiMacchinariPage() {
                         onClick={() =>
                           avviaModifica(costo)
                         }
-                        className="rounded-lg border border-industrial-border bg-industrial-control px-3 py-2 text-sm font-semibold text-industrial-text transition-colors duration-200 ease-out hover:border-industrial-orange hover:text-industrial-orange"
+                        className="rounded-md border border-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors duration-150 hover:bg-bg-subtle"
                       >
                         {MACCHINARI_TESTI.MODIFICA}
                       </button>
@@ -1030,7 +999,7 @@ export default function BackofficeCostiMacchinariPage() {
                         onClick={() =>
                           void handleElimina(costo)
                         }
-                        className="rounded-lg border border-industrial-danger-border bg-industrial-danger-bg px-3 py-2 text-sm font-semibold text-industrial-danger-text transition-colors duration-200 ease-out hover:border-industrial-danger-text"
+                        className="rounded-md border border-error-500/30 bg-error-50 px-3 py-2 text-sm font-medium text-error-500 transition-colors duration-150 hover:border-error-500"
                       >
                         {MACCHINARI_TESTI.ELIMINA}
                       </button>

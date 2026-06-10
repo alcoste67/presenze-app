@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/Button";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
 import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
+import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isSuperadmin } from "@/services/dipendenti/isSuperadmin";
 
 function ModuloCard({
@@ -64,16 +65,24 @@ function ModuloCard({
 
 export default function BackofficePage() {
   const [superadmin, setSuperadmin] = useState(false);
+  const [admin, setAdmin] = useState(false);
+  const [loadingRuolo, setLoadingRuolo] = useState(true);
 
   useEffect(() => {
     const controlla = async () => {
       try {
         const user = await loadUtenteAuth();
         if (!user?.email) return;
-        const ok = await isSuperadmin(user.email);
-        setSuperadmin(ok);
+        const [adminOk, superadminOk] = await Promise.all([
+          isAdmin(user.email),
+          isSuperadmin(user.email),
+        ]);
+        setAdmin(adminOk);
+        setSuperadmin(superadminOk);
       } catch {
-        // silently ignore — user simply won't see the section
+        // silently ignore — user simply won't see the sections
+      } finally {
+        setLoadingRuolo(false);
       }
     };
     void controlla();
@@ -119,6 +128,30 @@ export default function BackofficePage() {
           </p>
         </div>
 
+        {/* ── Vista responsabile: solo moduli operativi ── */}
+        {!loadingRuolo && !admin && (
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Operatività
+            </h2>
+            <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+              <ModuloCard
+                href="/backoffice/rapporti-intervento"
+                icon={<ClipboardList className="h-5 w-5" />}
+                nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
+                descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
+              />
+              <ModuloCard
+                href="/backoffice/costi-macchinari"
+                icon={<Calculator className="h-5 w-5" />}
+                nome={MACCHINARI_TESTI.TITOLO}
+                descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
+              />
+            </div>
+          </section>
+        )}
+
+        {admin && (
         <div className="flex flex-col gap-8">
           {/* ── Sezione 1: Anagrafiche ── */}
           <section>
@@ -232,6 +265,7 @@ export default function BackofficePage() {
             </section>
           )}
         </div>
+        )}
       </main>
     </div>
   );
