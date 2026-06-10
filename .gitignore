@@ -58,3 +58,5 @@ auth_apply.log
 
 # Backup pre-restyle (locali)
 *.backup-pre-restyle
+schema_prod_pre_sprint.sql
+schema_dev_attuale.sql
