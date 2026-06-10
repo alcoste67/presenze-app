@@ -7,9 +7,9 @@ export const TIPI_MACCHINARIO = {
 } as const;
 
 export const MACCHINARI_TESTI = {
-  TITOLO: "Costi Macchinari",
+  TITOLO: "Uso macchinari",
   CARD_DESCRIZIONE:
-    "Utilizzo macchinari speciali per commessa",
+    "Registrazione utilizzo macchinari per commessa",
   ANAGRAFICA_TITOLO: "Anagrafica macchinari",
   ANAGRAFICA_CARD_DESCRIZIONE:
     "Gestione macchinari e costi orari",
@@ -80,8 +80,8 @@ export const MACCHINARI_TESTI = {
       "Errore gestione costi macchinari",
     CANTIERE_OBBLIGATORIO:
       "Seleziona un cantiere",
-    TIPO_OBBLIGATORIO:
-      "Seleziona il tipo macchinario",
+    MACCHINARIO_OBBLIGATORIO:
+      "Seleziona un macchinario",
     DATA_OBBLIGATORIA:
       "Inserisci la data utilizzo",
     ORE_NON_VALIDO:

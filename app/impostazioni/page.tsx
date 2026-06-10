@@ -25,6 +25,13 @@ type DatiAzienda = {
   telefono: string;
   sito_web: string;
   logo_url: string | null;
+  pec: string;
+  codice_sdi: string;
+  forma_societaria: string;
+  sede_legale_via: string;
+  sede_legale_citta: string;
+  sede_legale_cap: string;
+  sede_legale_provincia: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -38,6 +45,13 @@ const FORM_INIZIALE: DatiAzienda = {
   telefono: "",
   sito_web: "",
   logo_url: null,
+  pec: "",
+  codice_sdi: "",
+  forma_societaria: "",
+  sede_legale_via: "",
+  sede_legale_citta: "",
+  sede_legale_cap: "",
+  sede_legale_provincia: "",
 };
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
@@ -108,6 +122,13 @@ export default function ImpostazioniPage() {
             telefono: data.telefono ?? "",
             sito_web: data.sito_web ?? "",
             logo_url: data.logo_url ?? null,
+            pec: data.pec ?? "",
+            codice_sdi: data.codice_sdi ?? "",
+            forma_societaria: data.forma_societaria ?? "",
+            sede_legale_via: data.sede_legale_via ?? "",
+            sede_legale_citta: data.sede_legale_citta ?? "",
+            sede_legale_cap: data.sede_legale_cap ?? "",
+            sede_legale_provincia: data.sede_legale_provincia ?? "",
           });
         }
       } catch (error: unknown) {
@@ -145,6 +166,13 @@ export default function ImpostazioniPage() {
           email: form.email.trim() || null,
           telefono: form.telefono.trim() || null,
           sito_web: form.sito_web.trim() || null,
+          pec: form.pec.trim() || null,
+          codice_sdi: form.codice_sdi.trim() || null,
+          forma_societaria: form.forma_societaria.trim() || null,
+          sede_legale_via: form.sede_legale_via.trim() || null,
+          sede_legale_citta: form.sede_legale_citta.trim() || null,
+          sede_legale_cap: form.sede_legale_cap.trim() || null,
+          sede_legale_provincia: form.sede_legale_provincia.trim() || null,
         }),
       });
       if (!res.ok) throw new Error("Errore salvataggio");
@@ -305,6 +333,64 @@ export default function ImpostazioniPage() {
                 onChange={(e) => setForm((f) => ({ ...f, sito_web: e.target.value }))}
                 disabled={salvataggio}
               />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="PEC"
+                  type="email"
+                  value={form.pec}
+                  onChange={(e) => setForm((f) => ({ ...f, pec: e.target.value }))}
+                  disabled={salvataggio}
+                />
+                <Input
+                  label="Codice SDI"
+                  value={form.codice_sdi}
+                  onChange={(e) => setForm((f) => ({ ...f, codice_sdi: e.target.value }))}
+                  disabled={salvataggio}
+                />
+              </div>
+              <Input
+                label="Forma societaria"
+                placeholder="es. S.r.l., S.n.c., ditta individuale"
+                value={form.forma_societaria}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, forma_societaria: e.target.value }))
+                }
+                disabled={salvataggio}
+              />
+              <Input
+                label="Sede legale — Via"
+                value={form.sede_legale_via}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, sede_legale_via: e.target.value }))
+                }
+                disabled={salvataggio}
+              />
+              <div className="grid grid-cols-[1fr_100px_80px] gap-3">
+                <Input
+                  label="Città"
+                  value={form.sede_legale_citta}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sede_legale_citta: e.target.value }))
+                  }
+                  disabled={salvataggio}
+                />
+                <Input
+                  label="CAP"
+                  value={form.sede_legale_cap}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sede_legale_cap: e.target.value }))
+                  }
+                  disabled={salvataggio}
+                />
+                <Input
+                  label="Prov."
+                  value={form.sede_legale_provincia}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sede_legale_provincia: e.target.value }))
+                  }
+                  disabled={salvataggio}
+                />
+              </div>
 
               <Button type="submit" loading={salvataggio} className="mt-2 self-start">
                 Salva impostazioni

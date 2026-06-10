@@ -38,6 +38,16 @@ ALTER VIEW public.costi_macchinari_pubblici SET (security_invoker = true);
 
 ---
 
+## TASK 0.5 — Tipi macchinario gestibili per azienda
+**Priorità: MEDIA · Complessità: MEDIA · Rischio: MEDIO (migrazione dati su 2 tabelle)**
+
+**Obiettivo:** i tipi macchinario oggi sono una lista fissa nel codice (Scavatore, PLE, Autogru, Carotaggio, Altro) bloccata da CHECK constraint. Devono diventare gestibili dall'Admin per azienda.
+
+- **DB:** tabella `tipi_macchinario` (`id`, `azienda_id`, `nome`, `attivo`) con policy RESTRICTIVE; seed dei 5 tipi attuali per ogni azienda esistente; rimozione dei CHECK su `macchinari.tipo` e `costi_macchinari_commessa.tipo_macchinario` e aggancio alla nuova tabella.
+- **UI:** sezione "Tipi macchinario" nella pagina Anagrafica macchinari (admin): lista + aggiungi/rinomina/disattiva. I select di anagrafica e uso macchinari leggono dal DB.
+
+---
+
 ## TASK 1 — Firma su pagina dedicata + macchina a stati + lock
 **Priorità: ALTA · Complessità: BASSA-MEDIA · Rischio: BASSO**
 

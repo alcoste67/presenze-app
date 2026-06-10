@@ -18,7 +18,7 @@ const ERRORI_API = {
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 
 const SELECT_AZIENDA =
-  "nome, partita_iva, codice_fiscale, indirizzo, email, telefono, sito_web, logo_url";
+  "nome, partita_iva, codice_fiscale, indirizzo, email, telefono, sito_web, logo_url, pec, codice_sdi, forma_societaria, sede_legale_via, sede_legale_citta, sede_legale_cap, sede_legale_provincia";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +84,13 @@ function leggiPatchPayload(body: unknown): Record<string, unknown> | null {
   if ("email" in body)          p.email          = strOrNull(body.email);
   if ("telefono" in body)       p.telefono       = strOrNull(body.telefono);
   if ("sito_web" in body)       p.sito_web       = strOrNull(body.sito_web);
+  if ("pec" in body)              p.pec              = strOrNull(body.pec);
+  if ("codice_sdi" in body)       p.codice_sdi       = strOrNull(body.codice_sdi);
+  if ("forma_societaria" in body) p.forma_societaria = strOrNull(body.forma_societaria);
+  if ("sede_legale_via" in body)       p.sede_legale_via       = strOrNull(body.sede_legale_via);
+  if ("sede_legale_citta" in body)     p.sede_legale_citta     = strOrNull(body.sede_legale_citta);
+  if ("sede_legale_cap" in body)       p.sede_legale_cap       = strOrNull(body.sede_legale_cap);
+  if ("sede_legale_provincia" in body) p.sede_legale_provincia = strOrNull(body.sede_legale_provincia);
 
   return Object.keys(p).length > 0 ? p : null;
 }

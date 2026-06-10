@@ -135,11 +135,11 @@ function preparaPayload({
     };
   }
 
-  if (!form.tipo_macchinario) {
+  if (!form.macchinario_id) {
     return {
       errore:
         MACCHINARI_TESTI.ERRORI
-          .TIPO_OBBLIGATORIO,
+          .MACCHINARIO_OBBLIGATORIO,
     };
   }
 
@@ -151,16 +151,8 @@ function preparaPayload({
     };
   }
 
-  const macchinarioId = form.macchinario_id || null;
+  const macchinarioId = form.macchinario_id;
   const tipoMacchinario = form.tipo_macchinario;
-
-  if (!macchinarioId && !tipoMacchinario) {
-    return {
-      errore:
-        MACCHINARI_TESTI.ERRORI
-          .TIPO_OBBLIGATORIO,
-    };
-  }
 
   const oreUtilizzo = parseNumeroDecimale(
     form.ore_utilizzo
@@ -205,7 +197,7 @@ function preparaPayload({
     return {
       errore:
         MACCHINARI_TESTI.ERRORI
-          .TIPO_OBBLIGATORIO,
+          .MACCHINARIO_OBBLIGATORIO,
     };
   }
 
