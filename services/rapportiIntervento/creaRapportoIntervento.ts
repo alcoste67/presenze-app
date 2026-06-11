@@ -9,6 +9,8 @@ import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   RapportoIntervento,
   RapportoInterventoCompleto,
+  RapportoInterventoExtra,
+  RapportoInterventoExtraInput,
   RapportoInterventoFoto,
   RapportoInterventoFotoInput,
   RapportoInterventoInput,
@@ -48,6 +50,9 @@ const SELECT_RAPPORTO_INTERVENTO_FOTO =
   "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
   "id, rapporto_intervento_id, descrizione, quantita, unita_misura, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_EXTRA =
+  "id, rapporto_intervento_id, descrizione, ore_minuti, note, ordine, created_at";
+
 
 async function getCreatedBy(
   supabaseClient: SupabaseClient
@@ -373,6 +378,46 @@ async function insertMateriali({
   ) as RapportoInterventoMateriale[];
 }
 
+
+async function insertExtra({
+  rapportoInterventoId,
+  aziendaId,
+  extra,
+  supabaseClient,
+}: {
+  rapportoInterventoId: string;
+  aziendaId: string;
+  extra: RapportoInterventoExtraInput[];
+  supabaseClient: SupabaseClient;
+}) {
+  if (extra.length === 0) {
+    return [];
+  }
+
+  const righe = extra.map((lavoroExtra) => ({
+    rapporto_intervento_id: rapportoInterventoId,
+    descrizione: lavoroExtra.descrizione,
+    ore_minuti: lavoroExtra.ore_minuti,
+    note: lavoroExtra.note,
+    ordine: lavoroExtra.ordine,
+    azienda_id: aziendaId,
+  }));
+
+  const { data, error } = await supabaseClient
+    .from("rapporti_intervento_extra")
+    .insert(righe)
+    .select(SELECT_RAPPORTO_INTERVENTO_EXTRA);
+
+  if (error) {
+    throwErroreSupabase(
+      "Salvataggio lavori extra rapporto intervento",
+      error
+    );
+  }
+
+  return (data || []) as RapportoInterventoExtra[];
+}
+
 export async function creaRapportoIntervento(
   rapportoInput: RapportoInterventoInput,
   supabaseClient: SupabaseClient = supabase
@@ -465,6 +510,7 @@ export async function creaRapportoIntervento(
       operatori,
       foto,
       materiali,
+      extra,
     ] =
       await Promise.all([
         insertLavorazioni({
@@ -497,6 +543,13 @@ export async function creaRapportoIntervento(
             rapportoInput.materiali,
           supabaseClient,
         }),
+        insertExtra({
+          rapportoInterventoId:
+            rapporto.id,
+          aziendaId,
+          extra: rapportoInput.extra,
+          supabaseClient,
+        }),
       ]);
 
     return {
@@ -505,6 +558,7 @@ export async function creaRapportoIntervento(
       operatori,
       foto,
       materiali,
+      extra,
     };
   } catch (error) {
     await supabaseClient

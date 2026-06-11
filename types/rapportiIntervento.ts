@@ -76,12 +76,23 @@ export type RapportoInterventoMateriale = {
   created_at: string;
 };
 
+export type RapportoInterventoExtra = {
+  id: string;
+  rapporto_intervento_id: string;
+  descrizione: string;
+  ore_minuti: number;
+  note: string;
+  ordine: number;
+  created_at: string;
+};
+
 export type RapportoInterventoCompleto =
   RapportoIntervento & {
     lavorazioni: RapportoInterventoLavorazione[];
     operatori: RapportoInterventoOperatore[];
     foto: RapportoInterventoFoto[];
     materiali: RapportoInterventoMateriale[];
+    extra: RapportoInterventoExtra[];
   };
 
 export type RapportoInterventoLavorazioneInput = {
@@ -112,6 +123,13 @@ export type RapportoInterventoMaterialeInput = {
   ordine: number;
 };
 
+export type RapportoInterventoExtraInput = {
+  descrizione: string;
+  ore_minuti: number;
+  note: string;
+  ordine: number;
+};
+
 export type RapportoInterventoInput = {
   cantiere_id: string;
   data_intervento: string;
@@ -129,6 +147,7 @@ export type RapportoInterventoInput = {
   operatori: RapportoInterventoOperatoreInput[];
   foto: RapportoInterventoFotoInput[];
   materiali: RapportoInterventoMaterialeInput[];
+  extra: RapportoInterventoExtraInput[];
 };
 
 export type RapportoInterventoLavorazioneSnapshot =

@@ -60,6 +60,7 @@ import {
   type DipendenteBase,
 } from "@/services/dipendenti/loadDipendenteByUserId";
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
+import { proponiLavorazione } from "@/services/lavorazioni/proponiLavorazione";
 import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
 import { creaCostoMacchinarioCommessa } from "@/services/costiMacchinari/creaCostoMacchinarioCommessa";
 import { comprimiFoto } from "@/lib/compressioneFoto";
@@ -313,6 +314,8 @@ export default function HomePage() {
   const [fotoUscita, setFotoUscita] = useState<FotoUscita[]>([]);
   const [salvataggioUscita, setSalvataggioUscita] = useState(false);
   const [timbraturaUscitaId, setTimbraturaUscitaId] = useState<string | null>(null);
+  const [nuovaLavorazioneNome, setNuovaLavorazioneNome] = useState("");
+  const [propostaInCorso, setPropostaInCorso] = useState(false);
 
   const [erroreLavorazioniUscita, setErroreLavorazioniUscita] = useState<
     string | null
@@ -642,6 +645,41 @@ export default function HomePage() {
     setFotoUscita([]);
     setSalvataggioUscita(false);
     setTimbraturaUscitaId(null);
+    setNuovaLavorazioneNome("");
+    setPropostaInCorso(false);
+  };
+
+  // "+ Proponi lavorazione": crea subito la proposta a DB e la
+  // seleziona nel wizard (badge "In attesa di verifica")
+  const handleProponiLavorazione = async () => {
+    const nome = nuovaLavorazioneNome.trim();
+    if (!nome || !cantiereIdUscita || propostaInCorso) return;
+
+    try {
+      setPropostaInCorso(true);
+      const nuova = await proponiLavorazione({
+        cantiereId: cantiereIdUscita,
+        nome,
+      });
+
+      setLavorazioniUscita((correnti) => [...correnti, nuova]);
+      setLavorazioniUscitaSelezionate((ids) => [...ids, nuova.id]);
+      setPercentualiLavorazioniUscita((percentuali) => ({
+        ...percentuali,
+        [nuova.id]: "0",
+      }));
+      setNuovaLavorazioneNome("");
+      setErroreLavorazioniUscita(null);
+    } catch (error: unknown) {
+      console.error(error);
+      setErroreLavorazioniUscita(
+        error instanceof Error
+          ? error.message
+          : TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO
+      );
+    } finally {
+      setPropostaInCorso(false);
+    }
   };
 
   const toggleLavorazioneUscita = (lavorazione: LavorazioneCantiere) => {
@@ -872,27 +910,19 @@ export default function HomePage() {
             destinazioneCantiereId
           );
 
-          if (lavorazioni.length > 0) {
-            mostraDialogLavorazioni({
-              tipo,
-              cantiereIdLavorazioni: destinazioneCantiereId,
-              lavorazioni,
-            });
-            return;
-          }
+          // Il wizard si apre anche senza lavorazioni: da lì si possono
+          // proporre lavorazioni nuove, registrare macchinari e foto
+          mostraDialogLavorazioni({
+            tipo,
+            cantiereIdLavorazioni: destinazioneCantiereId,
+            lavorazioni,
+          });
+          return;
         } catch (error: unknown) {
           console.error(error);
           toast.error(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO);
           return;
         }
-
-        await registraTimbraturaPage({
-          tipo,
-          cantiereIdTimbratura: destinazioneCantiereId,
-          attivitaTipoTimbratura: null,
-        });
-
-        return;
       }
 
       await registraTimbraturaPage({
@@ -1749,7 +1779,13 @@ export default function HomePage() {
                   ))}
                 </>
               ) : (
-                lavorazioniUscita.map((lavorazione) => (
+                <>
+                {lavorazioniUscita.length === 0 && (
+                  <p className="rounded-md bg-bg-subtle p-4 text-sm text-text-muted">
+                    {TIMBRATURE_LAVORAZIONI_TESTI.NESSUNA_LAVORAZIONE}
+                  </p>
+                )}
+                {lavorazioniUscita.map((lavorazione) => (
                 <div
                   key={lavorazione.id}
                   className="flex flex-col gap-4 p-4 bg-bg-subtle rounded-md"
@@ -1770,6 +1806,11 @@ export default function HomePage() {
                       className="min-w-0 flex-1 text-sm font-medium text-text-primary"
                     >
                       {lavorazione.nome}
+                      {lavorazione.stato === "proposta" && (
+                        <span className="ml-2 rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-500">
+                          {TIMBRATURE_LAVORAZIONI_TESTI.IN_ATTESA_VERIFICA}
+                        </span>
+                      )}
                     </label>
                   </div>
 
@@ -1808,7 +1849,39 @@ export default function HomePage() {
                     />
                   </div>
                 </div>
-                ))
+                ))}
+
+                {/* + Proponi lavorazione (anche a cantiere vuoto) */}
+                {!dialogCambioCantiere && (
+                  <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-3">
+                    <input
+                      type="text"
+                      value={nuovaLavorazioneNome}
+                      onChange={(e) => setNuovaLavorazioneNome(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleProponiLavorazione();
+                        }
+                      }}
+                      placeholder={
+                        TIMBRATURE_LAVORAZIONI_TESTI.PROPONI_PLACEHOLDER
+                      }
+                      disabled={propostaInCorso || loadingTimbratura}
+                      className="h-10 min-w-0 flex-1 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void handleProponiLavorazione()}
+                      loading={propostaInCorso}
+                      disabled={!nuovaLavorazioneNome.trim()}
+                    >
+                      {TIMBRATURE_LAVORAZIONI_TESTI.PROPONI}
+                    </Button>
+                  </div>
+                )}
+                </>
               )}
             </div>
 

@@ -45,6 +45,7 @@ import type {
   RapportoInterventoFotoInput,
   RapportoInterventoInput,
   RapportoInterventoLavorazioneInput,
+  RapportoInterventoExtraInput,
   RapportoInterventoMaterialeInput,
   RapportoInterventoOperatoreInput,
 } from "@/types/rapportiIntervento";
@@ -77,6 +78,14 @@ type OperatoreForm = Omit<RapportoInterventoOperatoreInput, "ore_minuti"> & {
   ricerca_operatore: string;
   ore_input: string;
   ore_minuti: number;
+};
+
+type ExtraForm = {
+  localId: string;
+  descrizione: string;
+  ore_input: string;
+  note: string;
+  ordine: number;
 };
 
 type MaterialeForm = Omit<RapportoInterventoMaterialeInput, "quantita"> & {
@@ -336,18 +345,47 @@ function normalizzaMateriali(
   return { materiali: materialiNormalizzati };
 }
 
+function normalizzaExtra(
+  extra: ExtraForm[]
+): { extra: RapportoInterventoExtraInput[] } | { errore: string } {
+  const extraNormalizzati: RapportoInterventoExtraInput[] = [];
+
+  for (const [index, lavoroExtra] of extra.entries()) {
+    const descrizione = lavoroExtra.descrizione.trim().replace(/\s+/g, " ");
+
+    if (!descrizione) {
+      return {
+        errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.EXTRA_DESCRIZIONE_OBBLIGATORIA,
+      };
+    }
+
+    const oreMinuti = parseOreMinutiInput(lavoroExtra.ore_input) ?? 0;
+
+    extraNormalizzati.push({
+      descrizione,
+      ore_minuti: oreMinuti,
+      note: lavoroExtra.note.trim(),
+      ordine: index + 1,
+    });
+  }
+
+  return { extra: extraNormalizzati };
+}
+
 function preparaPayload({
   form,
   lavorazioni,
   operatori,
   foto,
   materiali,
+  extra,
 }: {
   form: RapportoForm;
   lavorazioni: LavorazioneForm[];
   operatori: OperatoreForm[];
   foto: FotoForm[];
   materiali: MaterialeForm[];
+  extra: ExtraForm[];
 }): { payload: RapportoInterventoInput } | { errore: string } {
   if (!form.cantiere_id) {
     return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.CANTIERE_OBBLIGATORIO };
@@ -388,6 +426,9 @@ function preparaPayload({
   const materialiNormalizzati = normalizzaMateriali(materiali);
   if ("errore" in materialiNormalizzati) return materialiNormalizzati;
 
+  const extraNormalizzati = normalizzaExtra(extra);
+  if ("errore" in extraNormalizzati) return extraNormalizzati;
+
   return {
     payload: {
       cantiere_id: form.cantiere_id,
@@ -410,6 +451,7 @@ function preparaPayload({
       operatori: operatoriNormalizzati.operatori,
       foto: fotoNormalizzate.foto,
       materiali: materialiNormalizzati.materiali,
+      extra: extraNormalizzati.extra,
     },
   };
 }
@@ -428,6 +470,7 @@ export default function BackofficeRapportiInterventoPage() {
   const [operatori, setOperatori] = useState<OperatoreForm[]>([]);
   const [foto, setFoto] = useState<FotoForm[]>([]);
   const [materiali, setMateriali] = useState<MaterialeForm[]>([]);
+  const [lavoriExtra, setLavoriExtra] = useState<ExtraForm[]>([]);
   const [rapportoInModificaId, setRapportoInModificaId] = useState<string | null>(null);
   const [readonly, setReadonly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -545,6 +588,7 @@ export default function BackofficeRapportiInterventoPage() {
     setOperatori([]);
     setFoto([]);
     setMateriali([]);
+    setLavoriExtra([]);
     setRapportoInModificaId(null);
     setReadonly(false);
     if (!mantieniMessaggio) {
@@ -842,6 +886,43 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
+  const aggiungiLavoroExtra = () => {
+    setLavoriExtra((correnti) => [
+      ...correnti,
+      {
+        localId: getLocalId(),
+        descrizione: "",
+        ore_input: "",
+        note: "",
+        ordine: correnti.length + 1,
+      },
+    ]);
+  };
+
+  const handleLavoroExtraChange = ({
+    localId,
+    field,
+    value,
+  }: {
+    localId: string;
+    field: "descrizione" | "ore_input" | "note";
+    value: string;
+  }) => {
+    setLavoriExtra((correnti) =>
+      correnti.map((lavoroExtra) =>
+        lavoroExtra.localId === localId
+          ? { ...lavoroExtra, [field]: value }
+          : lavoroExtra
+      )
+    );
+  };
+
+  const rimuoviLavoroExtra = (localId: string) => {
+    setLavoriExtra((correnti) =>
+      correnti.filter((lavoroExtra) => lavoroExtra.localId !== localId)
+    );
+  };
+
   const caricaSnapshot = async () => {
     if (!form.cantiere_id) {
       toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.CANTIERE_OBBLIGATORIO);
@@ -945,6 +1026,17 @@ export default function BackofficeRapportiInterventoPage() {
           ordine: materiale.ordine,
         }))
       );
+      setLavoriExtra(
+        rapportoCompleto.extra.map((lavoroExtra) => ({
+          localId: getLocalId(),
+          descrizione: lavoroExtra.descrizione,
+          ore_input: lavoroExtra.ore_minuti
+            ? formatMinutiOreInput(lavoroExtra.ore_minuti)
+            : "",
+          note: lavoroExtra.note,
+          ordine: lavoroExtra.ordine,
+        }))
+      );
       setMostraListaRapporti(false);
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
@@ -962,6 +1054,7 @@ export default function BackofficeRapportiInterventoPage() {
       operatori,
       foto,
       materiali,
+      extra: lavoriExtra,
     });
 
     if ("errore" in preparazione) {
@@ -1425,6 +1518,96 @@ export default function BackofficeRapportiInterventoPage() {
                             size="sm"
                             type="button"
                             onClick={() => rimuoviMateriale(mat.localId)}
+                            className="text-error-500 hover:text-error-500"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Lavori extra (righe libere fuori catalogo) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-text-primary">
+                    {RAPPORTI_INTERVENTO_TESTI.LAVORI_EXTRA}
+                  </h3>
+                  {!readonly && (
+                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavoroExtra}>
+                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORO_EXTRA}
+                    </Button>
+                  )}
+                </div>
+
+                {lavoriExtra.length === 0 ? (
+                  <p className="text-sm text-text-muted">
+                    {RAPPORTI_INTERVENTO_TESTI.NESSUN_LAVORO_EXTRA}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {lavoriExtra.map((lavoroExtra) => (
+                      <div
+                        key={lavoroExtra.localId}
+                        className="flex flex-col sm:flex-row sm:items-end gap-2"
+                      >
+                        <div className="flex-1">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.DESCRIZIONE}
+                            type="text"
+                            value={lavoroExtra.descrizione}
+                            onChange={(e) =>
+                              handleLavoroExtraChange({
+                                localId: lavoroExtra.localId,
+                                field: "descrizione",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                          />
+                        </div>
+
+                        <div className="w-24">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.ORE_EXTRA}
+                            type="text"
+                            value={lavoroExtra.ore_input}
+                            onChange={(e) =>
+                              handleLavoroExtraChange({
+                                localId: lavoroExtra.localId,
+                                field: "ore_input",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                            placeholder="1:30"
+                          />
+                        </div>
+
+                        <div className="flex-1">
+                          <Input
+                            label={RAPPORTI_INTERVENTO_TESTI.NOTE}
+                            type="text"
+                            value={lavoroExtra.note}
+                            onChange={(e) =>
+                              handleLavoroExtraChange({
+                                localId: lavoroExtra.localId,
+                                field: "note",
+                                value: e.target.value,
+                              })
+                            }
+                            disabled={readonly}
+                          />
+                        </div>
+
+                        {!readonly && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            type="button"
+                            onClick={() => rimuoviLavoroExtra(lavoroExtra.localId)}
                             className="text-error-500 hover:text-error-500"
                           >
                             <Trash2 className="h-4 w-4" />

@@ -111,6 +111,11 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     "Nessuna foto selezionata",
   DESCRIZIONE_FOTO:
     "Descrizione foto",
+  LAVORI_EXTRA: "Lavori extra",
+  AGGIUNGI_LAVORO_EXTRA: "Lavoro extra",
+  NESSUN_LAVORO_EXTRA:
+    "Nessun lavoro extra registrato",
+  ORE_EXTRA: "Ore",
   MATERIALI: "Materiali utilizzati",
   AGGIUNGI_MATERIALE:
     "Aggiungi materiale",
@@ -197,6 +202,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Foto troppo grande",
     MATERIALE_DESCRIZIONE_OBBLIGATORIA:
       "Inserisci la descrizione materiale",
+    EXTRA_DESCRIZIONE_OBBLIGATORIA:
+      "Inserisci la descrizione del lavoro extra",
     MATERIALE_QUANTITA_NON_VALIDA:
       "Quantita materiale non valida",
     MATERIALE_UNITA_OBBLIGATORIA:
@@ -246,6 +253,9 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Totale ore uomo",
     MATERIALI: "Materiali utilizzati",
     MATERIALE: "Materiale",
+    LAVORI_EXTRA: "Lavori extra",
+    LAVORO_EXTRA: "Lavoro extra",
+    ORE_EXTRA: "Ore",
     QUANTITA: "Quantita",
     FOTO: "Foto rapporto",
     FOTO_DESCRIZIONE: "Foto",

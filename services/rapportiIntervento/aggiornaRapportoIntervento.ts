@@ -10,6 +10,8 @@ import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRappor
 import type {
   RapportoIntervento,
   RapportoInterventoCompleto,
+  RapportoInterventoExtra,
+  RapportoInterventoExtraInput,
   RapportoInterventoFoto,
   RapportoInterventoFotoInput,
   RapportoInterventoInput,
@@ -54,6 +56,9 @@ const SELECT_RAPPORTO_INTERVENTO_FOTO =
   "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
   "id, rapporto_intervento_id, descrizione, quantita, unita_misura, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_EXTRA =
+  "id, rapporto_intervento_id, descrizione, ore_minuti, note, ordine, created_at";
+
 
 async function loadCantiereSnapshot(
   cantiereId: string,
@@ -370,6 +375,46 @@ async function insertMateriali({
   ) as RapportoInterventoMateriale[];
 }
 
+
+async function insertExtra({
+  rapportoInterventoId,
+  aziendaId,
+  extra,
+  supabaseClient,
+}: {
+  rapportoInterventoId: string;
+  aziendaId: string;
+  extra: RapportoInterventoExtraInput[];
+  supabaseClient: SupabaseClient;
+}) {
+  if (extra.length === 0) {
+    return [];
+  }
+
+  const righe = extra.map((lavoroExtra) => ({
+    rapporto_intervento_id: rapportoInterventoId,
+    descrizione: lavoroExtra.descrizione,
+    ore_minuti: lavoroExtra.ore_minuti,
+    note: lavoroExtra.note,
+    ordine: lavoroExtra.ordine,
+    azienda_id: aziendaId,
+  }));
+
+  const { data, error } = await supabaseClient
+    .from("rapporti_intervento_extra")
+    .insert(righe)
+    .select(SELECT_RAPPORTO_INTERVENTO_EXTRA);
+
+  if (error) {
+    throwErroreSupabase(
+      "Salvataggio lavori extra rapporto intervento",
+      error
+    );
+  }
+
+  return (data || []) as RapportoInterventoExtra[];
+}
+
 export async function aggiornaRapportoIntervento(
   {
     rapportoInterventoId,
@@ -493,6 +538,7 @@ export async function aggiornaRapportoIntervento(
     nuoviOperatori,
     nuoveFoto,
     nuoviMateriali,
+    nuoviExtra,
   ] =
     await Promise.all([
       insertLavorazioni({
@@ -521,6 +567,12 @@ export async function aggiornaRapportoIntervento(
           rapportoInput.materiali,
         supabaseClient,
       }),
+      insertExtra({
+        rapportoInterventoId,
+        aziendaId,
+        extra: rapportoInput.extra,
+        supabaseClient,
+      }),
     ]);
   const lavorazioneIdsDaEliminare =
     rapportoCorrente.lavorazioni.map(
@@ -538,12 +590,17 @@ export async function aggiornaRapportoIntervento(
     rapportoCorrente.materiali.map(
       (materiale) => materiale.id
     );
+  const extraIdsDaEliminare =
+    rapportoCorrente.extra.map(
+      (lavoroExtra) => lavoroExtra.id
+    );
 
   if (
     lavorazioneIdsDaEliminare.length > 0 ||
     operatoreIdsDaEliminare.length > 0 ||
     fotoIdsDaEliminare.length > 0 ||
-    materialeIdsDaEliminare.length > 0
+    materialeIdsDaEliminare.length > 0 ||
+    extraIdsDaEliminare.length > 0
   ) {
     if (lavorazioneIdsDaEliminare.length > 0) {
       const { error: deleteError } =
@@ -616,6 +673,21 @@ export async function aggiornaRapportoIntervento(
         );
       }
     }
+
+    if (extraIdsDaEliminare.length > 0) {
+      const { error: deleteError } =
+        await supabaseClient
+          .from("rapporti_intervento_extra")
+          .delete()
+          .in("id", extraIdsDaEliminare);
+
+      if (deleteError) {
+        throwErroreSupabase(
+          "Pulizia lavori extra precedenti rapporto intervento",
+          deleteError
+        );
+      }
+    }
   }
 
   return {
@@ -624,5 +696,6 @@ export async function aggiornaRapportoIntervento(
     operatori: nuoviOperatori,
     foto: nuoveFoto,
     materiali: nuoviMateriali,
+    extra: nuoviExtra,
   };
 }

@@ -5,6 +5,7 @@ export type LavorazioneCantiere = {
   ordine: number;
   attiva: boolean;
   percentuale_completamento: number;
+  stato?: "approvata" | "proposta" | "rifiutata";
   created_at: string;
   categoria?: string | null;
   unita_misura?: string | null;

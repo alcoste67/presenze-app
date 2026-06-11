@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
+  RapportoInterventoExtra,
   RapportoInterventoFoto,
   RapportoInterventoMateriale,
   RapportoIntervento,
@@ -22,6 +23,9 @@ const SELECT_RAPPORTO_INTERVENTO_FOTO =
   "id, rapporto_intervento_id, immagine_data_url, descrizione, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_MATERIALE =
   "id, rapporto_intervento_id, descrizione, quantita, unita_misura, ordine, created_at";
+const SELECT_RAPPORTO_INTERVENTO_EXTRA =
+  "id, rapporto_intervento_id, descrizione, ore_minuti, note, ordine, created_at";
+
 
 export async function loadRapportoIntervento(
   rapportoInterventoId: string,
@@ -54,6 +58,7 @@ export async function loadRapportoIntervento(
     operatoriResult,
     fotoResult,
     materialiResult,
+    extraResult,
   ] = await Promise.all([
     supabaseClient
       .from("rapporti_intervento_lavorazioni")
@@ -107,6 +112,19 @@ export async function loadRapportoIntervento(
       .order("created_at", {
         ascending: true,
       }),
+    supabaseClient
+      .from("rapporti_intervento_extra")
+      .select(SELECT_RAPPORTO_INTERVENTO_EXTRA)
+      .eq(
+        "rapporto_intervento_id",
+        rapportoInterventoId
+      )
+      .order("ordine", {
+        ascending: true,
+      })
+      .order("created_at", {
+        ascending: true,
+      }),
   ]);
 
   if (lavorazioniResult.error) {
@@ -137,6 +155,13 @@ export async function loadRapportoIntervento(
     );
   }
 
+  if (extraResult.error) {
+    throwErroreSupabase(
+      "Lettura lavori extra rapporto intervento",
+      extraResult.error
+    );
+  }
+
   return {
     ...(rapportoData as RapportoIntervento),
     lavorazioni:
@@ -151,5 +176,8 @@ export async function loadRapportoIntervento(
     materiali:
       (materialiResult.data ||
         []) as RapportoInterventoMateriale[],
+    extra:
+      (extraResult.data ||
+        []) as RapportoInterventoExtra[],
   };
 }

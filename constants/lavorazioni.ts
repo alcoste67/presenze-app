@@ -60,6 +60,17 @@ export const LAVORAZIONI_TESTI = {
   CARICAMENTO: "Caricamento...",
   NESSUNA_LAVORAZIONE:
     "Nessuna lavorazione per questo cantiere",
+  PROPOSTE_TITOLO: "Proposte in attesa",
+  APPROVA_NUOVA: "Approva come nuova",
+  UNISCI_A_ESISTENTE: "Unisci a esistente...",
+  UNISCI: "Unisci",
+  RIFIUTA: "Rifiuta",
+  SELEZIONA_DESTINAZIONE_MERGE:
+    "Seleziona la lavorazione di destinazione",
+  PROPOSTA_APPROVATA: "Proposta approvata",
+  PROPOSTA_RIFIUTATA: "Proposta rifiutata",
+  PROPOSTA_UNITA:
+    "Proposta unita alla lavorazione esistente",
   ERRORI: {
     GENERICO: "Errore gestione lavorazioni",
     TOKEN_MANCANTE:

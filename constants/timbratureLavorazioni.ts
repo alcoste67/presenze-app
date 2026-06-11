@@ -24,6 +24,11 @@ export const TIMBRATURE_LAVORAZIONI_TESTI = {
   SELEZIONA_MACCHINARIO: "Seleziona un macchinario",
   ORE_MACCHINARIO: "Ore",
   RIMUOVI: "Rimuovi",
+  NESSUNA_LAVORAZIONE:
+    "Nessuna lavorazione prevista per questo cantiere: aggiungi qui sotto cosa hai fatto oggi.",
+  PROPONI_PLACEHOLDER: "Nuova lavorazione svolta...",
+  PROPONI: "Aggiungi",
+  IN_ATTESA_VERIFICA: "In attesa di verifica",
   TITOLO_FOTO: "Foto e note",
   DESCRIZIONE_FOTO:
     "Allega foto delle lavorazioni con eventuali note (facoltativo).",

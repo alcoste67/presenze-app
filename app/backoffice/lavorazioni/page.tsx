@@ -23,6 +23,14 @@ import { creaLavorazioneCantiere } from "@/services/lavorazioni/creaLavorazioneC
 import { creaLavorazioniCantiere } from "@/services/lavorazioni/creaLavorazioniCantiere";
 import { estraiLavorazioniDaComputo } from "@/services/lavorazioni/estraiLavorazioniDaComputo";
 import { loadLavorazioniCantiere } from "@/services/lavorazioni/loadLavorazioniCantiere";
+import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
+import {
+  approvaLavorazioneProposta,
+  loadLavorazioniProposte,
+  rifiutaLavorazioneProposta,
+  unisciLavorazioneProposta,
+  type LavorazioneProposta,
+} from "@/services/lavorazioni/gestioneProposte";
 
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
@@ -187,6 +195,12 @@ export default function BackofficeLavorazioniPage() {
   const toast = useToast();
 
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [proposte, setProposte] = useState<LavorazioneProposta[]>([]);
+  const [destinazioniMerge, setDestinazioniMerge] = useState<
+    Record<string, LavorazioneCantiere[]>
+  >({});
+  const [mergeSelezione, setMergeSelezione] = useState<Record<string, string>>({});
+  const [gestioneProposteInCorso, setGestioneProposteInCorso] = useState(false);
   const [cantiereId, setCantiereId] = useState("");
   const [lavorazioni, setLavorazioni] = useState<LavorazioneCantiere[]>([]);
   const [percentualiDraft, setPercentualiDraft] = useState<Record<string, string>>({});
@@ -209,6 +223,87 @@ export default function BackofficeLavorazioniPage() {
   const [importoContrattoEstratto, setImportoContrattoEstratto] = useState<number | null>(null);
 
   // ── Effects ──────────────────────────────────────────────────────────────
+
+  const ricaricaProposte = async () => {
+    try {
+      const dati = await loadLavorazioniProposte();
+      setProposte(dati);
+    } catch (error: unknown) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    void ricaricaProposte();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const caricaDestinazioniMerge = async (proposta: LavorazioneProposta) => {
+    if (destinazioniMerge[proposta.cantiere_id]) return;
+    try {
+      const lavorazioniCantiere = await loadLavorazioniAttiveCantiere(
+        proposta.cantiere_id
+      );
+      setDestinazioniMerge((correnti) => ({
+        ...correnti,
+        [proposta.cantiere_id]: lavorazioniCantiere.filter(
+          (l) => l.stato !== "proposta"
+        ),
+      }));
+    } catch (error: unknown) {
+      console.error(error);
+    }
+  };
+
+  const handleApprovaProposta = async (proposta: LavorazioneProposta) => {
+    try {
+      setGestioneProposteInCorso(true);
+      await approvaLavorazioneProposta({ lavorazioneId: proposta.id });
+      setProposte((correnti) => correnti.filter((pr) => pr.id !== proposta.id));
+      toast.success(LAVORAZIONI_TESTI.PROPOSTA_APPROVATA);
+      if (proposta.cantiere_id === cantiereId) void caricaLavorazioni(cantiereId);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setGestioneProposteInCorso(false);
+    }
+  };
+
+  const handleRifiutaProposta = async (proposta: LavorazioneProposta) => {
+    try {
+      setGestioneProposteInCorso(true);
+      await rifiutaLavorazioneProposta({ lavorazioneId: proposta.id });
+      setProposte((correnti) => correnti.filter((pr) => pr.id !== proposta.id));
+      toast.success(LAVORAZIONI_TESTI.PROPOSTA_RIFIUTATA);
+      if (proposta.cantiere_id === cantiereId) void caricaLavorazioni(cantiereId);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setGestioneProposteInCorso(false);
+    }
+  };
+
+  const handleUnisciProposta = async (proposta: LavorazioneProposta) => {
+    const destinazioneId = mergeSelezione[proposta.id];
+    if (!destinazioneId) {
+      toast.error(LAVORAZIONI_TESTI.SELEZIONA_DESTINAZIONE_MERGE);
+      return;
+    }
+
+    try {
+      setGestioneProposteInCorso(true);
+      await unisciLavorazioneProposta({
+        propostaId: proposta.id,
+        destinazioneId,
+      });
+      setProposte((correnti) => correnti.filter((pr) => pr.id !== proposta.id));
+      toast.success(LAVORAZIONI_TESTI.PROPOSTA_UNITA);
+      if (proposta.cantiere_id === cantiereId) void caricaLavorazioni(cantiereId);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setGestioneProposteInCorso(false);
+    }
+  };
 
   useEffect(() => {
     let attivo = true;
@@ -664,6 +759,89 @@ export default function BackofficeLavorazioniPage() {
           {LAVORAZIONI_TESTI.TITOLO}
         </h1>
         <p className="mt-1 text-sm text-text-muted">{LAVORAZIONI_TESTI.CARD_DESCRIZIONE}</p>
+
+        {/* Proposte in attesa di verifica */}
+        {proposte.length > 0 && (
+          <Card className="mt-6 border-warning-500/40 p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="font-heading text-lg font-medium text-text-primary">
+                {LAVORAZIONI_TESTI.PROPOSTE_TITOLO}
+              </h2>
+              <span className="rounded-full bg-warning-50 px-2 py-0.5 text-xs font-semibold text-warning-500">
+                {proposte.length}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {proposte.map((proposta) => (
+                <div
+                  key={proposta.id}
+                  className="rounded-md border border-border bg-bg-subtle p-3"
+                >
+                  <p className="text-sm font-medium text-text-primary">
+                    {proposta.nome}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {proposta.cantiere_nome || proposta.cantiere_id}
+                    {proposta.nota_proposta ? ` · ${proposta.nota_proposta}` : ""}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => void handleApprovaProposta(proposta)}
+                      disabled={gestioneProposteInCorso}
+                    >
+                      {LAVORAZIONI_TESTI.APPROVA_NUOVA}
+                    </Button>
+
+                    <select
+                      value={mergeSelezione[proposta.id] || ""}
+                      onFocus={() => void caricaDestinazioniMerge(proposta)}
+                      onChange={(e) =>
+                        setMergeSelezione((correnti) => ({
+                          ...correnti,
+                          [proposta.id]: e.target.value,
+                        }))
+                      }
+                      disabled={gestioneProposteInCorso}
+                      className="h-8 rounded-md border border-border bg-bg-card px-2 text-xs text-text-primary outline-none focus:border-brand-500"
+                    >
+                      <option value="">
+                        {LAVORAZIONI_TESTI.UNISCI_A_ESISTENTE}
+                      </option>
+                      {(destinazioniMerge[proposta.cantiere_id] || []).map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void handleUnisciProposta(proposta)}
+                      disabled={
+                        gestioneProposteInCorso || !mergeSelezione[proposta.id]
+                      }
+                    >
+                      {LAVORAZIONI_TESTI.UNISCI}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-error-500 hover:text-error-500"
+                      onClick={() => void handleRifiutaProposta(proposta)}
+                      disabled={gestioneProposteInCorso}
+                    >
+                      {LAVORAZIONI_TESTI.RIFIUTA}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Selezione cantiere */}
         <Card className="mt-6 p-5">

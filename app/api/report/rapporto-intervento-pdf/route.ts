@@ -27,6 +27,7 @@ import { formatMinutiOre } from "@/services/rapportiIntervento/oreMinuti";
 import type {
   RapportoInterventoCompleto,
   RapportoInterventoLavorazione,
+  RapportoInterventoExtra,
   RapportoInterventoMateriale,
   RapportoInterventoOperatore,
 } from "@/types/rapportiIntervento";
@@ -945,6 +946,97 @@ function drawMaterialeRow({
   );
 }
 
+function drawExtraHeader({
+  page,
+  fonts,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - HEADER_ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: HEADER_ROW_HEIGHT,
+    color: COLORS.dark,
+  });
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.LAVORO_EXTRA,
+    {
+      x: MARGIN_X + 12,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+
+  drawText(
+    page,
+    RAPPORTI_INTERVENTO_TESTI.PDF.ORE_EXTRA,
+    {
+      x: PAGE_WIDTH - MARGIN_X - 126,
+      y: y - 18,
+      size: 8,
+      font: fonts.bold,
+      color: COLORS.white,
+    }
+  );
+}
+
+function drawExtraRow({
+  page,
+  fonts,
+  lavoroExtra,
+  y,
+}: {
+  page: PDFPage;
+  fonts: FontSet;
+  lavoroExtra: RapportoInterventoExtra;
+  y: number;
+}) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - ROW_HEIGHT,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: ROW_HEIGHT,
+    color: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 0.6,
+  });
+
+  drawWrappedText({
+    page,
+    text: lavoroExtra.note
+      ? `${lavoroExtra.descrizione} — ${lavoroExtra.note}`
+      : lavoroExtra.descrizione,
+    x: MARGIN_X + 12,
+    y: y - 14,
+    maxWidth: 340,
+    size: 9,
+    font: fonts.bold,
+    color: COLORS.text,
+    maxLines: 2,
+    lineHeight: 10,
+  });
+
+  drawText(
+    page,
+    formatMinutiOre(lavoroExtra.ore_minuti),
+    {
+      x: PAGE_WIDTH - MARGIN_X - 126,
+      y: y - 22,
+      size: 10,
+      font: fonts.bold,
+      color: COLORS.text,
+    }
+  );
+}
+
 function drawFotoBox({
   page,
   fonts,
@@ -1397,6 +1489,62 @@ async function generaRapportoInterventoPdf(
         page,
         fonts,
         materiale,
+        y: tableY,
+      });
+      tableY -= ROW_HEIGHT;
+    });
+  }
+
+  if (rapporto.extra.length > 0) {
+    if (tableY - 88 < TABLE_BOTTOM_Y) {
+      page = pdfDoc.addPage([
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+      ]);
+      tableY = PAGE_HEIGHT - 80;
+    } else {
+      tableY -= 26;
+    }
+
+    drawText(
+      page,
+      RAPPORTI_INTERVENTO_TESTI.PDF.LAVORI_EXTRA,
+      {
+        x: MARGIN_X,
+        y: tableY,
+        size: 13,
+        font: fonts.bold,
+        color: COLORS.text,
+      }
+    );
+
+    tableY -= 14;
+    drawExtraHeader({
+      page,
+      fonts,
+      y: tableY,
+    });
+    tableY -= HEADER_ROW_HEIGHT;
+
+    rapporto.extra.forEach((lavoroExtra) => {
+      if (tableY - ROW_HEIGHT < TABLE_BOTTOM_Y) {
+        page = pdfDoc.addPage([
+          PAGE_WIDTH,
+          PAGE_HEIGHT,
+        ]);
+        tableY = PAGE_HEIGHT - 80;
+        drawExtraHeader({
+          page,
+          fonts,
+          y: tableY,
+        });
+        tableY -= HEADER_ROW_HEIGHT;
+      }
+
+      drawExtraRow({
+        page,
+        fonts,
+        lavoroExtra,
         y: tableY,
       });
       tableY -= ROW_HEIGHT;

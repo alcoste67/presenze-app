@@ -3,7 +3,7 @@ import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 
 const SELECT_LAVORAZIONE_CANTIERE =
-  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, created_at";
+  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, stato, created_at";
 
 export async function loadLavorazioniAttiveCantiere(
   cantiereId: string
@@ -17,6 +17,7 @@ export async function loadLavorazioniAttiveCantiere(
     .select(SELECT_LAVORAZIONE_CANTIERE)
     .eq("cantiere_id", cantiereId)
     .eq("attiva", true)
+    .neq("stato", "rifiutata")
     .lt(
       "percentuale_completamento",
       LAVORAZIONI_LIMITI.PERCENTUALE_MAX
