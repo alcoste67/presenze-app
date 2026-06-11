@@ -26,7 +26,10 @@ export type SalLavorazioneFoto = {
   lavorazione_id: string | null;
   timbratura_id: string | null;
   data_riferimento: string;
+  // Data URL legacy oppure signed URL risolto da storage_path
   immagine_data_url: string;
+  storage_path?: string | null;
+  nota?: string;
   descrizione: string;
   created_by: string | null;
   created_at: string;

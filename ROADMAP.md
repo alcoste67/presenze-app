@@ -227,6 +227,10 @@ I lavori extra sono righe libere del rapporto: descrizione + ore + note, **non**
 
 **RLS:** proposte ed extra visibili solo nella stessa `azienda_id`; solo admin può aggiornare `stato` delle proposte.
 
+**Estensioni decise (2026-06-11):**
+- **Cantiere senza lavorazioni:** al TIMBRA OUT il wizard si apre comunque con step "aggiungi lavorazioni manualmente" (create come proposte con % subito assegnabile), poi macchinari → foto; step finale opzionale "Crea rapporto di lavoro" (bozza precompilata con cantiere/data/cliente/lavorazioni/operatore).
+- **Attività "Cantiere nuovo":** nuova voce nella lista attività per timbrare l'entrata quando il cantiere non esiste ancora in anagrafica. Al TIMBRA OUT il wizard chiede i dati del cantiere (nome, indirizzo, cliente opzionale), crea il cantiere, riassegna la timbratura e genera la bozza di rapporto di lavoro. Da decidere in implementazione: la policy INSERT su cantieri oggi è solo admin → estendere ai responsabili per questo flusso.
+
 ---
 
 ## TASK 5 — Tasto "Invia": PDF via email a cliente, admin e operaio (Resend)

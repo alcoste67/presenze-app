@@ -60,6 +60,11 @@ import {
   type DipendenteBase,
 } from "@/services/dipendenti/loadDipendenteByUserId";
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
+import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
+import { creaCostoMacchinarioCommessa } from "@/services/costiMacchinari/creaCostoMacchinarioCommessa";
+import { comprimiFoto } from "@/lib/compressioneFoto";
+import { uploadFotoLavorazione } from "@/services/foto/uploadFotoLavorazione";
+import type { MacchinarioPubblico } from "@/types/macchinari";
 
 import { useTimbrature } from "@/hooks/useTimbrature";
 
@@ -288,6 +293,26 @@ export default function HomePage() {
     useState<TipoDialogLavorazioni | null>(null);
 
   const [mostraLavorazioniUscita, setMostraLavorazioniUscita] = useState(false);
+
+  // ── Wizard uscita: lavorazioni → macchinari → foto ──
+  type StepUscita = "LAVORAZIONI" | "MACCHINARI" | "FOTO";
+  type MacchinarioUsato = { localId: string; macchinarioId: string; ore: string };
+  type FotoUscita = {
+    localId: string;
+    file: File;
+    anteprima: string;
+    lavorazioneId: string;
+    nota: string;
+    stato: "in_attesa" | "caricamento" | "ok" | "errore";
+  };
+  const [stepUscita, setStepUscita] = useState<StepUscita>("LAVORAZIONI");
+  const [macchinariDisponibili, setMacchinariDisponibili] = useState<
+    MacchinarioPubblico[]
+  >([]);
+  const [macchinariUsati, setMacchinariUsati] = useState<MacchinarioUsato[]>([]);
+  const [fotoUscita, setFotoUscita] = useState<FotoUscita[]>([]);
+  const [salvataggioUscita, setSalvataggioUscita] = useState(false);
+  const [timbraturaUscitaId, setTimbraturaUscitaId] = useState<string | null>(null);
 
   const [erroreLavorazioniUscita, setErroreLavorazioniUscita] = useState<
     string | null
@@ -598,6 +623,10 @@ export default function HomePage() {
 
   // ── Timbratura handlers ───────────────────────────────────────────────────
 
+  const puoRegistrareMacchinari = ["ADMIN", "SUPERADMIN", "RESPONSABILE"].includes(
+    dipendente?.ruolo ?? ""
+  );
+
   const resetLavorazioniUscita = () => {
     setMostraLavorazioniUscita(false);
     setLavorazioniUscita([]);
@@ -607,6 +636,12 @@ export default function HomePage() {
     setCantiereIdNuovoCambio(null);
     setTipoDialogLavorazioni(null);
     setErroreLavorazioniUscita(null);
+    setStepUscita("LAVORAZIONI");
+    setMacchinariUsati([]);
+    fotoUscita.forEach((foto) => URL.revokeObjectURL(foto.anteprima));
+    setFotoUscita([]);
+    setSalvataggioUscita(false);
+    setTimbraturaUscitaId(null);
   };
 
   const toggleLavorazioneUscita = (lavorazione: LavorazioneCantiere) => {
@@ -751,7 +786,20 @@ export default function HomePage() {
       )
     );
     setErroreLavorazioniUscita(null);
+    setStepUscita("LAVORAZIONI");
+    setMacchinariUsati([]);
+    setFotoUscita([]);
+    setTimbraturaUscitaId(null);
     setMostraLavorazioniUscita(true);
+
+    // Macchinari disponibili per lo step dedicato (solo ruoli abilitati)
+    if (tipo === TIMBRATURE.USCITA && puoRegistrareMacchinari) {
+      loadMacchinariPubblici()
+        .then((macchinari) =>
+          setMacchinariDisponibili(macchinari.filter((m) => m.attivo))
+        )
+        .catch(() => setMacchinariDisponibili([]));
+    }
   };
 
   const registraTimbraturaPage = async ({
@@ -928,21 +976,241 @@ export default function HomePage() {
 
     const isCambioCantiere =
       tipoDialogLavorazioni === TIMBRATURE.CAMBIO_CANTIERE;
-    const cantiereIdTimbratura = isCambioCantiere
-      ? cantiereIdNuovoCambio
-      : cantiereIdUscita;
 
-    if (!cantiereIdTimbratura) {
+    // Cambio cantiere: flusso diretto come prima (niente foto/macchinari)
+    if (isCambioCantiere) {
+      if (!cantiereIdNuovoCambio) {
+        setErroreLavorazioniUscita(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO);
+        return;
+      }
+
+      await registraTimbraturaPage({
+        tipo: tipoDialogLavorazioni,
+        cantiereIdTimbratura: cantiereIdNuovoCambio,
+        attivitaTipoTimbratura: null,
+        lavorazioni: lavorazioniPayload,
+      });
+      return;
+    }
+
+    // Uscita: prosegui col wizard
+    setErroreLavorazioniUscita(null);
+    setStepUscita(
+      puoRegistrareMacchinari && macchinariDisponibili.length > 0
+        ? "MACCHINARI"
+        : "FOTO"
+    );
+  };
+
+  // ── Step macchinari ──
+
+  const aggiungiMacchinarioUsato = () => {
+    setMacchinariUsati((correnti) => [
+      ...correnti,
+      { localId: `${Date.now()}-${correnti.length}`, macchinarioId: "", ore: "" },
+    ]);
+  };
+
+  const aggiornaMacchinarioUsato = (
+    localId: string,
+    patch: Partial<Pick<MacchinarioUsato, "macchinarioId" | "ore">>
+  ) => {
+    setMacchinariUsati((correnti) =>
+      correnti.map((m) => (m.localId === localId ? { ...m, ...patch } : m))
+    );
+    setErroreLavorazioniUscita(null);
+  };
+
+  const rimuoviMacchinarioUsato = (localId: string) => {
+    setMacchinariUsati((correnti) =>
+      correnti.filter((m) => m.localId !== localId)
+    );
+  };
+
+  const handleConfermaMacchinariUscita = () => {
+    const righeValide = macchinariUsati.filter(
+      (m) => m.macchinarioId || m.ore.trim()
+    );
+
+    for (const riga of righeValide) {
+      const ore = Number(riga.ore.replace(",", "."));
+      if (!riga.macchinarioId || !Number.isFinite(ore) || ore <= 0) {
+        setErroreLavorazioniUscita(
+          TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.ORE_MACCHINARIO_NON_VALIDE
+        );
+        return;
+      }
+    }
+
+    setMacchinariUsati(righeValide);
+    setErroreLavorazioniUscita(null);
+    setStepUscita("FOTO");
+  };
+
+  // ── Step foto ──
+
+  const aggiungiFotoUscita = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const lavorazioneDefault =
+      lavorazioniUscitaSelezionate[0] || lavorazioniUscita[0]?.id || "";
+
+    const nuove: FotoUscita[] = Array.from(files).map((file, indice) => ({
+      localId: `${Date.now()}-${indice}`,
+      file,
+      anteprima: URL.createObjectURL(file),
+      lavorazioneId: lavorazioneDefault,
+      nota: "",
+      stato: "in_attesa",
+    }));
+
+    setFotoUscita((correnti) => [...correnti, ...nuove]);
+    setErroreLavorazioniUscita(null);
+  };
+
+  const aggiornaFotoUscita = (
+    localId: string,
+    patch: Partial<Pick<FotoUscita, "lavorazioneId" | "nota">>
+  ) => {
+    setFotoUscita((correnti) =>
+      correnti.map((f) => (f.localId === localId ? { ...f, ...patch } : f))
+    );
+  };
+
+  const rimuoviFotoUscita = (localId: string) => {
+    setFotoUscita((correnti) => {
+      const foto = correnti.find((f) => f.localId === localId);
+      if (foto) URL.revokeObjectURL(foto.anteprima);
+      return correnti.filter((f) => f.localId !== localId);
+    });
+  };
+
+  // ── Conferma finale: timbratura → macchinari → upload foto ──
+
+  const caricaFotoUscita = async (
+    timbraturaId: string | null
+  ): Promise<boolean> => {
+    let tutteOk = true;
+
+    for (const foto of fotoUscita) {
+      if (foto.stato === "ok" || !foto.lavorazioneId || !cantiereIdUscita) {
+        continue;
+      }
+
+      setFotoUscita((correnti) =>
+        correnti.map((f) =>
+          f.localId === foto.localId ? { ...f, stato: "caricamento" } : f
+        )
+      );
+
+      try {
+        const blob = await comprimiFoto(foto.file);
+        await uploadFotoLavorazione({
+          blob,
+          cantiereId: cantiereIdUscita,
+          lavorazioneId: foto.lavorazioneId,
+          timbraturaId,
+          nota: foto.nota,
+        });
+        setFotoUscita((correnti) =>
+          correnti.map((f) =>
+            f.localId === foto.localId ? { ...f, stato: "ok" } : f
+          )
+        );
+      } catch (error: unknown) {
+        console.error(error);
+        tutteOk = false;
+        setFotoUscita((correnti) =>
+          correnti.map((f) =>
+            f.localId === foto.localId ? { ...f, stato: "errore" } : f
+          )
+        );
+      }
+    }
+
+    return tutteOk;
+  };
+
+  const handleConfermaUscitaFinale = async () => {
+    if (!cantiereIdUscita || !tipoDialogLavorazioni) {
       setErroreLavorazioniUscita(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO);
       return;
     }
 
-    await registraTimbraturaPage({
-      tipo: tipoDialogLavorazioni,
-      cantiereIdTimbratura,
-      attivitaTipoTimbratura: null,
-      lavorazioni: lavorazioniPayload,
-    });
+    const lavorazioniPayload = getLavorazioniUscitaPayload();
+    if (!lavorazioniPayload) {
+      setErroreLavorazioniUscita(
+        TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.PERCENTUALE_NON_VALIDA
+      );
+      return;
+    }
+
+    try {
+      setSalvataggioUscita(true);
+      setErroreLavorazioniUscita(null);
+
+      // 1. Timbratura (una sola volta: nei retry foto si riusa l'id)
+      let timbraturaId = timbraturaUscitaId;
+      if (!timbraturaId) {
+        const timbratura = await handleTimbratura({
+          cantiereId: cantiereIdUscita,
+          attivitaTipo: null,
+          tipo: tipoDialogLavorazioni,
+          lavorazioni: lavorazioniPayload,
+        });
+        timbraturaId = timbratura.id;
+        setTimbraturaUscitaId(timbratura.id);
+
+        // 2. Macchinari usati (best effort, una sola volta)
+        for (const usato of macchinariUsati) {
+          const macchinario = macchinariDisponibili.find(
+            (m) => m.id === usato.macchinarioId
+          );
+          if (!macchinario) continue;
+
+          await creaCostoMacchinarioCommessa({
+            costo: {
+              cantiere_id: cantiereIdUscita,
+              rapporto_intervento_id: null,
+              macchinario_id: macchinario.id,
+              tipo_macchinario:
+                macchinario.tipo_nome || macchinario.tipo,
+              descrizione: macchinario.descrizione || "",
+              data_utilizzo: new Date().toISOString().slice(0, 10),
+              ore_utilizzo: Number(usato.ore.replace(",", ".")),
+              tariffa_oraria: null,
+              costo_totale: null,
+              note: "",
+            },
+            includeCosti: false,
+          });
+        }
+      }
+
+      // 3. Upload foto (con stato per foto; i retry ripartono da qui)
+      const fotoOk = await caricaFotoUscita(timbraturaId);
+
+      if (!fotoOk) {
+        setErroreLavorazioniUscita(
+          TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.FOTO_NON_CARICATE
+        );
+        return;
+      }
+
+      resetLavorazioniUscita();
+      toast.success(
+        `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
+      );
+    } catch (error: unknown) {
+      console.error(error);
+      setErroreLavorazioniUscita(
+        error instanceof Error
+          ? error.message
+          : TIMBRATURE_TESTI.ERRORI.GENERICO
+      );
+    } finally {
+      setSalvataggioUscita(false);
+    }
   };
 
   const handleCantiereChange = (nextCantiereId: string) => {
@@ -1301,17 +1569,187 @@ export default function HomePage() {
               >
                 {dialogCambioCantiere
                   ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CAMBIO_CANTIERE
-                  : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
+                  : stepUscita === "MACCHINARI"
+                    ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_MACCHINARI
+                    : stepUscita === "FOTO"
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_FOTO
+                      : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
               </h2>
               <p className="mt-2 text-sm text-text-muted">
                 {dialogCambioCantiere
                   ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CAMBIO_CANTIERE
-                  : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
+                  : stepUscita === "MACCHINARI"
+                    ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_MACCHINARI
+                    : stepUscita === "FOTO"
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_FOTO
+                      : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
               </p>
             </div>
 
             <div className="flex max-h-[52dvh] flex-col gap-3 overflow-y-auto p-4">
-              {lavorazioniUscita.map((lavorazione) => (
+              {stepUscita === "MACCHINARI" && !dialogCambioCantiere ? (
+                <>
+                  {macchinariUsati.map((usato) => (
+                    <div
+                      key={usato.localId}
+                      className="flex items-center gap-2 rounded-md bg-bg-subtle p-3"
+                    >
+                      <select
+                        value={usato.macchinarioId}
+                        onChange={(e) =>
+                          aggiornaMacchinarioUsato(usato.localId, {
+                            macchinarioId: e.target.value,
+                          })
+                        }
+                        disabled={salvataggioUscita}
+                        className="h-10 min-w-0 flex-1 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                      >
+                        <option value="">
+                          {TIMBRATURE_LAVORAZIONI_TESTI.SELEZIONA_MACCHINARIO}
+                        </option>
+                        {macchinariDisponibili.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nome}
+                            {m.tipo_nome ? ` - ${m.tipo_nome}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        inputMode="decimal"
+                        placeholder={TIMBRATURE_LAVORAZIONI_TESTI.ORE_MACCHINARIO}
+                        value={usato.ore}
+                        onChange={(e) =>
+                          aggiornaMacchinarioUsato(usato.localId, {
+                            ore: e.target.value,
+                          })
+                        }
+                        disabled={salvataggioUscita}
+                        aria-label={TIMBRATURE_LAVORAZIONI_TESTI.ORE_MACCHINARIO}
+                        className="h-10 w-20 rounded-md border border-border bg-bg-card px-2 text-right text-sm text-text-primary outline-none focus:border-brand-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => rimuoviMacchinarioUsato(usato.localId)}
+                        disabled={salvataggioUscita}
+                        aria-label={TIMBRATURE_LAVORAZIONI_TESTI.RIMUOVI}
+                        className="text-text-muted hover:text-error-500 transition-colors text-xl leading-none px-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  <Button
+                    variant="secondary"
+                    onClick={aggiungiMacchinarioUsato}
+                    disabled={salvataggioUscita}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.AGGIUNGI_MACCHINARIO}
+                  </Button>
+                </>
+              ) : stepUscita === "FOTO" && !dialogCambioCantiere ? (
+                <>
+                  <label className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-bg-subtle text-sm font-medium text-text-primary transition-colors hover:border-brand-500">
+                    {TIMBRATURE_LAVORAZIONI_TESTI.AGGIUNGI_FOTO}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      multiple
+                      className="hidden"
+                      disabled={salvataggioUscita}
+                      onChange={(e) => {
+                        aggiungiFotoUscita(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {fotoUscita.length > 0 && (
+                    <p className="text-xs text-text-muted">
+                      {TIMBRATURE_LAVORAZIONI_TESTI.NON_CHIUDERE}
+                    </p>
+                  )}
+
+                  {fotoUscita.map((foto) => (
+                    <div
+                      key={foto.localId}
+                      className="flex gap-3 rounded-md bg-bg-subtle p-3"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={foto.anteprima}
+                        alt=""
+                        className="h-16 w-16 shrink-0 rounded-md object-cover"
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <select
+                          value={foto.lavorazioneId}
+                          onChange={(e) =>
+                            aggiornaFotoUscita(foto.localId, {
+                              lavorazioneId: e.target.value,
+                            })
+                          }
+                          disabled={salvataggioUscita || foto.stato === "ok"}
+                          aria-label={TIMBRATURE_LAVORAZIONI_TESTI.LAVORAZIONE_FOTO}
+                          className="h-9 w-full rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                        >
+                          {lavorazioniUscita.map((lavorazione) => (
+                            <option key={lavorazione.id} value={lavorazione.id}>
+                              {lavorazione.nome}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder={TIMBRATURE_LAVORAZIONI_TESTI.NOTA_FOTO}
+                          value={foto.nota}
+                          onChange={(e) =>
+                            aggiornaFotoUscita(foto.localId, {
+                              nota: e.target.value,
+                            })
+                          }
+                          disabled={salvataggioUscita || foto.stato === "ok"}
+                          className="h-9 w-full rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                        />
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={
+                              foto.stato === "errore"
+                                ? "text-xs font-medium text-error-500"
+                                : foto.stato === "ok"
+                                  ? "text-xs font-medium text-success-500"
+                                  : "text-xs text-text-muted"
+                            }
+                          >
+                            {foto.stato === "in_attesa"
+                              ? TIMBRATURE_LAVORAZIONI_TESTI.FOTO_IN_ATTESA
+                              : foto.stato === "caricamento"
+                                ? TIMBRATURE_LAVORAZIONI_TESTI.FOTO_CARICAMENTO
+                                : foto.stato === "ok"
+                                  ? TIMBRATURE_LAVORAZIONI_TESTI.FOTO_OK
+                                  : TIMBRATURE_LAVORAZIONI_TESTI.FOTO_ERRORE}
+                          </span>
+                          {foto.stato !== "ok" && (
+                            <button
+                              type="button"
+                              onClick={() => rimuoviFotoUscita(foto.localId)}
+                              disabled={salvataggioUscita}
+                              className="text-xs text-text-muted hover:text-error-500 transition-colors"
+                            >
+                              {TIMBRATURE_LAVORAZIONI_TESTI.RIMUOVI}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                lavorazioniUscita.map((lavorazione) => (
                 <div
                   key={lavorazione.id}
                   className="flex flex-col gap-4 p-4 bg-bg-subtle rounded-md"
@@ -1370,7 +1808,8 @@ export default function HomePage() {
                     />
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
 
             {erroreLavorazioniUscita && (
@@ -1380,26 +1819,84 @@ export default function HomePage() {
             )}
 
             <div className="flex gap-3 border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={resetLavorazioniUscita}
-                disabled={loadingTimbratura}
-              >
-                {TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA}
-              </Button>
-              <Button
-                variant="primary"
-                className="flex-1"
-                onClick={handleConfermaLavorazioniUscita}
-                loading={loadingTimbratura}
-              >
-                {loadingTimbratura
-                  ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
-                  : dialogCambioCantiere
-                    ? TIMBRATURE_LAVORAZIONI_TESTI.SALVA_CAMBIO_CANTIERE
-                    : TIMBRATURE_LAVORAZIONI_TESTI.SALVA_USCITA}
-              </Button>
+              {stepUscita === "LAVORAZIONI" || dialogCambioCantiere ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={resetLavorazioniUscita}
+                    disabled={loadingTimbratura}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    onClick={handleConfermaLavorazioniUscita}
+                    loading={loadingTimbratura}
+                  >
+                    {loadingTimbratura
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
+                      : dialogCambioCantiere
+                        ? TIMBRATURE_LAVORAZIONI_TESTI.SALVA_CAMBIO_CANTIERE
+                        : TIMBRATURE_LAVORAZIONI_TESTI.AVANTI}
+                  </Button>
+                </>
+              ) : stepUscita === "MACCHINARI" ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => {
+                      setErroreLavorazioniUscita(null);
+                      setStepUscita("LAVORAZIONI");
+                    }}
+                    disabled={salvataggioUscita}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.INDIETRO}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    onClick={handleConfermaMacchinariUscita}
+                    disabled={salvataggioUscita}
+                  >
+                    {macchinariUsati.length === 0
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.SALTA
+                      : TIMBRATURE_LAVORAZIONI_TESTI.AVANTI}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => {
+                      setErroreLavorazioniUscita(null);
+                      setStepUscita(
+                        puoRegistrareMacchinari && macchinariDisponibili.length > 0
+                          ? "MACCHINARI"
+                          : "LAVORAZIONI"
+                      );
+                    }}
+                    disabled={salvataggioUscita || timbraturaUscitaId !== null}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.INDIETRO}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    onClick={() => void handleConfermaUscitaFinale()}
+                    loading={salvataggioUscita}
+                  >
+                    {salvataggioUscita
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.SALVATAGGIO
+                      : fotoUscita.some((f) => f.stato === "errore")
+                        ? TIMBRATURE_LAVORAZIONI_TESTI.RIPROVA_FOTO
+                        : TIMBRATURE_LAVORAZIONI_TESTI.CONFERMA_USCITA}
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         </div>
