@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CalendarRange,
   ClipboardList,
+  Contact,
   FileText,
   Home,
   ListCheck,
@@ -170,6 +171,12 @@ export default function BackofficePage() {
                 icon={<MapPin className="h-5 w-5" />}
                 nome="Cantieri"
                 descrizione="Gestione anagrafica cantieri"
+              />
+              <ModuloCard
+                href="/backoffice/clienti"
+                icon={<Contact className="h-5 w-5" />}
+                nome="Clienti"
+                descrizione="Anagrafica clienti e committenti"
               />
               <CardMacchinariAdmin />
             </div>

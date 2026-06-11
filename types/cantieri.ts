@@ -7,6 +7,7 @@ export type CantiereBackoffice = Cantiere & {
   indirizzo: string;
   lavorazioni: string;
   attivo: boolean;
+  cliente_id?: string | null;
 };
 
 export type CantiereInput = {
@@ -14,4 +15,5 @@ export type CantiereInput = {
   indirizzo: string;
   lavorazioni: string;
   attivo: boolean;
+  cliente_id: string | null;
 };

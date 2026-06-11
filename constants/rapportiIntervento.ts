@@ -121,6 +121,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
   NOME_FIRMA_CLIENTE:
     "Nome firma cliente",
   CANCELLA_FIRMA: "Cancella firma",
+  CLIENTE_PLACEHOLDER:
+    "Cerca o crea un cliente...",
   FIRMA_PAGINA_TITOLO: "Firma rapporto",
   FIRMA_RIEPILOGO: "Riepilogo rapporto",
   FIRMA_AVVISO:
@@ -223,6 +225,7 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     AGGIORNATO: "Rapporto aggiornato",
     SNAPSHOT_CARICATO:
       "Lavorazioni caricate",
+    CLIENTE_CREATO: "Cliente creato",
   },
   PDF: {
     TITOLO: "Rapporto intervento",

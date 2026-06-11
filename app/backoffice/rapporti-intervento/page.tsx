@@ -20,6 +20,9 @@ import { APP_ROUTES } from "@/constants/routes";
 
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { loadClienti } from "@/services/clienti/loadClienti";
+import { SelectCliente } from "@/components/clienti/SelectCliente";
+import type { Cliente } from "@/types/clienti";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { loadDipendentiAttivi } from "@/services/dipendenti/loadDipendentiAttivi";
 import { aggiornaRapportoIntervento } from "@/services/rapportiIntervento/aggiornaRapportoIntervento";
@@ -85,6 +88,7 @@ type RapportoForm = {
   cantiere_id: string;
   data_intervento: string;
   cliente_committente: string;
+  cliente_id: string | null;
   responsabile_nome: string;
   viaggio_minuti: string;
   diritto_uscita: boolean;
@@ -101,6 +105,7 @@ const FORM_INIZIALE: RapportoForm = {
   cantiere_id: "",
   data_intervento: "",
   cliente_committente: "",
+  cliente_id: null,
   responsabile_nome: "",
   viaggio_minuti: "0",
   diritto_uscita: false,
@@ -388,6 +393,7 @@ function preparaPayload({
       cantiere_id: form.cantiere_id,
       data_intervento: form.data_intervento,
       cliente_committente: cliente,
+      cliente_id: form.cliente_id,
       responsabile_nome: responsabile,
       viaggio_minuti: viaggioMinuti,
       diritto_uscita: form.diritto_uscita,
@@ -414,6 +420,7 @@ export default function BackofficeRapportiInterventoPage() {
   const toast = useToast();
 
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [clienti, setClienti] = useState<Cliente[]>([]);
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [rapporti, setRapporti] = useState<RapportoIntervento[]>([]);
   const [form, setForm] = useState<RapportoForm>(FORM_INIZIALE);
@@ -464,17 +471,20 @@ export default function BackofficeRapportiInterventoPage() {
           setLoading(true);
         }
 
-        const [cantieriData, dipendentiData, rapportiData] = await Promise.all([
-          loadCantieriBackoffice(),
-          loadDipendentiAttivi(),
-          loadRapportiIntervento(),
-        ]);
+        const [cantieriData, dipendentiData, rapportiData, clientiData] =
+          await Promise.all([
+            loadCantieriBackoffice(),
+            loadDipendentiAttivi(),
+            loadRapportiIntervento(),
+            loadClienti(),
+          ]);
 
         if (!attivo) return;
 
         setCantieri(cantieriData);
         setDipendenti(dipendentiData);
         setRapporti(rapportiData);
+        setClienti(clientiData);
       } catch (error: unknown) {
         if (attivo) {
           toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
@@ -883,6 +893,7 @@ export default function BackofficeRapportiInterventoPage() {
         cantiere_id: rapportoCompleto.cantiere_id,
         data_intervento: rapportoCompleto.data_intervento,
         cliente_committente: rapportoCompleto.cliente_committente,
+        cliente_id: rapportoCompleto.cliente_id ?? null,
         responsabile_nome: rapportoCompleto.responsabile_nome,
         viaggio_minuti: String(rapportoCompleto.viaggio_minuti),
         diritto_uscita: rapportoCompleto.diritto_uscita,
@@ -1075,7 +1086,24 @@ export default function BackofficeRapportiInterventoPage() {
                   <Select
                     label={RAPPORTI_INTERVENTO_TESTI.CANTIERE}
                     value={form.cantiere_id}
-                    onChange={(e) => handleFormChange("cantiere_id", e.target.value)}
+                    onChange={(e) => {
+                      const nextCantiereId = e.target.value;
+                      handleFormChange("cantiere_id", nextCantiereId);
+
+                      // Precompila il cliente dal cantiere (se il campo è vuoto)
+                      const cantiere = cantieri.find((c) => c.id === nextCantiereId);
+                      if (cantiere?.cliente_id && !form.cliente_committente.trim()) {
+                        const cliente = clienti.find((c) => c.id === cantiere.cliente_id);
+                        if (cliente) {
+                          setForm((f) => ({
+                            ...f,
+                            cantiere_id: nextCantiereId,
+                            cliente_id: cliente.id,
+                            cliente_committente: cliente.ragione_sociale,
+                          }));
+                        }
+                      }
+                    }}
                     disabled={readonly}
                   >
                     <option value="">{RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE}</option>
@@ -1092,12 +1120,41 @@ export default function BackofficeRapportiInterventoPage() {
                     disabled={readonly}
                   />
 
-                  <Input
+                  <SelectCliente
                     label={RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE}
-                    type="text"
+                    placeholder={RAPPORTI_INTERVENTO_TESTI.CLIENTE_PLACEHOLDER}
                     value={form.cliente_committente}
-                    onChange={(e) => handleFormChange("cliente_committente", e.target.value)}
+                    selectedId={form.cliente_id}
+                    options={clienti}
                     disabled={readonly}
+                    onSearchChange={(value) =>
+                      setForm((f) => ({
+                        ...f,
+                        cliente_committente: value,
+                        cliente_id: null,
+                      }))
+                    }
+                    onSelect={(cliente) =>
+                      setForm((f) => ({
+                        ...f,
+                        cliente_id: cliente.id,
+                        cliente_committente: cliente.ragione_sociale,
+                      }))
+                    }
+                    onCreate={(cliente) => {
+                      setClienti((correnti) =>
+                        [...correnti, cliente].sort((a, b) =>
+                          a.ragione_sociale.localeCompare(b.ragione_sociale)
+                        )
+                      );
+                      setForm((f) => ({
+                        ...f,
+                        cliente_id: cliente.id,
+                        cliente_committente: cliente.ragione_sociale,
+                      }));
+                      toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.CLIENTE_CREATO);
+                    }}
+                    onError={(messaggio) => toast.error(messaggio)}
                   />
 
                   <Input

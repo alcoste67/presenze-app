@@ -143,6 +143,13 @@ ALTER TABLE rapporti_lavoro ADD COLUMN cliente_id UUID REFERENCES clienti(id);
 
 ---
 
+## TASK 2.5 — Merge clienti doppioni (Admin)
+**Priorità: BASSA · Complessità: MEDIA · Rischio: MEDIO · Dipende da: Task 2**
+
+Unione di due schede cliente: ricollegamento automatico di cantieri e rapporti dal duplicato al cliente principale, poi disattivazione/eliminazione del duplicato. Rimandato dal Task 2 (deciso 2026-06-10): l'anti-doppioni soft in creazione riduce il bisogno; il merge tocca record esistenti e merita test dedicati.
+
+---
+
 ## TASK 3 — Foto e note nell'avanzamento lavorazioni / timbratura fine giornata
 **Priorità: ALTA · Complessità: MEDIA · Rischio: BASSO**
 

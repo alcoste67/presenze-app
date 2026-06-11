@@ -13,6 +13,8 @@ import { aggiornaCantiere } from "@/services/cantieri/aggiornaCantiere";
 import { creaCantiere } from "@/services/cantieri/creaCantiere";
 import { eliminaCantiereSeVuoto } from "@/services/cantieri/eliminaCantiereSeVuoto";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { loadClienti } from "@/services/clienti/loadClienti";
+import type { Cliente } from "@/types/clienti";
 
 import {
   type CantiereBackoffice,
@@ -25,6 +27,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { getMessaggioErrore } from "@/lib/errors";
@@ -36,6 +39,7 @@ const FORM_INIZIALE: CantiereInput = {
   indirizzo: "",
   lavorazioni: "",
   attivo: true,
+  cliente_id: null,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,6 +51,7 @@ function preparaCantiere(cantiere: CantiereInput): CantiereInput {
     indirizzo: cantiere.indirizzo.trim(),
     lavorazioni: cantiere.lavorazioni.trim(),
     attivo: cantiere.attivo,
+    cliente_id: cantiere.cliente_id,
   };
 }
 
@@ -56,6 +61,7 @@ export default function BackofficeCantieriPage() {
   const toast = useToast();
 
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
+  const [clienti, setClienti] = useState<Cliente[]>([]);
   const [form, setForm] = useState<CantiereInput>(FORM_INIZIALE);
   const [cantiereInModificaId, setCantiereInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,9 +100,13 @@ export default function BackofficeCantieriPage() {
 
     const caricaCantieriIniziali = async () => {
       try {
-        const dati = await loadCantieriBackoffice();
+        const [dati, clientiData] = await Promise.all([
+          loadCantieriBackoffice(),
+          loadClienti(),
+        ]);
         if (!attivo) return;
         setCantieri(dati);
+        setClienti(clientiData);
       } catch (error: unknown) {
         if (!attivo) return;
         toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
@@ -170,6 +180,7 @@ export default function BackofficeCantieriPage() {
       indirizzo: cantiere.indirizzo,
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
+      cliente_id: cantiere.cliente_id ?? null,
     });
   };
 
@@ -184,6 +195,7 @@ export default function BackofficeCantieriPage() {
           indirizzo: cantiere.indirizzo,
           lavorazioni: cantiere.lavorazioni,
           attivo: !cantiere.attivo,
+          cliente_id: cantiere.cliente_id ?? null,
         },
       });
 
@@ -199,6 +211,7 @@ export default function BackofficeCantieriPage() {
           indirizzo: cantiereAggiornato.indirizzo,
           lavorazioni: cantiereAggiornato.lavorazioni,
           attivo: cantiereAggiornato.attivo,
+          cliente_id: cantiereAggiornato.cliente_id ?? null,
         });
       }
 
@@ -315,6 +328,22 @@ export default function BackofficeCantieriPage() {
                 onChange={(e) => setForm((f) => ({ ...f, indirizzo: e.target.value }))}
                 disabled={salvataggio}
               />
+
+              <Select
+                label="Cliente"
+                value={form.cliente_id ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cliente_id: e.target.value || null }))
+                }
+                disabled={salvataggio}
+              >
+                <option value="">Nessun cliente</option>
+                {clienti.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.ragione_sociale}
+                  </option>
+                ))}
+              </Select>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-text-primary">

@@ -28,10 +28,11 @@ export async function creaCantiere(
       indirizzo: cantiere.indirizzo,
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
+      cliente_id: cantiere.cliente_id,
       azienda_id: aziendaId,
     })
     .select(
-      "id, nome, indirizzo, lavorazioni, attivo"
+      "id, nome, indirizzo, lavorazioni, attivo, cliente_id"
     )
     .single();
 

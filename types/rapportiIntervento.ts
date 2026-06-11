@@ -16,6 +16,7 @@ export type RapportoIntervento = {
   cantiere_indirizzo_snapshot: string;
   data_intervento: string;
   cliente_committente: string;
+  cliente_id: string | null;
   responsabile_nome: string;
   ore_uomo_reali_minuti: number;
   viaggio_minuti: number;
@@ -115,6 +116,7 @@ export type RapportoInterventoInput = {
   cantiere_id: string;
   data_intervento: string;
   cliente_committente: string;
+  cliente_id: string | null;
   responsabile_nome: string;
   viaggio_minuti: number;
   diritto_uscita: boolean;
