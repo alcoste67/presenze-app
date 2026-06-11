@@ -55,6 +55,7 @@ const LABEL_ATTIVITA: Record<TipoAttivita, string> = {
   [ATTIVITA.ASSISTENZA]: "Assistenza",
   [ATTIVITA.VISITA_MEDICA]: "Visita medica",
   [ATTIVITA.FORMAZIONE]: "Formazione",
+  [ATTIVITA.CANTIERE_NUOVO]: "Cantiere nuovo",
   [ATTIVITA.ALTRO]: "Altro",
 };
 

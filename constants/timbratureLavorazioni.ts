@@ -29,6 +29,14 @@ export const TIMBRATURE_LAVORAZIONI_TESTI = {
   PROPONI_PLACEHOLDER: "Nuova lavorazione svolta...",
   PROPONI: "Aggiungi",
   IN_ATTESA_VERIFICA: "In attesa di verifica",
+  TITOLO_CANTIERE_NUOVO: "Cantiere nuovo",
+  DESCRIZIONE_CANTIERE_NUOVO:
+    "Inserisci i dati del cantiere dove hai lavorato oggi: verrà creato in anagrafica.",
+  NOME_CANTIERE: "Nome cantiere",
+  INDIRIZZO_CANTIERE: "Indirizzo (facoltativo)",
+  CREA_CANTIERE_E_CONTINUA: "Crea cantiere e continua",
+  CREA_BOZZA_RAPPORTO:
+    "Crea bozza di rapporto di lavoro per questa giornata",
   TITOLO_FOTO: "Foto e note",
   DESCRIZIONE_FOTO:
     "Allega foto delle lavorazioni con eventuali note (facoltativo).",
@@ -48,6 +56,8 @@ export const TIMBRATURE_LAVORAZIONI_TESTI = {
     GENERICO: "Errore lavorazioni svolte",
     PERCENTUALE_NON_VALIDA:
       "Inserisci una percentuale valida tra 0 e 100 per ogni lavorazione selezionata.",
+    NOME_CANTIERE_OBBLIGATORIO:
+      "Inserisci il nome del cantiere",
     ORE_MACCHINARIO_NON_VALIDE:
       "Inserisci ore valide per ogni macchinario selezionato.",
     FOTO_NON_CARICATE:

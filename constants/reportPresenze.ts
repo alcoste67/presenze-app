@@ -54,6 +54,7 @@ export const LABEL_ATTIVITA_REPORT: Record<
   [ATTIVITA.ASSISTENZA]: "Assistenza",
   [ATTIVITA.VISITA_MEDICA]: "Visita medica",
   [ATTIVITA.FORMAZIONE]: "Formazione",
+  [ATTIVITA.CANTIERE_NUOVO]: "Cantiere nuovo",
   [ATTIVITA.ALTRO]: "Altro",
 };
 

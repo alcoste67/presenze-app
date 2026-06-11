@@ -1,4 +1,4 @@
-import { ATTIVITA } from "@/constants/attivita";
+import { ATTIVITA, LABEL_ATTIVITA } from "@/constants/attivita";
 import { TipoAttivita } from "@/types/attivita";
 
 const SELECT_CLASS_NAME =
@@ -51,7 +51,7 @@ export function SelectAttivita({
 
           {Object.values(ATTIVITA).map((attivita) => (
             <option key={attivita} value={attivita}>
-              {attivita}
+              {LABEL_ATTIVITA[attivita]}
             </option>
           ))}
         </select>

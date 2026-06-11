@@ -7,5 +7,22 @@ export const ATTIVITA = {
   ASSISTENZA: "ASSISTENZA",
   VISITA_MEDICA: "VISITA_MEDICA",
   FORMAZIONE: "FORMAZIONE",
+  CANTIERE_NUOVO: "CANTIERE_NUOVO",
   ALTRO: "ALTRO",
 } as const;
+
+export const LABEL_ATTIVITA: Record<
+  (typeof ATTIVITA)[keyof typeof ATTIVITA],
+  string
+> = {
+  [ATTIVITA.ACQUISTI]: "Acquisti",
+  [ATTIVITA.TRASFERTA]: "Trasferta",
+  [ATTIVITA.MAGAZZINO]: "Magazzino",
+  [ATTIVITA.UFFICIO]: "Ufficio",
+  [ATTIVITA.SOPRALLUOGO]: "Sopralluogo",
+  [ATTIVITA.ASSISTENZA]: "Assistenza",
+  [ATTIVITA.VISITA_MEDICA]: "Visita medica",
+  [ATTIVITA.FORMAZIONE]: "Formazione",
+  [ATTIVITA.CANTIERE_NUOVO]: "Cantiere nuovo",
+  [ATTIVITA.ALTRO]: "Altro",
+};

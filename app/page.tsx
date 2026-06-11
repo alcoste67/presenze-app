@@ -38,6 +38,7 @@ import {
   TIMBRATURE,
   TIMBRATURE_TESTI,
 } from "@/constants/stati";
+import { ATTIVITA } from "@/constants/attivita";
 import { TIMBRATURE_LAVORAZIONI_TESTI } from "@/constants/timbratureLavorazioni";
 import { TipoAttivita } from "@/types/attivita";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
@@ -47,6 +48,7 @@ import {
 } from "@/types/timbrature";
 import type { TimbraturaLavorazioneInput } from "@/types/timbratureLavorazioni";
 
+import { getMessaggioErrore } from "@/lib/errors";
 import { ascoltaSessioneAuth } from "@/services/auth/ascoltaSessioneAuth";
 import { esciAuth } from "@/services/auth/esciAuth";
 import { inviaCodiceOtp } from "@/services/auth/inviaCodiceOtp";
@@ -61,6 +63,9 @@ import {
 } from "@/services/dipendenti/loadDipendenteByUserId";
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
 import { proponiLavorazione } from "@/services/lavorazioni/proponiLavorazione";
+import { creaCantiere } from "@/services/cantieri/creaCantiere";
+import { assegnaCantiereTimbratura } from "@/services/timbrature/assegnaCantiereTimbratura";
+import { creaRapportoIntervento } from "@/services/rapportiIntervento/creaRapportoIntervento";
 import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
 import { creaCostoMacchinarioCommessa } from "@/services/costiMacchinari/creaCostoMacchinarioCommessa";
 import { comprimiFoto } from "@/lib/compressioneFoto";
@@ -296,7 +301,7 @@ export default function HomePage() {
   const [mostraLavorazioniUscita, setMostraLavorazioniUscita] = useState(false);
 
   // ── Wizard uscita: lavorazioni → macchinari → foto ──
-  type StepUscita = "LAVORAZIONI" | "MACCHINARI" | "FOTO";
+  type StepUscita = "CANTIERE" | "LAVORAZIONI" | "MACCHINARI" | "FOTO";
   type MacchinarioUsato = { localId: string; macchinarioId: string; ore: string };
   type FotoUscita = {
     localId: string;
@@ -316,6 +321,10 @@ export default function HomePage() {
   const [timbraturaUscitaId, setTimbraturaUscitaId] = useState<string | null>(null);
   const [nuovaLavorazioneNome, setNuovaLavorazioneNome] = useState("");
   const [propostaInCorso, setPropostaInCorso] = useState(false);
+  const [nomeCantiereNuovo, setNomeCantiereNuovo] = useState("");
+  const [indirizzoCantiereNuovo, setIndirizzoCantiereNuovo] = useState("");
+  const [creazioneCantiereInCorso, setCreazioneCantiereInCorso] = useState(false);
+  const [creaBozzaRapporto, setCreaBozzaRapporto] = useState(false);
 
   const [erroreLavorazioniUscita, setErroreLavorazioniUscita] = useState<
     string | null
@@ -647,6 +656,10 @@ export default function HomePage() {
     setTimbraturaUscitaId(null);
     setNuovaLavorazioneNome("");
     setPropostaInCorso(false);
+    setNomeCantiereNuovo("");
+    setIndirizzoCantiereNuovo("");
+    setCreazioneCantiereInCorso(false);
+    setCreaBozzaRapporto(false);
   };
 
   // "+ Proponi lavorazione": crea subito la proposta a DB e la
@@ -870,12 +883,16 @@ export default function HomePage() {
         `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipo} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
       );
     } catch (error: unknown) {
-      console.error(error);
+      console.error("Errore registrazione timbratura", {
+        tipo,
+        dettaglio: JSON.stringify(error),
+        error,
+      });
 
-      const messaggioErrore =
-        error instanceof Error
-          ? error.message
-          : TIMBRATURE_TESTI.ERRORI.GENERICO;
+      const messaggioErrore = getMessaggioErrore(
+        error,
+        TIMBRATURE_TESTI.ERRORI.GENERICO
+      );
 
       if (
         tipo === TIMBRATURE.USCITA ||
@@ -903,6 +920,35 @@ export default function HomePage() {
 
     if (tipo === TIMBRATURE.USCITA) {
       const destinazioneCantiereId = ultimaTimbratura?.cantiere_id || null;
+
+      // Entrata su attività "Cantiere nuovo": il wizard parte dalla
+      // creazione del cantiere
+      if (
+        !destinazioneCantiereId &&
+        ultimaTimbratura?.attivita_tipo === ATTIVITA.CANTIERE_NUOVO
+      ) {
+        setTipoDialogLavorazioni(tipo);
+        setCantiereIdUscita(null);
+        setCantiereIdNuovoCambio(null);
+        setLavorazioniUscita([]);
+        setLavorazioniUscitaSelezionate([]);
+        setPercentualiLavorazioniUscita({});
+        setErroreLavorazioniUscita(null);
+        setStepUscita("CANTIERE");
+        setMacchinariUsati([]);
+        setFotoUscita([]);
+        setTimbraturaUscitaId(null);
+        setMostraLavorazioniUscita(true);
+
+        if (puoRegistrareMacchinari) {
+          loadMacchinariPubblici()
+            .then((macchinari) =>
+              setMacchinariDisponibili(macchinari.filter((m) => m.attivo))
+            )
+            .catch(() => setMacchinariDisponibili([]));
+        }
+        return;
+      }
 
       if (destinazioneCantiereId) {
         try {
@@ -1030,6 +1076,57 @@ export default function HomePage() {
         ? "MACCHINARI"
         : "FOTO"
     );
+  };
+
+  // ── Step cantiere nuovo ──
+
+  const handleCreaCantiereNuovo = async () => {
+    const nome = nomeCantiereNuovo.trim();
+    if (!nome) {
+      setErroreLavorazioniUscita(
+        TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.NOME_CANTIERE_OBBLIGATORIO
+      );
+      return;
+    }
+
+    try {
+      setCreazioneCantiereInCorso(true);
+      setErroreLavorazioniUscita(null);
+
+      const nuovoCantiere = await creaCantiere({
+        nome,
+        indirizzo: indirizzoCantiereNuovo.trim(),
+        lavorazioni: "",
+        attivo: true,
+        cliente_id: null,
+      });
+
+      // Le ore della giornata finiscono sul cantiere appena creato
+      if (ultimaTimbratura?.id) {
+        await assegnaCantiereTimbratura({
+          timbraturaId: ultimaTimbratura.id,
+          cantiereId: nuovoCantiere.id,
+        });
+        await refreshUltimaTimbratura(user?.id || null);
+      }
+
+      setCantieri((correnti) =>
+        [...correnti, { id: nuovoCantiere.id, nome: nuovoCantiere.nome }].sort(
+          (a, b) => a.nome.localeCompare(b.nome)
+        )
+      );
+      setCantiereIdUscita(nuovoCantiere.id);
+      setStepUscita("LAVORAZIONI");
+    } catch (error: unknown) {
+      console.error(error);
+      setErroreLavorazioniUscita(
+        error instanceof Error
+          ? error.message
+          : TIMBRATURE_TESTI.ERRORI.GENERICO
+      );
+    } finally {
+      setCreazioneCantiereInCorso(false);
+    }
   };
 
   // ── Step macchinari ──
@@ -1217,6 +1314,52 @@ export default function HomePage() {
         }
       }
 
+      // 2b. Bozza rapporto di lavoro (facoltativa, una sola volta)
+      if (creaBozzaRapporto && timbraturaId === timbraturaUscitaId) {
+        // già creata in un tentativo precedente: salta
+      } else if (creaBozzaRapporto) {
+        const cantiereDelGiorno = cantieri.find((c) => c.id === cantiereIdUscita);
+        const nomeOperatore = dipendente
+          ? `${dipendente.nome} ${dipendente.cognome}`.trim()
+          : user?.email || "";
+
+        await creaRapportoIntervento({
+          cantiere_id: cantiereIdUscita,
+          data_intervento: new Date().toISOString().slice(0, 10),
+          cliente_committente: cantiereDelGiorno?.nome || "",
+          cliente_id: null,
+          responsabile_nome: nomeOperatore,
+          viaggio_minuti: 0,
+          diritto_uscita: false,
+          note: "",
+          firma_responsabile_data_url: null,
+          firma_responsabile_nome: null,
+          firma_cliente_data_url: null,
+          firma_cliente_nome: null,
+          lavorazioni: lavorazioniUscitaSelezionate.map((lavorazioneId, indice) => {
+            const lavorazione = lavorazioniUscita.find((l) => l.id === lavorazioneId);
+            return {
+              lavorazione_id: lavorazioneId,
+              descrizione_snapshot: lavorazione?.nome || "",
+              ore_uomo_minuti: 0,
+              ordine: indice + 1,
+            };
+          }),
+          operatori: [
+            {
+              dipendente_id: null,
+              nome_snapshot: nomeOperatore,
+              email_snapshot: user?.email || null,
+              ore_minuti: 0,
+              ordine: 1,
+            },
+          ],
+          foto: [],
+          materiali: [],
+          extra: [],
+        });
+      }
+
       // 3. Upload foto (con stato per foto; i retry ripartono da qui)
       const fotoOk = await caricaFotoUscita(timbraturaId);
 
@@ -1232,11 +1375,12 @@ export default function HomePage() {
         `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
       );
     } catch (error: unknown) {
-      console.error(error);
+      console.error("Errore conferma uscita", {
+        dettaglio: JSON.stringify(error),
+        error,
+      });
       setErroreLavorazioniUscita(
-        error instanceof Error
-          ? error.message
-          : TIMBRATURE_TESTI.ERRORI.GENERICO
+        getMessaggioErrore(error, TIMBRATURE_TESTI.ERRORI.GENERICO)
       );
     } finally {
       setSalvataggioUscita(false);
@@ -1599,25 +1743,56 @@ export default function HomePage() {
               >
                 {dialogCambioCantiere
                   ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CAMBIO_CANTIERE
-                  : stepUscita === "MACCHINARI"
-                    ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_MACCHINARI
-                    : stepUscita === "FOTO"
-                      ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_FOTO
-                      : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
+                  : stepUscita === "CANTIERE"
+                    ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CANTIERE_NUOVO
+                    : stepUscita === "MACCHINARI"
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_MACCHINARI
+                      : stepUscita === "FOTO"
+                        ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_FOTO
+                        : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
               </h2>
               <p className="mt-2 text-sm text-text-muted">
                 {dialogCambioCantiere
                   ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CAMBIO_CANTIERE
-                  : stepUscita === "MACCHINARI"
-                    ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_MACCHINARI
-                    : stepUscita === "FOTO"
-                      ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_FOTO
-                      : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
+                  : stepUscita === "CANTIERE"
+                    ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CANTIERE_NUOVO
+                    : stepUscita === "MACCHINARI"
+                      ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_MACCHINARI
+                      : stepUscita === "FOTO"
+                        ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_FOTO
+                        : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
               </p>
             </div>
 
             <div className="flex max-h-[52dvh] flex-col gap-3 overflow-y-auto p-4">
-              {stepUscita === "MACCHINARI" && !dialogCambioCantiere ? (
+              {stepUscita === "CANTIERE" && !dialogCambioCantiere ? (
+                <>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-text-primary">
+                      {TIMBRATURE_LAVORAZIONI_TESTI.NOME_CANTIERE}
+                    </span>
+                    <input
+                      type="text"
+                      value={nomeCantiereNuovo}
+                      onChange={(e) => setNomeCantiereNuovo(e.target.value)}
+                      disabled={creazioneCantiereInCorso}
+                      className="h-11 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-text-primary">
+                      {TIMBRATURE_LAVORAZIONI_TESTI.INDIRIZZO_CANTIERE}
+                    </span>
+                    <input
+                      type="text"
+                      value={indirizzoCantiereNuovo}
+                      onChange={(e) => setIndirizzoCantiereNuovo(e.target.value)}
+                      disabled={creazioneCantiereInCorso}
+                      className="h-11 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                  </label>
+                </>
+              ) : stepUscita === "MACCHINARI" && !dialogCambioCantiere ? (
                 <>
                   {macchinariUsati.map((usato) => (
                     <div
@@ -1682,6 +1857,19 @@ export default function HomePage() {
                 </>
               ) : stepUscita === "FOTO" && !dialogCambioCantiere ? (
                 <>
+                  {puoRegistrareMacchinari && (
+                    <label className="flex items-center gap-3 rounded-md bg-bg-subtle p-3 text-sm font-medium text-text-primary">
+                      <input
+                        type="checkbox"
+                        checked={creaBozzaRapporto}
+                        onChange={(e) => setCreaBozzaRapporto(e.target.checked)}
+                        disabled={salvataggioUscita || timbraturaUscitaId !== null}
+                        className="h-5 w-5 accent-brand-500"
+                      />
+                      {TIMBRATURE_LAVORAZIONI_TESTI.CREA_BOZZA_RAPPORTO}
+                    </label>
+                  )}
+
                   <label className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-bg-subtle text-sm font-medium text-text-primary transition-colors hover:border-brand-500">
                     {TIMBRATURE_LAVORAZIONI_TESTI.AGGIUNGI_FOTO}
                     <input
@@ -1892,7 +2080,27 @@ export default function HomePage() {
             )}
 
             <div className="flex gap-3 border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              {stepUscita === "LAVORAZIONI" || dialogCambioCantiere ? (
+              {stepUscita === "CANTIERE" && !dialogCambioCantiere ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={resetLavorazioniUscita}
+                    disabled={creazioneCantiereInCorso}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.ANNULLA}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    onClick={() => void handleCreaCantiereNuovo()}
+                    loading={creazioneCantiereInCorso}
+                    disabled={!nomeCantiereNuovo.trim()}
+                  >
+                    {TIMBRATURE_LAVORAZIONI_TESTI.CREA_CANTIERE_E_CONTINUA}
+                  </Button>
+                </>
+              ) : stepUscita === "LAVORAZIONI" || dialogCambioCantiere ? (
                 <>
                   <Button
                     variant="secondary"
