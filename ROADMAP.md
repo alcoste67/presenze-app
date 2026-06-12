@@ -250,3 +250,63 @@ I lavori extra sono righe libere del rapporto: descrizione + ore + note, **non**
 **Attenzione:**
 - Peso allegato: target < 5 MB. Se le foto sono tante: PDF con thumbnail + link alle foto originali (URL firmati Supabase con scadenza).
 - Il PDF inviato è la **copia legale**: generato una volta, archiviato, mai rigenerato a ogni visualizzazione.
+
+---
+
+## TASK 6 (futuro) — Collaborazioni tra aziende: cantiere condiviso e SAL unico
+**Priorità: DA PIANIFICARE · Complessità: ALTA · Rischio: ALTO (deroga controllata al multi-tenant)**
+
+**Scenario:** A2C appalta a NETWISP lavori sul cantiere CASCINA MUGGIANO. Ogni azienda
+timbra e registra avanzamenti per conto proprio, ma a fine periodo il SAL del cantiere
+deve poter fare **merge** dei dati delle due aziende: un unico SAL di cantiere.
+
+**Requisito:** collegare due (o più) aziende **solo su uno specifico cantiere**, con
+visibilità reciproca limitata alle lavorazioni/avanzamenti di quel cantiere — mai
+all'intera anagrafica dell'altra azienda.
+
+**Prime linee di design (da validare):**
+- Tabella ponte `cantieri_collaborazioni` (`cantiere_id`, `azienda_committente`,
+  `azienda_collaboratrice`, `stato` invito: proposta/accettata/revocata, date):
+  la collaborazione nasce su invito dell'azienda titolare del cantiere e va
+  accettata dall'altra — mai unilaterale.
+- RLS: policy ADDITIVE e mirate (mai allargare le RESTRICTIVE esistenti) che
+  concedono SELECT sulle lavorazioni/avanzamenti/SAL del SOLO cantiere collegato,
+  alle sole aziende con collaborazione `accettata`.
+- **Perimetro dati (deciso 2026-06-12):** al committente servono SOLO le
+  lavorazioni completate/in avanzamento del subappaltatore (nomi e %).
+  Costi, ricavi, tariffe, ore uomo e dati economici del subappaltatore
+  restano SEMPRE privati — esclusi dal design fin dall'inizio.
+- Il cantiere "fisico" resta di proprietà del committente; l'azienda collaboratrice
+  vi timbra tramite il collegamento (da decidere: cantiere condiviso vs cantiere
+  speculare collegato).
+- SAL di fine periodo: vista/aggregazione che unisce gli avanzamenti delle aziende
+  collegate per il cantiere condiviso; export unico (chi lo firma? il committente).
+- Punti aperti: chi vede le foto dell'altra azienda; come si gestiscono le
+  lavorazioni omonime (merge proposte cross-azienda?); fatturazione separata;
+  revoca collaborazione a metà periodo (snapshot dei dati già condivisi?).
+
+**Nota di sicurezza:** è la prima feature che attraversa volutamente il confine
+tenant — serve un design review dedicato delle policy prima di scrivere codice,
+e test cross-azienda sistematici (2 aziende collegate + 1 terza estranea).
+
+---
+
+## TASK 7 (futuro) — Geolocalizzazione al timbro: cantieri in prossimità
+**Priorità: DA PIANIFICARE · Complessità: MEDIA · Rischio: MEDIO-ALTO (privacy/normativa)**
+
+**Idea:** al TIMBRA IN, usare la posizione del telefono per proporre in cima
+la lista dei cantieri più vicini.
+
+**Vincoli emersi dall'analisi (2026-06-12):**
+- **Normativa (il punto critico):** la posizione del lavoratore è dato personale;
+  in Italia il controllo a distanza tocca l'art. 4 dello Statuto dei Lavoratori.
+  Design a rischio minimo: posizione letta SOLO al tap, usata SOLO on-device per
+  ordinare la lista, MAI salvata né inviata al server; funzione opt-in con
+  informativa chiara. Se invece si volesse SALVARE la posizione nel timbro
+  (prova di presenza), servono consulenza legale, informativa GDPR aggiornata
+  e probabilmente accordo sindacale/autorizzazione — altra storia.
+- **Tecnici:** serve aggiungere coordinate ai cantieri (oggi solo indirizzo
+  testuale → geocoding in salvataggio cantiere); permesso geolocalizzazione
+  della PWA con fallback immediato alla lista normale se negato/timeout;
+  precisione GPS variabile in cantiere; il timbro deve restare veloce
+  (timeout breve sul fix GPS, mai bloccare il flusso).
