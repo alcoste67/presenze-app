@@ -140,7 +140,10 @@ export function SelectCliente({
   const eseguiCreazione = async () => {
     try {
       setCreazione(true);
-      const nuovo = await creaCliente({ ragioneSociale: nomeNuovo });
+      const nuovo = await creaCliente({
+        ragioneSociale: nomeNuovo,
+        daVerificare: true,
+      });
       onCreate(nuovo);
       chiudiDropdown();
       inputRef.current?.blur();

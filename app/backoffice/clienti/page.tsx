@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Home, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
+import { GitMerge, Home, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
 
@@ -11,6 +11,11 @@ import { aggiornaCliente } from "@/services/clienti/aggiornaCliente";
 import { cercaClientiSimili } from "@/services/clienti/cercaClientiSimili";
 import { creaCliente } from "@/services/clienti/creaCliente";
 import { eliminaClienteSeVuoto } from "@/services/clienti/eliminaClienteSeVuoto";
+import {
+  anteprimaMergeClienti,
+  unisciClienti,
+  type AnteprimaMerge,
+} from "@/services/clienti/unisciClienti";
 import { loadClienti } from "@/services/clienti/loadClienti";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 
@@ -58,6 +63,12 @@ export default function BackofficeClientiPage() {
   // Eliminazione con doppia conferma: step 1 → step 2
   const [clienteDaEliminare, setClienteDaEliminare] = useState<Cliente | null>(null);
   const [confermaDefinitiva, setConfermaDefinitiva] = useState(false);
+  // Merge doppioni: selezione destinazione → conferma
+  const [clienteDaUnire, setClienteDaUnire] = useState<Cliente | null>(null);
+  const [destinazioneMergeId, setDestinazioneMergeId] = useState("");
+  const [anteprimaMerge, setAnteprimaMerge] = useState<AnteprimaMerge | null>(null);
+  const [confermaMerge, setConfermaMerge] = useState(false);
+  const [mergeInCorso, setMergeInCorso] = useState(false);
 
   const cantieriPerCliente = useMemo(() => {
     const mappa = new Map<string, CantiereBackoffice[]>();
@@ -231,6 +242,80 @@ export default function BackofficeClientiPage() {
       toast.success("Cliente eliminato");
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, "Errore eliminazione cliente"));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
+  const apriMerge = async (cliente: Cliente) => {
+    setClienteDaUnire(cliente);
+    setDestinazioneMergeId("");
+    setConfermaMerge(false);
+    setAnteprimaMerge(null);
+    try {
+      const anteprima = await anteprimaMergeClienti({
+        clienteDaUnireId: cliente.id,
+      });
+      setAnteprimaMerge(anteprima);
+    } catch {
+      // anteprima best-effort
+    }
+  };
+
+  const chiudiMerge = () => {
+    setClienteDaUnire(null);
+    setDestinazioneMergeId("");
+    setAnteprimaMerge(null);
+    setConfermaMerge(false);
+  };
+
+  const eseguiMerge = async () => {
+    if (!clienteDaUnire || !destinazioneMergeId) return;
+    const duplicato = clienteDaUnire;
+    const destinazioneId = destinazioneMergeId;
+    chiudiMerge();
+
+    try {
+      setMergeInCorso(true);
+      const esito = await unisciClienti({
+        clienteDaUnireId: duplicato.id,
+        clienteDestinazioneId: destinazioneId,
+      });
+
+      // Ricarica l'anagrafica: il merge tocca più record
+      const [clientiData, cantieriData] = await Promise.all([
+        loadClienti({ soloAttivi: false }),
+        loadCantieriBackoffice(),
+      ]);
+      setClienti(clientiData);
+      setCantieri(cantieriData);
+      if (clienteInModificaId === duplicato.id) resetForm();
+
+      toast.success(
+        esito.eliminato
+          ? "Clienti uniti: duplicato eliminato"
+          : "Clienti uniti: duplicato disattivato (ha rapporti firmati)"
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore unione clienti"));
+    } finally {
+      setMergeInCorso(false);
+    }
+  };
+
+  const approvaCliente = async (cliente: Cliente) => {
+    try {
+      setSalvataggio(true);
+      const aggiornato = await aggiornaCliente({
+        clienteId: cliente.id,
+        cliente: { da_verificare: false },
+      });
+      setClienti((correnti) =>
+        correnti.map((c) => (c.id === aggiornato.id ? aggiornato : c))
+      );
+      toast.success("Cliente approvato");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore gestione clienti"));
     } finally {
       setSalvataggio(false);
     }
@@ -426,6 +511,19 @@ export default function BackofficeClientiPage() {
                         </div>
 
                         <div className="flex items-center gap-1">
+                          {cliente.da_verificare && (
+                            <>
+                              <Badge variant="warning" size="sm">Da verificare</Badge>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => void approvaCliente(cliente)}
+                                disabled={salvataggio}
+                              >
+                                Approva
+                              </Button>
+                            </>
+                          )}
                           {!cliente.attivo && (
                             <Badge variant="muted" size="sm">Disattivo</Badge>
                           )}
@@ -452,6 +550,16 @@ export default function BackofficeClientiPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
+                            aria-label="Unisci a un altro cliente"
+                            onClick={() => void apriMerge(cliente)}
+                            disabled={salvataggio || mergeInCorso}
+                          >
+                            <GitMerge className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-8 w-8 p-0 text-error-500 hover:text-error-500"
                             aria-label="Elimina"
                             onClick={() => {
@@ -472,6 +580,77 @@ export default function BackofficeClientiPage() {
           </Card>
         </div>
       </main>
+
+      {clienteDaUnire && !confermaMerge && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/60 p-4 backdrop-blur-sm"
+          onClick={chiudiMerge}
+        >
+          <div
+            className="w-full max-w-sm bg-bg-card border border-border rounded-lg shadow-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-heading text-lg font-medium text-text-primary">
+              Unisci «{clienteDaUnire.ragione_sociale}»
+            </h2>
+            <p className="mt-2 text-sm text-text-muted">
+              {anteprimaMerge
+                ? `Verranno spostati ${anteprimaMerge.cantieri} cantieri e ${anteprimaMerge.rapportiBozza} rapporti in bozza.` +
+                  (anteprimaMerge.rapportiBloccati > 0
+                    ? ` ${anteprimaMerge.rapportiBloccati} rapporti firmati resteranno sul duplicato, che verrà disattivato.`
+                    : " Il duplicato verrà eliminato.")
+                : "Calcolo anteprima..."}
+            </p>
+
+            <label className="mt-4 block">
+              <span className="mb-1 block text-xs font-medium text-text-muted">
+                Cliente di destinazione
+              </span>
+              <select
+                value={destinazioneMergeId}
+                onChange={(e) => setDestinazioneMergeId(e.target.value)}
+                className="h-10 w-full rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+              >
+                <option value="">Seleziona...</option>
+                {clienti
+                  .filter((c) => c.id !== clienteDaUnire.id && c.attivo)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.ragione_sociale}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={chiudiMerge}>
+                Annulla
+              </Button>
+              <Button
+                size="sm"
+                disabled={!destinazioneMergeId}
+                onClick={() => setConfermaMerge(true)}
+              >
+                Continua
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clienteDaUnire && confermaMerge && (
+        <ConfirmDialog
+          title="Conferma unione"
+          message={`Unire definitivamente «${clienteDaUnire.ragione_sociale}» a «${
+            clienti.find((c) => c.id === destinazioneMergeId)?.ragione_sociale || ""
+          }»? L'operazione non è reversibile.`}
+          confirmLabel="Unisci definitivamente"
+          onConfirm={() => void eseguiMerge()}
+          onCancel={() => setConfermaMerge(false)}
+        />
+      )}
 
       {clienteDaEliminare && !confermaDefinitiva && (
         <ConfirmDialog

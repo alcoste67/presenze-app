@@ -17,6 +17,7 @@ import { formatMinutiOre } from "@/services/rapportiIntervento/oreMinuti";
 import type { RapportoInterventoCompleto } from "@/types/rapportiIntervento";
 
 import { AppHeader } from "@/components/ui/AppHeader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -49,6 +50,7 @@ export default function FirmaRapportoPage() {
   const [firmaCliente, setFirmaCliente] =
     useState<string | null>(null);
   const [nomeCliente, setNomeCliente] = useState("");
+  const [mostraPropostaInvio, setMostraPropostaInvio] = useState(false);
 
   useEffect(() => {
     let attivo = true;
@@ -122,8 +124,10 @@ export default function FirmaRapportoPage() {
       });
 
       toast.success(RAPPORTI_INTERVENTO_TESTI.FIRMA_CONFERMATA);
-      // replace: il back button non deve riportare alla pagina di firma
-      router.replace(APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO);
+      // Proponi subito l'invio al cliente
+      setMostraPropostaInvio(true);
+      setSalvataggio(false);
+      return;
     } catch (error: unknown) {
       toast.error(
         getMessaggioErrore(
@@ -332,6 +336,22 @@ export default function FirmaRapportoPage() {
           </div>
         )}
       </main>
+      {mostraPropostaInvio && (
+        <ConfirmDialog
+          title={RAPPORTI_INTERVENTO_TESTI.FIRMA_CONFERMATA}
+          message={RAPPORTI_INTERVENTO_TESTI.PROPOSTA_INVIO_POST_FIRMA}
+          confirmLabel={RAPPORTI_INTERVENTO_TESTI.INVIA_ORA}
+          onConfirm={() =>
+            // replace: il back button non deve riportare alla pagina di firma
+            router.replace(
+              `${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}?invia=${rapportoId}`
+            )
+          }
+          onCancel={() =>
+            router.replace(APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO)
+          }
+        />
+      )}
     </div>
   );
 }

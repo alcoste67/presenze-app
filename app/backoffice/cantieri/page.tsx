@@ -184,6 +184,31 @@ export default function BackofficeCantieriPage() {
     });
   };
 
+  const approvaCantiere = async (cantiere: CantiereBackoffice) => {
+    try {
+      setSalvataggio(true);
+      const aggiornato = await aggiornaCantiere({
+        cantiereId: cantiere.id,
+        cantiere: {
+          nome: cantiere.nome,
+          indirizzo: cantiere.indirizzo,
+          lavorazioni: cantiere.lavorazioni,
+          attivo: cantiere.attivo,
+          cliente_id: cantiere.cliente_id ?? null,
+          da_verificare: false,
+        },
+      });
+      setCantieri((correnti) =>
+        correnti.map((c) => (c.id === aggiornato.id ? aggiornato : c))
+      );
+      toast.success("Cantiere approvato");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
   const toggleAttivo = async (cantiere: CantiereBackoffice) => {
     try {
       setSalvataggio(true);
@@ -467,6 +492,19 @@ export default function BackofficeCantieriPage() {
                           <p className="font-medium text-text-primary">{c.nome}</p>
                           {c.indirizzo && (
                             <p className="text-xs text-text-muted mt-0.5">{c.indirizzo}</p>
+                          )}
+                          {c.da_verificare && (
+                            <span className="mt-0.5 inline-flex items-center gap-2">
+                              <Badge variant="warning" size="sm">Da verificare</Badge>
+                              <button
+                                type="button"
+                                onClick={() => void approvaCantiere(c)}
+                                disabled={salvataggio}
+                                className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors disabled:opacity-50"
+                              >
+                                Approva
+                              </button>
+                            </span>
                           )}
                           {!c.attivo && (
                             <Badge variant="muted" size="sm" className="mt-0.5">

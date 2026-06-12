@@ -8,6 +8,7 @@ export type CantiereBackoffice = Cantiere & {
   lavorazioni: string;
   attivo: boolean;
   cliente_id?: string | null;
+  da_verificare?: boolean;
 };
 
 export type CantiereInput = {
@@ -16,4 +17,5 @@ export type CantiereInput = {
   lavorazioni: string;
   attivo: boolean;
   cliente_id: string | null;
+  da_verificare?: boolean;
 };

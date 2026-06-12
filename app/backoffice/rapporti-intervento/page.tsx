@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Download, Home, PenLine, Plus, Search, Send, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
@@ -20,10 +20,13 @@ import { APP_ROUTES } from "@/constants/routes";
 
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
+import { creaCantiere } from "@/services/cantieri/creaCantiere";
 import { loadClienti } from "@/services/clienti/loadClienti";
+import { aggiornaCliente } from "@/services/clienti/aggiornaCliente";
 import { SelectCliente } from "@/components/clienti/SelectCliente";
 import type { Cliente } from "@/types/clienti";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { loadDipendenteByUserId } from "@/services/dipendenti/loadDipendenteByUserId";
 import { loadDipendentiAttivi } from "@/services/dipendenti/loadDipendentiAttivi";
 import { aggiornaRapportoIntervento } from "@/services/rapportiIntervento/aggiornaRapportoIntervento";
 import { calcolaOreFatturabili } from "@/services/rapportiIntervento/calcolaOreFatturabili";
@@ -98,6 +101,8 @@ type MaterialeForm = Omit<RapportoInterventoMaterialeInput, "quantita"> & {
 type RapportoForm = {
   cantiere_id: string;
   data_intervento: string;
+  ora_arrivo: string;
+  ora_partenza: string;
   cliente_committente: string;
   cliente_id: string | null;
   responsabile_nome: string;
@@ -112,9 +117,47 @@ type RapportoForm = {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+function getOraAttuale() {
+  const adesso = new Date();
+  const ore = String(adesso.getHours()).padStart(2, "0");
+  const minuti = String(adesso.getMinutes()).padStart(2, "0");
+  return `${ore}:${minuti}`;
+}
+
+function parseOraHHMM(valore: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(valore.trim());
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+// Differenza partenza-arrivo arrotondata alla mezz'ora SUCCESSIVA
+// (1:20 → 1:30, 1:37 → 2:00)
+function calcolaOreLavorateMinuti(
+  oraArrivo: string,
+  oraPartenza: string
+): number | null {
+  const arrivo = parseOraHHMM(oraArrivo);
+  const partenza = parseOraHHMM(oraPartenza);
+  if (arrivo === null || partenza === null) return null;
+
+  const diff = partenza - arrivo;
+  if (diff <= 0) return null;
+
+  return Math.ceil(diff / 30) * 30;
+}
+
+function getDataOdierna() {
+  const oggi = new Date();
+  const mese = String(oggi.getMonth() + 1).padStart(2, "0");
+  const giorno = String(oggi.getDate()).padStart(2, "0");
+  return `${oggi.getFullYear()}-${mese}-${giorno}`;
+}
+
 const FORM_INIZIALE: RapportoForm = {
   cantiere_id: "",
   data_intervento: "",
+  ora_arrivo: "",
+  ora_partenza: "",
   cliente_committente: "",
   cliente_id: null,
   responsabile_nome: "",
@@ -217,15 +260,10 @@ function normalizzaLavorazioni(
       return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.DESCRIZIONE_OBBLIGATORIA };
     }
 
-    if (!lavorazione.ore_uomo_input.trim()) {
-      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.ORE_NON_VALIDE };
-    }
-
-    const oreUomoMinuti = parseOreMinutiInput(lavorazione.ore_uomo_input);
-
-    if (oreUomoMinuti === null) {
-      return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FORMATO_ORE_NON_VALIDO };
-    }
+    // Le ore per lavorazione non si compilano più: resta solo
+    // l'elenco dei lavori svolti (eventuale valore legacy preservato)
+    const oreUomoMinuti =
+      parseOreMinutiInput(lavorazione.ore_uomo_input) ?? 0;
 
     lavorazioniNormalizzate.push({
       lavorazione_id: lavorazione.lavorazione_id,
@@ -436,6 +474,8 @@ function preparaPayload({
     payload: {
       cantiere_id: form.cantiere_id,
       data_intervento: form.data_intervento,
+      ora_arrivo: form.ora_arrivo || null,
+      ora_partenza: form.ora_partenza || null,
       cliente_committente: cliente,
       cliente_id: form.cliente_id,
       responsabile_nome: responsabile,
@@ -468,7 +508,14 @@ export default function BackofficeRapportiInterventoPage() {
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [rapporti, setRapporti] = useState<RapportoIntervento[]>([]);
-  const [form, setForm] = useState<RapportoForm>(FORM_INIZIALE);
+  const [form, setForm] = useState<RapportoForm>(() => ({
+    ...FORM_INIZIALE,
+    data_intervento: getDataOdierna(),
+    ora_partenza: getOraAttuale(),
+  }));
+  // Nome di chi compila: proposto come responsabile lavori
+  const [nomeCompilatore, setNomeCompilatore] = useState("");
+  const [emailCompilatore, setEmailCompilatore] = useState("");
   const [lavorazioni, setLavorazioni] = useState<LavorazioneForm[]>([]);
   const [operatori, setOperatori] = useState<OperatoreForm[]>([]);
   const [foto, setFoto] = useState<FotoForm[]>([]);
@@ -482,6 +529,14 @@ export default function BackofficeRapportiInterventoPage() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [pdfId, setPdfId] = useState<string | null>(null);
   const [rapportoDaInviare, setRapportoDaInviare] = useState<RapportoIntervento | null>(null);
+  // Cliente senza email: la si chiede al momento dell'invio
+  const [rapportoSenzaEmail, setRapportoSenzaEmail] = useState<RapportoIntervento | null>(null);
+  const [emailNuovoInvio, setEmailNuovoInvio] = useState("");
+  const [salvataggioEmailInvio, setSalvataggioEmailInvio] = useState(false);
+  const [mostraNuovoCantiere, setMostraNuovoCantiere] = useState(false);
+  const [nomeNuovoCantiere, setNomeNuovoCantiere] = useState("");
+  const [indirizzoNuovoCantiere, setIndirizzoNuovoCantiere] = useState("");
+  const [creazioneCantiere, setCreazioneCantiere] = useState(false);
   const [invioInCorso, setInvioInCorso] = useState(false);
   const [ricercaRapporti, setRicercaRapporti] = useState("");
   const [mostraListaRapporti, setMostraListaRapporti] = useState(false);
@@ -557,6 +612,20 @@ export default function BackofficeRapportiInterventoPage() {
         if (attivo) {
           setUtenteAdmin(adminCorrente);
         }
+
+        if (user?.id) {
+          if (attivo && user.email) setEmailCompilatore(user.email);
+          const dipendenteCorrente = await loadDipendenteByUserId(user.id);
+          if (attivo && dipendenteCorrente) {
+            const nome =
+              `${dipendenteCorrente.nome} ${dipendenteCorrente.cognome}`.trim();
+            setNomeCompilatore(nome);
+            // Precompila solo il form nuovo non ancora toccato
+            setForm((f) =>
+              f.responsabile_nome ? f : { ...f, responsabile_nome: nome }
+            );
+          }
+        }
       } catch (error: unknown) {
         console.error("Errore verifica ruolo rapporti intervento", error);
 
@@ -588,7 +657,13 @@ export default function BackofficeRapportiInterventoPage() {
   }, [caricaDati]);
 
   const resetForm = ({ mantieniMessaggio = false }: { mantieniMessaggio?: boolean } = {}) => {
-    setForm(FORM_INIZIALE);
+    setForm({
+      ...FORM_INIZIALE,
+      data_intervento: getDataOdierna(),
+      ora_partenza: getOraAttuale(),
+      responsabile_nome: nomeCompilatore,
+    });
+    aggiungiOperatoreCompilatore([]);
     setLavorazioni([]);
     setOperatori([]);
     setFoto([]);
@@ -655,6 +730,70 @@ export default function BackofficeRapportiInterventoPage() {
     );
   };
 
+  // Ore lavorate proposte dalla differenza arrivo/partenza
+  const oreLavorateProposte = useMemo(() => {
+    const minuti = calcolaOreLavorateMinuti(form.ora_arrivo, form.ora_partenza);
+    return minuti === null ? "" : formatMinutiOreInput(minuti);
+  }, [form.ora_arrivo, form.ora_partenza]);
+
+  // Propaga le ore calcolate a tutti gli operatori (solo in bozza)
+  useEffect(() => {
+    if (readonly || !oreLavorateProposte) return;
+    setOperatori((correnti) =>
+      correnti.map((op) =>
+        op.ore_input === oreLavorateProposte
+          ? op
+          : { ...op, ore_input: oreLavorateProposte }
+      )
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oreLavorateProposte, readonly]);
+
+  // Riga operatore precompilata con chi sta compilando
+  const aggiungiOperatoreCompilatore = (
+    operatoriCorrenti: OperatoreForm[]
+  ) => {
+    const compilatore = dipendenti.find(
+      (d) => d.email?.toLowerCase() === emailCompilatore.toLowerCase()
+    );
+    if (!compilatore) {
+      setOperatori(operatoriCorrenti);
+      return;
+    }
+
+    setOperatori([
+      ...operatoriCorrenti,
+      {
+        localId: getLocalId(),
+        dipendente_id: compilatore.id,
+        nome_snapshot: `${compilatore.nome} ${compilatore.cognome}`.trim(),
+        email_snapshot: compilatore.email,
+        ricerca_operatore:
+          `${compilatore.nome} ${compilatore.cognome}`.trim(),
+        ore_input: oreLavorateProposte,
+        ore_minuti: 0,
+        ordine: operatoriCorrenti.length + 1,
+      },
+    ]);
+  };
+
+  // Al primo caricamento (form nuovo vuoto) proponi il compilatore
+  const compilatoreProposto = useRef(false);
+  useEffect(() => {
+    if (
+      compilatoreProposto.current ||
+      !emailCompilatore ||
+      dipendenti.length === 0 ||
+      rapportoInModificaId ||
+      operatori.length > 0
+    ) {
+      return;
+    }
+    compilatoreProposto.current = true;
+    aggiungiOperatoreCompilatore([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dipendenti, emailCompilatore, rapportoInModificaId, operatori.length]);
+
   const aggiungiOperatore = useCallback(() => {
     setOperatori((operatoriCorrenti) => [
       ...operatoriCorrenti,
@@ -664,12 +803,12 @@ export default function BackofficeRapportiInterventoPage() {
         nome_snapshot: "",
         email_snapshot: null,
         ricerca_operatore: "",
-        ore_input: "",
+        ore_input: oreLavorateProposte,
         ore_minuti: 0,
         ordine: operatoriCorrenti.length + 1,
       },
     ]);
-  }, []);
+  }, [oreLavorateProposte]);
 
   const handleOperatoreSearchChange = useCallback(({
     localId,
@@ -978,6 +1117,8 @@ export default function BackofficeRapportiInterventoPage() {
       setForm({
         cantiere_id: rapportoCompleto.cantiere_id,
         data_intervento: rapportoCompleto.data_intervento,
+        ora_arrivo: (rapportoCompleto.ora_arrivo || "").slice(0, 5),
+        ora_partenza: (rapportoCompleto.ora_partenza || "").slice(0, 5),
         cliente_committente: rapportoCompleto.cliente_committente,
         cliente_id: rapportoCompleto.cliente_id ?? null,
         responsabile_nome: rapportoCompleto.responsabile_nome,
@@ -1092,6 +1233,124 @@ export default function BackofficeRapportiInterventoPage() {
       toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
+    }
+  };
+
+  const handleCreaCantiereProposto = async () => {
+    const nome = nomeNuovoCantiere.trim();
+    if (!nome) {
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.NOME_CANTIERE_OBBLIGATORIO);
+      return;
+    }
+
+    try {
+      setCreazioneCantiere(true);
+      const nuovo = await creaCantiere({
+        nome,
+        indirizzo: indirizzoNuovoCantiere.trim(),
+        lavorazioni: "",
+        attivo: true,
+        cliente_id: null,
+        da_verificare: true,
+      });
+
+      setCantieri((correnti) =>
+        [...correnti, nuovo].sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      handleFormChange("cantiere_id", nuovo.id);
+      setMostraNuovoCantiere(false);
+      setNomeNuovoCantiere("");
+      setIndirizzoNuovoCantiere("");
+      toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.CANTIERE_PROPOSTO);
+    } catch (error: unknown) {
+      toast.error(
+        getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO)
+      );
+    } finally {
+      setCreazioneCantiere(false);
+    }
+  };
+
+  // Arrivo dalla pagina firma con ?invia=<id>: proponi subito l'invio
+  const inviaDaQueryGestitoRef = useRef(false);
+  useEffect(() => {
+    if (inviaDaQueryGestitoRef.current || loading || rapporti.length === 0) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const inviaId = params.get("invia");
+    if (!inviaId) {
+      inviaDaQueryGestitoRef.current = true;
+      return;
+    }
+
+    inviaDaQueryGestitoRef.current = true;
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname
+    );
+
+    const rapporto = rapporti.find((r) => r.id === inviaId);
+    if (rapporto && rapporto.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO) {
+      avviaInvio(rapporto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, rapporti]);
+
+  const avviaInvio = (rapporto: RapportoIntervento) => {
+    if (!rapporto.cliente_id) {
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.INVIO_SENZA_CLIENTE);
+      return;
+    }
+
+    const cliente = clienti.find((c) => c.id === rapporto.cliente_id);
+    if (cliente && !cliente.email) {
+      setEmailNuovoInvio("");
+      setRapportoSenzaEmail(rapporto);
+      return;
+    }
+
+    setRapportoDaInviare(rapporto);
+  };
+
+  const salvaEmailEProsegui = async () => {
+    if (!rapportoSenzaEmail?.cliente_id) return;
+    const email = emailNuovoInvio.trim();
+    if (!email || !email.includes("@")) {
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.EMAIL_NON_VALIDA);
+      return;
+    }
+
+    try {
+      setSalvataggioEmailInvio(true);
+      // Popola l'anagrafica (provvisoria: il flag da_verificare resta
+      // com'è, l'admin conferma dopo)
+      const aggiornato = await aggiornaCliente({
+        clienteId: rapportoSenzaEmail.cliente_id,
+        cliente: { email },
+      });
+      setClienti((correnti) =>
+        correnti.map((c) => (c.id === aggiornato.id ? aggiornato : c))
+      );
+
+      const rapporto = rapportoSenzaEmail;
+      setRapportoSenzaEmail(null);
+      setEmailNuovoInvio("");
+      setRapportoDaInviare(rapporto);
+    } catch (error: unknown) {
+      const messaggio = getMessaggioErrore(
+        error,
+        RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO
+      );
+      toast.error(
+        messaggio.includes("clienti_email_unica")
+          ? RAPPORTI_INTERVENTO_TESTI.ERRORI.EMAIL_GIA_USATA
+          : messaggio
+      );
+    } finally {
+      setSalvataggioEmailInvio(false);
     }
   };
 
@@ -1238,9 +1497,69 @@ export default function BackofficeRapportiInterventoPage() {
                   >
                     <option value="">{RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE}</option>
                     {cantieri.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.da_verificare ? ` ${RAPPORTI_INTERVENTO_TESTI.SUFFISSO_DA_VERIFICARE}` : ""}
+                      </option>
                     ))}
                   </Select>
+
+                  {!readonly && (
+                    <div className="sm:col-span-2 -mt-2">
+                      {!mostraNuovoCantiere ? (
+                        <button
+                          type="button"
+                          onClick={() => setMostraNuovoCantiere(true)}
+                          className="text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                        >
+                          + {RAPPORTI_INTERVENTO_TESTI.NUOVO_CANTIERE}
+                        </button>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-2 rounded-md border border-dashed border-border p-3">
+                          <input
+                            type="text"
+                            value={nomeNuovoCantiere}
+                            onChange={(e) => setNomeNuovoCantiere(e.target.value)}
+                            placeholder={RAPPORTI_INTERVENTO_TESTI.NOME_CANTIERE_PLACEHOLDER}
+                            disabled={creazioneCantiere}
+                            className="h-10 min-w-0 flex-1 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                          />
+                          <input
+                            type="text"
+                            value={indirizzoNuovoCantiere}
+                            onChange={(e) => setIndirizzoNuovoCantiere(e.target.value)}
+                            placeholder={RAPPORTI_INTERVENTO_TESTI.INDIRIZZO_CANTIERE_PLACEHOLDER}
+                            disabled={creazioneCantiere}
+                            className="h-10 min-w-0 flex-1 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              loading={creazioneCantiere}
+                              disabled={!nomeNuovoCantiere.trim()}
+                              onClick={() => void handleCreaCantiereProposto()}
+                            >
+                              {RAPPORTI_INTERVENTO_TESTI.CREA_CANTIERE}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={creazioneCantiere}
+                              onClick={() => {
+                                setMostraNuovoCantiere(false);
+                                setNomeNuovoCantiere("");
+                                setIndirizzoNuovoCantiere("");
+                              }}
+                            >
+                              {RAPPORTI_INTERVENTO_TESTI.ANNULLA}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <Input
                     label={RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO}
@@ -1249,6 +1568,23 @@ export default function BackofficeRapportiInterventoPage() {
                     onChange={(e) => handleFormChange("data_intervento", e.target.value)}
                     disabled={readonly}
                   />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label={RAPPORTI_INTERVENTO_TESTI.ORA_ARRIVO}
+                      type="time"
+                      value={form.ora_arrivo}
+                      onChange={(e) => handleFormChange("ora_arrivo", e.target.value)}
+                      disabled={readonly}
+                    />
+                    <Input
+                      label={RAPPORTI_INTERVENTO_TESTI.ORA_PARTENZA}
+                      type="time"
+                      value={form.ora_partenza}
+                      onChange={(e) => handleFormChange("ora_partenza", e.target.value)}
+                      disabled={readonly}
+                    />
+                  </div>
 
                   <SelectCliente
                     label={RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE}
@@ -1332,14 +1668,7 @@ export default function BackofficeRapportiInterventoPage() {
 
               {/* Operatori (riga compatta) */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</h3>
-                  {!readonly && (
-                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiOperatore}>
-                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE}
-                    </Button>
-                  )}
-                </div>
+                <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</h3>
 
                 {operatori.length === 0 ? (
                   <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUN_OPERATORE}</p>
@@ -1395,6 +1724,12 @@ export default function BackofficeRapportiInterventoPage() {
                   </div>
                 )}
 
+                {!readonly && (
+                  <Button variant="secondary" size="sm" type="button" onClick={aggiungiOperatore}>
+                    +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_OPERATORE}
+                  </Button>
+                )}
+
                 <div className="rounded-md bg-bg-subtle p-3">
                   <p className="text-xs text-text-muted">
                     {RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_REALI}: {formatMinutiOre(oreUomoRealiMinuti)}
@@ -1404,22 +1739,20 @@ export default function BackofficeRapportiInterventoPage() {
 
               {/* Lavorazioni (riga compatta) */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI}</h3>
-                  {!readonly && (
-                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavorazione}>
-                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE}
-                    </Button>
-                  )}
-                </div>
+                <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI}</h3>
 
                 {lavorazioni.length === 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUNA_LAVORAZIONE}</p>
                     {!readonly && (
-                      <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
-                        {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavorazione}>
+                          +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE}
+                        </Button>
+                        <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                          {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -1442,23 +1775,6 @@ export default function BackofficeRapportiInterventoPage() {
                           />
                         </div>
 
-                        <div className="w-full sm:w-24">
-                          <Input
-                            label={RAPPORTI_INTERVENTO_TESTI.ORE_UOMO_MINUTI}
-                            type="text"
-                            value={lav.ore_uomo_input}
-                            onChange={(e) =>
-                              handleLavorazioneChange({
-                                localId: lav.localId,
-                                field: "ore_uomo_input",
-                                value: e.target.value,
-                              })
-                            }
-                            disabled={readonly}
-                            placeholder="2h 30m"
-                          />
-                        </div>
-
                         {!readonly && (
                           <Button
                             variant="ghost"
@@ -1474,9 +1790,14 @@ export default function BackofficeRapportiInterventoPage() {
                     ))}
 
                     {!readonly && (
-                      <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
-                        {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavorazione}>
+                          +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORAZIONE}
+                        </Button>
+                        <Button variant="secondary" size="sm" type="button" onClick={caricaSnapshot} loading={loadingSnapshot}>
+                          {RAPPORTI_INTERVENTO_TESTI.CARICA_SNAPSHOT}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1484,14 +1805,7 @@ export default function BackofficeRapportiInterventoPage() {
 
               {/* Materiali (riga compatta) */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</h3>
-                  {!readonly && (
-                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiMateriale}>
-                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE}
-                    </Button>
-                  )}
-                </div>
+                <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</h3>
 
                 {materiali.length === 0 ? (
                   <p className="text-sm text-text-muted">{RAPPORTI_INTERVENTO_TESTI.NESSUN_MATERIALE}</p>
@@ -1564,20 +1878,19 @@ export default function BackofficeRapportiInterventoPage() {
                     ))}
                   </div>
                 )}
+
+                {!readonly && (
+                  <Button variant="secondary" size="sm" type="button" onClick={aggiungiMateriale}>
+                    +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_MATERIALE}
+                  </Button>
+                )}
               </section>
 
               {/* Lavori extra (righe libere fuori catalogo) */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-text-primary">
-                    {RAPPORTI_INTERVENTO_TESTI.LAVORI_EXTRA}
-                  </h3>
-                  {!readonly && (
-                    <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavoroExtra}>
-                      +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORO_EXTRA}
-                    </Button>
-                  )}
-                </div>
+                <h3 className="font-medium text-text-primary">
+                  {RAPPORTI_INTERVENTO_TESTI.LAVORI_EXTRA}
+                </h3>
 
                 {lavoriExtra.length === 0 ? (
                   <p className="text-sm text-text-muted">
@@ -1653,6 +1966,12 @@ export default function BackofficeRapportiInterventoPage() {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {!readonly && (
+                  <Button variant="secondary" size="sm" type="button" onClick={aggiungiLavoroExtra}>
+                    +{RAPPORTI_INTERVENTO_TESTI.AGGIUNGI_LAVORO_EXTRA}
+                  </Button>
                 )}
               </section>
 
@@ -1822,7 +2141,7 @@ export default function BackofficeRapportiInterventoPage() {
                   >
                     {rapportoInModificaId
                       ? RAPPORTI_INTERVENTO_TESTI.SALVA
-                      : RAPPORTI_INTERVENTO_TESTI.NUOVO}
+                      : RAPPORTI_INTERVENTO_TESTI.SALVA_RAPPORTO}
                   </Button>
                 )}
 
@@ -1853,7 +2172,7 @@ export default function BackofficeRapportiInterventoPage() {
                               const rapporto = rapporti.find(
                                 (r) => r.id === rapportoInModificaId
                               );
-                              if (rapporto) setRapportoDaInviare(rapporto);
+                              if (rapporto) avviaInvio(rapporto);
                             }}
                           >
                             {RAPPORTI_INTERVENTO_TESTI.INVIA_AL_CLIENTE}
@@ -1941,7 +2260,7 @@ export default function BackofficeRapportiInterventoPage() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setRapportoDaInviare(r);
+                                    avviaInvio(r);
                                   }}
                                   disabled={invioInCorso}
                                   aria-label={RAPPORTI_INTERVENTO_TESTI.INVIA}
@@ -1996,6 +2315,63 @@ export default function BackofficeRapportiInterventoPage() {
           </div>
         </div>
       </main>
+
+      {rapportoSenzaEmail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/60 p-4 backdrop-blur-sm"
+          onClick={() => setRapportoSenzaEmail(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-bg-card border border-border rounded-lg shadow-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-heading text-lg font-medium text-text-primary">
+              {RAPPORTI_INTERVENTO_TESTI.EMAIL_CLIENTE_TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-text-muted">
+              {RAPPORTI_INTERVENTO_TESTI.EMAIL_CLIENTE_DESCRIZIONE}{" "}
+              «{rapportoSenzaEmail.cliente_committente}».
+            </p>
+
+            <input
+              type="email"
+              value={emailNuovoInvio}
+              onChange={(e) => setEmailNuovoInvio(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void salvaEmailEProsegui();
+                }
+              }}
+              placeholder="email@cliente.it"
+              autoFocus
+              disabled={salvataggioEmailInvio}
+              className="mt-4 h-10 w-full rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+            />
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRapportoSenzaEmail(null)}
+                disabled={salvataggioEmailInvio}
+              >
+                {RAPPORTI_INTERVENTO_TESTI.ANNULLA}
+              </Button>
+              <Button
+                size="sm"
+                loading={salvataggioEmailInvio}
+                disabled={!emailNuovoInvio.trim()}
+                onClick={() => void salvaEmailEProsegui()}
+              >
+                {RAPPORTI_INTERVENTO_TESTI.EMAIL_CLIENTE_CONFERMA}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {rapportoDaInviare && (
         <ConfirmDialog

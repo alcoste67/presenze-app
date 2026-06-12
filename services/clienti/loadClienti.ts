@@ -5,7 +5,7 @@ import type { Cliente } from "@/types/clienti";
 type SupabaseClient = typeof supabase;
 
 const SELECT_CLIENTE =
-  "id, ragione_sociale, email, telefono, indirizzo, note, attivo, creato_il";
+  "id, ragione_sociale, email, telefono, indirizzo, note, attivo, da_verificare, creato_il";
 
 export async function loadClienti({
   soloAttivi = true,

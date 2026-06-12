@@ -6,7 +6,7 @@ import type { Cliente } from "@/types/clienti";
 type SupabaseClient = typeof supabase;
 
 const SELECT_CLIENTE =
-  "id, ragione_sociale, email, telefono, indirizzo, note, attivo, creato_il";
+  "id, ragione_sociale, email, telefono, indirizzo, note, attivo, da_verificare, creato_il";
 
 export async function creaCliente({
   ragioneSociale,
@@ -14,6 +14,7 @@ export async function creaCliente({
   telefono = null,
   indirizzo = null,
   note = "",
+  daVerificare = false,
   supabaseClient = supabase,
 }: {
   ragioneSociale: string;
@@ -21,6 +22,8 @@ export async function creaCliente({
   telefono?: string | null;
   indirizzo?: string | null;
   note?: string;
+  /** true se creato dal campo (rapporto): l'admin lo approva dopo */
+  daVerificare?: boolean;
   supabaseClient?: SupabaseClient;
 }): Promise<Cliente> {
   const {
@@ -44,6 +47,7 @@ export async function creaCliente({
       telefono: telefono?.trim() || null,
       indirizzo: indirizzo?.trim() || null,
       note,
+      da_verificare: daVerificare,
       azienda_id: aziendaId,
       creato_da: user.id,
     })

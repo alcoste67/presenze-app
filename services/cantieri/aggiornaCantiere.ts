@@ -21,10 +21,13 @@ export async function aggiornaCantiere({
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
       cliente_id: cantiere.cliente_id,
+      ...(cantiere.da_verificare !== undefined
+        ? { da_verificare: cantiere.da_verificare }
+        : {}),
     })
     .eq("id", cantiereId)
     .select(
-      "id, nome, indirizzo, lavorazioni, attivo, cliente_id"
+      "id, nome, indirizzo, lavorazioni, attivo, cliente_id, da_verificare"
     )
     .single();
 

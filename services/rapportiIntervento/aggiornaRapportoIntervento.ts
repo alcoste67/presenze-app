@@ -47,7 +47,7 @@ type DipendenteSnapshot = {
 const SELECT_CANTIERE =
   "id, nome, indirizzo";
 const SELECT_RAPPORTO_INTERVENTO =
-  "id, cantiere_id, cantiere_nome_snapshot, cantiere_indirizzo_snapshot, data_intervento, cliente_committente, cliente_id, responsabile_nome, ore_uomo_reali_minuti, viaggio_minuti, diritto_uscita, regola_fatturazione, ore_fatturabili_minuti, note, firma_responsabile_data_url, firma_responsabile_nome, firma_responsabile_at, firma_cliente_data_url, firma_cliente_nome, firma_cliente_at, stato, created_by, created_at, updated_at";
+  "id, cantiere_id, cantiere_nome_snapshot, cantiere_indirizzo_snapshot, data_intervento, ora_arrivo, ora_partenza, cliente_committente, cliente_id, responsabile_nome, ore_uomo_reali_minuti, viaggio_minuti, diritto_uscita, regola_fatturazione, ore_fatturabili_minuti, note, firma_responsabile_data_url, firma_responsabile_nome, firma_responsabile_at, firma_cliente_data_url, firma_cliente_nome, firma_cliente_at, stato, created_by, created_at, updated_at";
 const SELECT_RAPPORTO_INTERVENTO_LAVORAZIONE =
   "id, rapporto_intervento_id, lavorazione_id, descrizione_snapshot, ore_uomo_minuti, ordine, created_at";
 const SELECT_RAPPORTO_INTERVENTO_OPERATORE =
@@ -483,6 +483,8 @@ export async function aggiornaRapportoIntervento(
         cantiere.indirizzo,
       data_intervento:
         rapportoInput.data_intervento,
+      ora_arrivo: rapportoInput.ora_arrivo,
+      ora_partenza: rapportoInput.ora_partenza,
       cliente_committente:
         rapportoInput.cliente_committente,
       cliente_id: rapportoInput.cliente_id,

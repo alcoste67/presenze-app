@@ -1326,6 +1326,8 @@ export default function HomePage() {
         await creaRapportoIntervento({
           cantiere_id: cantiereIdUscita,
           data_intervento: new Date().toISOString().slice(0, 10),
+          ora_arrivo: null,
+          ora_partenza: null,
           cliente_committente: cantiereDelGiorno?.nome || "",
           cliente_id: null,
           responsabile_nome: nomeOperatore,

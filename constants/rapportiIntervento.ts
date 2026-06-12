@@ -111,8 +111,24 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     "Nessuna foto selezionata",
   DESCRIZIONE_FOTO:
     "Descrizione foto",
+  SALVA_RAPPORTO: "Salva rapporto",
+  ORA_ARRIVO: "Ora di arrivo",
+  ORA_PARTENZA: "Ora di partenza",
+  NUOVO_CANTIERE: "Nuovo cantiere",
+  NOME_CANTIERE_PLACEHOLDER: "Nome cantiere",
+  INDIRIZZO_CANTIERE_PLACEHOLDER:
+    "Indirizzo (facoltativo)",
+  CREA_CANTIERE: "Crea",
+  SUFFISSO_DA_VERIFICARE: "(da verificare)",
   INVIA: "Invia",
   INVIA_AL_CLIENTE: "Invia al cliente",
+  PROPOSTA_INVIO_POST_FIRMA:
+    "Il rapporto è firmato e non è più modificabile. Vuoi inviarlo subito via email al cliente?",
+  INVIA_ORA: "Invia ora",
+  EMAIL_CLIENTE_TITOLO: "Email del cliente",
+  EMAIL_CLIENTE_DESCRIZIONE:
+    "Per inviare il rapporto serve l'email di",
+  EMAIL_CLIENTE_CONFERMA: "Salva e prosegui",
   INVIO_CONFERMA:
     "Il PDF firmato verrà inviato via email a",
   INVIO_CONFERMA_CC:
@@ -174,6 +190,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Errore gestione rapporti intervento",
     CANTIERE_OBBLIGATORIO:
       "Seleziona un cantiere",
+    NOME_CANTIERE_OBBLIGATORIO:
+      "Inserisci il nome del cantiere",
     DATA_OBBLIGATORIA:
       "Inserisci la data intervento",
     CLIENTE_OBBLIGATORIO:
@@ -228,6 +246,12 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Invio email non configurato (RESEND_API_KEY mancante)",
     INVIO_FALLITO:
       "Invio non riuscito: il rapporto resta firmato, riprova",
+    INVIO_SENZA_CLIENTE:
+      "Il rapporto non ha un cliente di anagrafica collegato: impossibile inviarlo",
+    EMAIL_NON_VALIDA:
+      "Inserisci un indirizzo email valido",
+    EMAIL_GIA_USATA:
+      "Email già usata da un altro cliente",
     SESSIONE_MANCANTE:
       "Sessione utente non valida",
     TOKEN_MANCANTE:
@@ -249,6 +273,8 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     SNAPSHOT_CARICATO:
       "Lavorazioni caricate",
     CLIENTE_CREATO: "Cliente creato",
+    CANTIERE_PROPOSTO:
+      "Cantiere creato: in attesa di verifica dell'amministratore",
     INVIATO: "Rapporto inviato a",
   },
   PDF: {

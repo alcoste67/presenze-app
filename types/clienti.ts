@@ -6,6 +6,7 @@ export type Cliente = {
   indirizzo: string | null;
   note: string;
   attivo: boolean;
+  da_verificare: boolean;
   creato_il: string;
 };
 
@@ -16,4 +17,5 @@ export type ClienteInput = {
   indirizzo: string | null;
   note: string;
   attivo: boolean;
+  da_verificare: boolean;
 };
