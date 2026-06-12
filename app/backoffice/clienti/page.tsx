@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { GitMerge, Home, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
@@ -50,6 +51,7 @@ const FORM_INIZIALE: ClienteForm = {
 
 export default function BackofficeClientiPage() {
   const toast = useToast();
+  const router = useRouter();
 
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
@@ -69,6 +71,8 @@ export default function BackofficeClientiPage() {
   const [anteprimaMerge, setAnteprimaMerge] = useState<AnteprimaMerge | null>(null);
   const [confermaMerge, setConfermaMerge] = useState(false);
   const [mergeInCorso, setMergeInCorso] = useState(false);
+  // Flow guidato: dopo la creazione proponi il cantiere
+  const [clienteAppenaCreato, setClienteAppenaCreato] = useState<Cliente | null>(null);
 
   const cantieriPerCliente = useMemo(() => {
     const mappa = new Map<string, CantiereBackoffice[]>();
@@ -202,6 +206,7 @@ export default function BackofficeClientiPage() {
         });
         setClienti((correnti) => ordina([...correnti, nuovo]));
         toast.success("Cliente creato");
+        setClienteAppenaCreato(nuovo);
       }
 
       resetForm();
@@ -580,6 +585,20 @@ export default function BackofficeClientiPage() {
           </Card>
         </div>
       </main>
+
+      {clienteAppenaCreato && (
+        <ConfirmDialog
+          title="Cliente creato"
+          message={`Vuoi creare subito un cantiere per «${clienteAppenaCreato.ragione_sociale}»?`}
+          confirmLabel="Crea cantiere"
+          onConfirm={() =>
+            router.push(
+              `${APP_ROUTES.BACKOFFICE}/cantieri?cliente=${clienteAppenaCreato.id}`
+            )
+          }
+          onCancel={() => setClienteAppenaCreato(null)}
+        />
+      )}
 
       {clienteDaUnire && !confermaMerge && (
         <div

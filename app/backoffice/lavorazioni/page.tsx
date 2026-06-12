@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Home, Pencil, Plus, Power, Search } from "lucide-react";
 
 import { getMessaggioErrore } from "@/lib/errors";
@@ -221,6 +221,8 @@ export default function BackofficeLavorazioniPage() {
   const [prezzandoProgresso, setPrezzandoProgresso] = useState<{ corrente: number; totale: number } | null>(null);
   const [categorieSelezionate, setCategorieSelezionate] = useState<Set<string>>(new Set());
   const [importoContrattoEstratto, setImportoContrattoEstratto] = useState<number | null>(null);
+  const [importAperto, setImportAperto] = useState(false);
+  const flowGestitoRef = useRef(false);
 
   // ── Effects ──────────────────────────────────────────────────────────────
 
@@ -439,6 +441,23 @@ export default function BackofficeLavorazioniPage() {
   }, [cantiereId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+
+  // Arrivo dal flow cantieri: ?cantiere=<id>&import=1
+  useEffect(() => {
+    if (flowGestitoRef.current || cantieri.length === 0) return;
+    flowGestitoRef.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const cantiereParam = params.get("cantiere");
+    if (!cantiereParam || !cantieri.some((c) => c.id === cantiereParam)) return;
+
+    handleCantiereChange(cantiereParam);
+    if (params.get("import") === "1") {
+      setImportAperto(true);
+    }
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cantieri]);
 
   const handleCantiereChange = (nextCantiereId: string) => {
     setCantiereId(nextCantiereId);
@@ -871,7 +890,11 @@ export default function BackofficeLavorazioniPage() {
         {!loadingCantieri && cantieri.length > 0 && (
           <>
             {/* Import CSV — collassabile */}
-            <details className="group mt-4">
+            <details
+              className="group mt-4"
+              open={importAperto}
+              onToggle={(e) => setImportAperto(e.currentTarget.open)}
+            >
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-border bg-bg-card px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors duration-150 hover:text-text-primary select-none">
                 <ChevronRight className="h-4 w-4 transition-transform duration-150 group-open:rotate-90" />
                 {LAVORAZIONI_TESTI.IMPORTA_COMPUTO}

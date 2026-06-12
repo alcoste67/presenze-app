@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Home, Pencil, Plus, Power, Search, Trash2 } from "lucide-react";
@@ -59,6 +60,7 @@ function preparaCantiere(cantiere: CantiereInput): CantiereInput {
 
 export default function BackofficeCantieriPage() {
   const toast = useToast();
+  const router = useRouter();
 
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
   const [clienti, setClienti] = useState<Cliente[]>([]);
@@ -68,6 +70,8 @@ export default function BackofficeCantieriPage() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [ricerca, setRicerca] = useState("");
   const [confirmDeleteCantiere, setConfirmDeleteCantiere] = useState<CantiereBackoffice | null>(null);
+  // Flow guidato: dopo la creazione proponi il caricamento lavorazioni
+  const [cantiereAppenaCreato, setCantiereAppenaCreato] = useState<CantiereBackoffice | null>(null);
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -107,6 +111,13 @@ export default function BackofficeCantieriPage() {
         if (!attivo) return;
         setCantieri(dati);
         setClienti(clientiData);
+
+        // Arrivo dal flow clienti: ?cliente=<id> precompila il form
+        const clienteId = new URLSearchParams(window.location.search).get("cliente");
+        if (clienteId && clientiData.some((c) => c.id === clienteId)) {
+          setForm((f) => ({ ...f, cliente_id: clienteId }));
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       } catch (error: unknown) {
         if (!attivo) return;
         toast.error(getMessaggioErrore(error, "Errore gestione cantieri"));
@@ -163,6 +174,7 @@ export default function BackofficeCantieriPage() {
         );
 
         toast.success("Cantiere creato");
+        setCantiereAppenaCreato(nuovoCantiere);
       }
 
       resetForm();
@@ -570,6 +582,20 @@ export default function BackofficeCantieriPage() {
           </Card>
         </div>
       </main>
+
+      {cantiereAppenaCreato && (
+        <ConfirmDialog
+          title="Cantiere creato"
+          message={`Vuoi caricare subito le lavorazioni di «${cantiereAppenaCreato.nome}» e importare il computo metrico/preventivo?`}
+          confirmLabel="Carica lavorazioni"
+          onConfirm={() =>
+            router.push(
+              `${APP_ROUTES.BACKOFFICE}/lavorazioni?cantiere=${cantiereAppenaCreato.id}&import=1`
+            )
+          }
+          onCancel={() => setCantiereAppenaCreato(null)}
+        />
+      )}
 
       {confirmDeleteCantiere && (
         <ConfirmDialog
