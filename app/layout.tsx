@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="it"
       className={`${montserrat.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">
+      <body className="min-h-full flex flex-col font-sans overflow-x-hidden">
         <ToastProvider>{children}</ToastProvider>
         <Script
           src="https://embeds.iubenda.com/widgets/c376aaf4-4c91-4945-b867-9c5e1fb8215a.js"
