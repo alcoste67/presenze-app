@@ -111,6 +111,12 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     "Nessuna foto selezionata",
   DESCRIZIONE_FOTO:
     "Descrizione foto",
+  INVIA: "Invia",
+  INVIA_AL_CLIENTE: "Invia al cliente",
+  INVIO_CONFERMA:
+    "Il PDF firmato verrà inviato via email a",
+  INVIO_CONFERMA_CC:
+    "In copia: amministrazione e compilatore. Dopo l'invio il rapporto non sarà più modificabile né rinviabile.",
   LAVORI_EXTRA: "Lavori extra",
   AGGIUNGI_LAVORO_EXTRA: "Lavoro extra",
   NESSUN_LAVORO_EXTRA:
@@ -212,6 +218,16 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Rapporto intervento non trovato",
     RAPPORTO_FIRMATO:
       "Rapporto firmato non modificabile",
+    INVIO_SOLO_FIRMATO:
+      "Si possono inviare solo rapporti firmati",
+    CLIENTE_SENZA_EMAIL:
+      "Il cliente non ha un'email in anagrafica: inseriscila prima dell'invio",
+    PDF_TROPPO_GRANDE:
+      "PDF troppo pesante per l'invio email (oltre 5 MB)",
+    INVIO_NON_CONFIGURATO:
+      "Invio email non configurato (RESEND_API_KEY mancante)",
+    INVIO_FALLITO:
+      "Invio non riuscito: il rapporto resta firmato, riprova",
     SESSIONE_MANCANTE:
       "Sessione utente non valida",
     TOKEN_MANCANTE:
@@ -233,6 +249,7 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     SNAPSHOT_CARICATO:
       "Lavorazioni caricate",
     CLIENTE_CREATO: "Cliente creato",
+    INVIATO: "Rapporto inviato a",
   },
   PDF: {
     TITOLO: "Rapporto intervento",

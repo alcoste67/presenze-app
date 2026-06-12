@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Download, Home, PenLine, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Home, PenLine, Plus, Search, Send, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { getMessaggioErrore } from "@/lib/errors";
@@ -31,6 +31,7 @@ import { creaRapportoIntervento } from "@/services/rapportiIntervento/creaRappor
 import { fetchRapportoInterventoPdf } from "@/services/rapportiIntervento/fetchRapportoInterventoPdf";
 import { loadLavorazioniRapportoIntervento } from "@/services/rapportiIntervento/loadLavorazioniRapportoIntervento";
 import { loadRapportiIntervento } from "@/services/rapportiIntervento/loadRapportiIntervento";
+import { inviaRapportoIntervento } from "@/services/rapportiIntervento/inviaRapportoIntervento";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
 import {
   formatMinutiOre,
@@ -51,6 +52,7 @@ import type {
 } from "@/types/rapportiIntervento";
 
 import { AppHeader } from "@/components/ui/AppHeader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -177,6 +179,7 @@ function isFotoValida(fotoDataUrl: string) {
 
 function getStatoBadgeVariant(stato: RapportoIntervento["stato"]): BadgeProps["variant"] {
   if (stato === RAPPORTI_INTERVENTO_STATI.FIRMATO) return "success";
+  if (stato === RAPPORTI_INTERVENTO_STATI.INVIATO) return "info";
   if (stato === RAPPORTI_INTERVENTO_STATI.ANNULLATO) return "error";
   return "warning";
 }
@@ -478,6 +481,8 @@ export default function BackofficeRapportiInterventoPage() {
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
   const [salvataggio, setSalvataggio] = useState(false);
   const [pdfId, setPdfId] = useState<string | null>(null);
+  const [rapportoDaInviare, setRapportoDaInviare] = useState<RapportoIntervento | null>(null);
+  const [invioInCorso, setInvioInCorso] = useState(false);
   const [ricercaRapporti, setRicercaRapporti] = useState("");
   const [mostraListaRapporti, setMostraListaRapporti] = useState(false);
 
@@ -1087,6 +1092,38 @@ export default function BackofficeRapportiInterventoPage() {
       toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
+    }
+  };
+
+  const eseguiInvioRapporto = async () => {
+    if (!rapportoDaInviare) return;
+    const rapporto = rapportoDaInviare;
+    setRapportoDaInviare(null);
+
+    try {
+      setInvioInCorso(true);
+      const esito = await inviaRapportoIntervento({
+        rapportoInterventoId: rapporto.id,
+      });
+      setRapporti((correnti) =>
+        correnti.map((r) =>
+          r.id === rapporto.id
+            ? { ...r, stato: RAPPORTI_INTERVENTO_STATI.INVIATO }
+            : r
+        )
+      );
+      if (rapportoInModificaId === rapporto.id) {
+        setReadonly(true);
+      }
+      toast.success(
+        `${RAPPORTI_INTERVENTO_TESTI.MESSAGGI.INVIATO} ${esito.destinatario}`
+      );
+    } catch (error: unknown) {
+      toast.error(
+        getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.INVIO_FALLITO)
+      );
+    } finally {
+      setInvioInCorso(false);
     }
   };
 
@@ -1796,14 +1833,33 @@ export default function BackofficeRapportiInterventoPage() {
                     </Button>
 
                     {readonly && (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        loading={pdfId === rapportoInModificaId}
-                        onClick={() => void handlePdf(rapportoInModificaId)}
-                      >
-                        {RAPPORTI_INTERVENTO_TESTI.GENERA_PDF}
-                      </Button>
+                      <>
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          loading={pdfId === rapportoInModificaId}
+                          onClick={() => void handlePdf(rapportoInModificaId)}
+                        >
+                          {RAPPORTI_INTERVENTO_TESTI.GENERA_PDF}
+                        </Button>
+                        {rapporti.find((r) => r.id === rapportoInModificaId)?.stato ===
+                          RAPPORTI_INTERVENTO_STATI.FIRMATO && (
+                          <Button
+                            variant="primary"
+                            type="button"
+                            loading={invioInCorso}
+                            icon={!invioInCorso ? <Send className="h-4 w-4" /> : undefined}
+                            onClick={() => {
+                              const rapporto = rapporti.find(
+                                (r) => r.id === rapportoInModificaId
+                              );
+                              if (rapporto) setRapportoDaInviare(rapporto);
+                            }}
+                          >
+                            {RAPPORTI_INTERVENTO_TESTI.INVIA_AL_CLIENTE}
+                          </Button>
+                        )}
+                      </>
                     )}
                   </>
                 )}
@@ -1881,6 +1937,31 @@ export default function BackofficeRapportiInterventoPage() {
                               </Link>
                             )}
                             {r.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO && (
+                              <span className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRapportoDaInviare(r);
+                                  }}
+                                  disabled={invioInCorso}
+                                  aria-label={RAPPORTI_INTERVENTO_TESTI.INVIA}
+                                  className="flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors disabled:opacity-50"
+                                >
+                                  <Send className="h-4 w-4" />
+                                  {RAPPORTI_INTERVENTO_TESTI.INVIA}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handlePdf(r.id);
+                                  }}
+                                  className="text-text-muted hover:text-text-primary transition-colors"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </button>
+                              </span>
+                            )}
+                            {r.stato === RAPPORTI_INTERVENTO_STATI.INVIATO && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1915,6 +1996,16 @@ export default function BackofficeRapportiInterventoPage() {
           </div>
         </div>
       </main>
+
+      {rapportoDaInviare && (
+        <ConfirmDialog
+          title={RAPPORTI_INTERVENTO_TESTI.INVIA_AL_CLIENTE}
+          message={`${RAPPORTI_INTERVENTO_TESTI.INVIO_CONFERMA} ${rapportoDaInviare.cliente_committente} (${rapportoDaInviare.cantiere_nome_snapshot}, ${formattaData(rapportoDaInviare.data_intervento)}). ${RAPPORTI_INTERVENTO_TESTI.INVIO_CONFERMA_CC}`}
+          confirmLabel={RAPPORTI_INTERVENTO_TESTI.INVIA}
+          onConfirm={() => void eseguiInvioRapporto()}
+          onCancel={() => setRapportoDaInviare(null)}
+        />
+      )}
     </div>
   );
 }
