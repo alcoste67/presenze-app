@@ -44,6 +44,7 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
@@ -222,6 +223,8 @@ export default function BackofficeLavorazioniPage() {
   const [categorieSelezionate, setCategorieSelezionate] = useState<Set<string>>(new Set());
   const [importoContrattoEstratto, setImportoContrattoEstratto] = useState<number | null>(null);
   const [importAperto, setImportAperto] = useState(false);
+  // Totale rilevato dal computo: in attesa di conferma per il controllo costi
+  const [importoDaConfermare, setImportoDaConfermare] = useState<number | null>(null);
   const flowGestitoRef = useRef(false);
 
   // ── Effects ──────────────────────────────────────────────────────────────
@@ -663,30 +666,40 @@ export default function BackofficeLavorazioniPage() {
       resetImport();
       toast.success(LAVORAZIONI_TESTI.MESSAGGI.IMPORT_COMPLETATO);
 
+      // Totale rilevato nel computo: chiedi conferma prima di proporlo
+      // come valore della commessa nel controllo costi
       if (importo !== null && cantiereId) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const token = session?.access_token;
-          if (token) {
-            await fetch(API_ROUTES.CONTROLLO_COSTI_CONTRATTO, {
-              method: "PATCH",
-              headers: {
-                [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
-                [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
-              },
-              body: JSON.stringify({ cantiere_id: cantiereId, importo_contratto: importo }),
-            });
-            const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(importo);
-            toast.success(`Importo contratto ${euro} salvato automaticamente nel controllo costi`);
-          }
-        } catch {
-          // non-critical: non blocca il flusso import
-        }
+        setImportoDaConfermare(importo);
       }
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggioImport(false);
+    }
+  };
+
+  const confermaImportoContratto = async () => {
+    const importo = importoDaConfermare;
+    setImportoDaConfermare(null);
+    if (importo === null || !cantiereId) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      await fetch(API_ROUTES.CONTROLLO_COSTI_CONTRATTO, {
+        method: "PATCH",
+        headers: {
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+        },
+        body: JSON.stringify({ cantiere_id: cantiereId, importo_contratto: importo }),
+      });
+      const euro = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(importo);
+      toast.success(`Valore commessa ${euro} salvato nel controllo costi`);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     }
   };
 
@@ -1388,6 +1401,21 @@ export default function BackofficeLavorazioniPage() {
           </>
         )}
       </main>
+
+      {importoDaConfermare !== null && (
+        <ConfirmDialog
+          title="Totale rilevato nel computo"
+          message={`Nel documento importato è stato rilevato un totale di ${new Intl.NumberFormat(
+            "it-IT",
+            { style: "currency", currency: "EUR" }
+          ).format(
+            importoDaConfermare
+          )}. Vuoi usarlo come valore della commessa nel Controllo costi?`}
+          confirmLabel="Usa come valore commessa"
+          onConfirm={() => void confermaImportoContratto()}
+          onCancel={() => setImportoDaConfermare(null)}
+        />
+      )}
     </div>
   );
 }
