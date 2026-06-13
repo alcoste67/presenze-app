@@ -230,6 +230,13 @@ export async function loadSalFreezeExportCommittente({
     .select(SELECT_SAL_FREEZE_LAVORAZIONI)
     .eq("freeze_id", freezeId)
     .order("ordine", { ascending: true });
+  const collaborazioniQuery = supabaseClient
+    .from("sal_freeze_collaborazioni")
+    .select(
+      "azienda_collaboratrice_nome, cantiere_collaboratore_nome, lavorazione_nome, percentuale_completamento, ordine"
+    )
+    .eq("freeze_id", freezeId)
+    .order("ordine", { ascending: true });
   const fotoQuery = includeFoto
     ? supabaseClient
         .from("sal_freeze_foto")
@@ -240,10 +247,11 @@ export async function loadSalFreezeExportCommittente({
         .limit(6)
     : null;
 
-  const [cantiereResult, lavorazioniResult, fotoResult] =
+  const [cantiereResult, lavorazioniResult, collaborazioniResult, fotoResult] =
     await Promise.all([
       cantiereQuery,
       lavorazioniQuery,
+      collaborazioniQuery,
       fotoQuery,
     ]);
 
@@ -255,6 +263,13 @@ export async function loadSalFreezeExportCommittente({
     throwExportStepError(
       "lavorazioni",
       lavorazioniResult.error
+    );
+  }
+
+  if (collaborazioniResult.error) {
+    throwExportStepError(
+      "lavorazioni",
+      collaborazioniResult.error
     );
   }
 
@@ -277,6 +292,8 @@ export async function loadSalFreezeExportCommittente({
       null,
     lavorazioni: (lavorazioniResult.data ||
       []) as SalFreezeLavorazione[],
+    collaborazioni: (collaborazioniResult.data ||
+      []) as SalFreezeExportCommittente["collaborazioni"],
     foto,
   };
 }

@@ -6,6 +6,7 @@ export type LavorazioneCantiere = {
   attiva: boolean;
   percentuale_completamento: number;
   stato?: "approvata" | "proposta" | "rifiutata";
+  subappaltata_a_collaborazione_id?: string | null;
   created_at: string;
   categoria?: string | null;
   unita_misura?: string | null;

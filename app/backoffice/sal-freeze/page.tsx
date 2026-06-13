@@ -35,6 +35,10 @@ import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffi
 import { loadSalLavorazioniFoto } from "@/services/sal/loadSalLavorazioniFoto";
 import { loadSalFreezeMensili } from "@/services/salFreeze/loadSalFreezeMensili";
 import { loadSalFreezeDettaglio } from "@/services/salFreeze/loadSalFreezeDettaglio";
+import {
+  loadSalCollaborazioni,
+  type LavorazioneCollaboratore,
+} from "@/services/collaborazioni/loadSalCollaborazioni";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type { SalLavorazioneFoto } from "@/types/sal";
 import type {
@@ -199,6 +203,7 @@ export default function BackofficeSalFreezePage() {
   const [freezeDettaglio, setFreezeDettaglio] = useState<SalFreezeDettaglio | null>(null);
   const [loadingCantieri, setLoadingCantieri] = useState(true);
   const [loadingDatiCantiere, setLoadingDatiCantiere] = useState(false);
+  const [lavorazioniCollab, setLavorazioniCollab] = useState<LavorazioneCollaboratore[]>([]);
   const [loadingDettaglio, setLoadingDettaglio] = useState(false);
   const [salvataggio, setSalvataggio] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
@@ -304,6 +309,7 @@ export default function BackofficeSalFreezePage() {
         setFreezeList([]);
         setFreezeSelezionatoId("");
         setFreezeDettaglio(null);
+        setLavorazioniCollab([]);
         setLoadingDatiCantiere(false);
         return;
       }
@@ -311,15 +317,17 @@ export default function BackofficeSalFreezePage() {
       try {
         setLoadingDatiCantiere(true);
 
-        const [foto, freeze] = await Promise.all([
+        const [foto, freeze, collab] = await Promise.all([
           loadSalLavorazioniFoto({ cantiereId, dataRiferimento: getLocalDateIso(), limit: 100 }),
           loadSalFreezeMensili({ cantiereId }),
+          loadSalCollaborazioni({ cantiereCommittenteId: cantiereId }),
         ]);
 
         if (!attivo) return;
 
         setRecentPhotos(foto);
         setFreezeList(freeze);
+        setLavorazioniCollab(collab);
 
         if (freeze.length > 0) {
           setFreezeSelezionatoId(freeze[0].id);
@@ -704,6 +712,46 @@ export default function BackofficeSalFreezePage() {
           />
         </Card>
 
+        {/* Lavorazioni subappaltatore (collaborazioni accettate) */}
+        {lavorazioniCollab.length > 0 && (
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-1">
+              Lavorazioni subappaltatore
+            </h2>
+            <p className="text-xs text-text-muted mb-4">
+              Avanzamento condiviso dalle aziende collegate a questo cantiere
+              (sola lettura, incluso nel SAL unico).
+            </p>
+            <div className="space-y-4">
+              {Array.from(
+                new Set(lavorazioniCollab.map((l) => l.azienda_collaboratrice_nome))
+              ).map((azienda) => (
+                <div key={azienda}>
+                  <p className="text-sm font-medium text-text-primary mb-2">{azienda}</p>
+                  <div className="space-y-2">
+                    {lavorazioniCollab
+                      .filter((l) => l.azienda_collaboratrice_nome === azienda)
+                      .map((l, i) => (
+                        <div key={`${azienda}-${i}`}>
+                          <div className="flex items-center justify-between gap-3 mb-1">
+                            <span className="text-sm text-text-primary">{l.lavorazione_nome}</span>
+                            <span className="text-xs text-text-muted">{l.percentuale_completamento}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-border overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-brand-500 transition-all"
+                              style={{ width: `${l.percentuale_completamento}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* 2. Crea nuovo SAL periodo (ADMIN only) */}
         {puoCreareFreeze && (
           <Card className="p-5 space-y-6">
@@ -827,7 +875,7 @@ export default function BackofficeSalFreezePage() {
                 variant="primary"
                 loading={salvataggio}
                 icon={<Plus className="h-4 w-4" />}
-                disabled={!cantiereId || fotoSelezionate.length === 0}
+                disabled={!cantiereId}
                 onClick={() => void handleCreaFreeze()}
               >
                 Crea SAL periodo

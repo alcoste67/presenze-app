@@ -15,6 +15,10 @@ export const APP_ROUTES = {
     "/backoffice/macchinari",
   BACKOFFICE_CLIENTI:
     "/backoffice/clienti",
+  BACKOFFICE_COLLABORAZIONI:
+    "/backoffice/collaborazioni",
+  BACKOFFICE_LAVORAZIONI:
+    "/backoffice/lavorazioni",
   BACKOFFICE_CONTROLLO_COSTI:
     "/backoffice/controllo-costi",
   SUPERADMIN: "/superadmin",

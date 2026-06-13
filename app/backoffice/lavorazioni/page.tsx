@@ -24,6 +24,10 @@ import { creaLavorazioniCantiere } from "@/services/lavorazioni/creaLavorazioniC
 import { estraiLavorazioniDaComputo } from "@/services/lavorazioni/estraiLavorazioniDaComputo";
 import { loadLavorazioniCantiere } from "@/services/lavorazioni/loadLavorazioniCantiere";
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
+import { loadCollaborazioni } from "@/services/collaborazioni/loadCollaborazioni";
+import { assegnaSubappalto } from "@/services/lavorazioni/assegnaSubappalto";
+import { inviaLavorazioniSubappaltatore } from "@/services/collaborazioni/inviaLavorazioniSubappaltatore";
+import type { Collaborazione } from "@/types/collaborazioni";
 import {
   approvaLavorazioneProposta,
   loadLavorazioniProposte,
@@ -64,6 +68,9 @@ type LavorazioneForm = {
   nome: string;
   ordine: string;
   percentuale_completamento: string;
+  quantita: string;
+  prezzo_unitario: string;
+  unita_misura: string;
   attiva: boolean;
 };
 
@@ -73,8 +80,18 @@ const FORM_INIZIALE: LavorazioneForm = {
   nome: "",
   ordine: String(LAVORAZIONI_LIMITI.ORDINE_DEFAULT),
   percentuale_completamento: String(LAVORAZIONI_LIMITI.PERCENTUALE_MIN),
+  quantita: "",
+  prezzo_unitario: "",
+  unita_misura: "",
   attiva: true,
 };
+
+function parseNumeroDecimaleLav(value: string): number | null {
+  const v = value.trim().replace(",", ".");
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -117,6 +134,9 @@ function preparaPayload({
       ordine,
       attiva: form.attiva,
       percentuale_completamento: percentuale,
+      quantita: parseNumeroDecimaleLav(form.quantita),
+      prezzo_unitario: parseNumeroDecimaleLav(form.prezzo_unitario),
+      unita_misura: form.unita_misura.trim() || null,
     },
   };
 }
@@ -204,6 +224,46 @@ export default function BackofficeLavorazioniPage() {
   const [gestioneProposteInCorso, setGestioneProposteInCorso] = useState(false);
   const [cantiereId, setCantiereId] = useState("");
   const [lavorazioni, setLavorazioni] = useState<LavorazioneCantiere[]>([]);
+  const [collaborazioniCantiere, setCollaborazioniCantiere] = useState<Collaborazione[]>([]);
+
+  const handleInviaACollaborazione = async (collab: Collaborazione) => {
+    try {
+      setSalvataggio(true);
+      const esito = await inviaLavorazioniSubappaltatore({ collaborazioneId: collab.id });
+      const parti: string[] = [];
+      parti.push(`${esito.inviate} inviate a ${collab.azienda_collaboratrice_nome}`);
+      if (esito.rimosse > 0) parti.push(`${esito.rimosse} rimosse`);
+      toast.success(parti.join(" · "));
+      if (esito.bloccate > 0) {
+        toast.error(
+          `${esito.bloccate} voci non rimosse: già avanzate dal subappaltatore`
+        );
+      }
+      await caricaLavorazioni(cantiereId);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
+  const handleAssegnaSubappalto = async (
+    lavorazioneId: string,
+    collaborazioneId: string | null
+  ) => {
+    try {
+      await assegnaSubappalto({ lavorazioneId, collaborazioneId });
+      setLavorazioni((correnti) =>
+        correnti.map((l) =>
+          l.id === lavorazioneId
+            ? { ...l, subappaltata_a_collaborazione_id: collaborazioneId }
+            : l
+        )
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    }
+  };
   const [percentualiDraft, setPercentualiDraft] = useState<Record<string, string>>({});
   const [form, setForm] = useState<LavorazioneForm>(FORM_INIZIALE);
   const [fileComputo, setFileComputo] = useState<File | null>(null);
@@ -390,13 +450,25 @@ export default function BackofficeLavorazioniPage() {
     if (!nextCantiereId) {
       setLavorazioni([]);
       setPercentualiDraft({});
+      setCollaborazioniCantiere([]);
       return;
     }
     try {
       setLoadingLavorazioni(true);
-      const dati = await loadLavorazioniCantiere(nextCantiereId);
+      const [dati, collab] = await Promise.all([
+        loadLavorazioniCantiere(nextCantiereId),
+        loadCollaborazioni(),
+      ]);
       setLavorazioni(dati);
       setPercentualiDraft(getPercentualiDraft(dati));
+      // Collaborazioni accettate dove questo cantiere è il committente
+      setCollaborazioniCantiere(
+        collab.filter(
+          (c) =>
+            c.stato === "accettata" &&
+            c.cantiere_committente_id === nextCantiereId
+        )
+      );
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
     } finally {
@@ -429,10 +501,20 @@ export default function BackofficeLavorazioniPage() {
     const init = async () => {
       try {
         setLoadingLavorazioni(true);
-        const dati = await loadLavorazioniCantiere(cantiereId);
+        const [dati, collab] = await Promise.all([
+          loadLavorazioniCantiere(cantiereId),
+          loadCollaborazioni(),
+        ]);
         if (!attivo) return;
         setLavorazioni(dati);
         setPercentualiDraft(getPercentualiDraft(dati));
+        setCollaborazioniCantiere(
+          collab.filter(
+            (c) =>
+              c.stato === "accettata" &&
+              c.cantiere_committente_id === cantiereId
+          )
+        );
       } catch (error: unknown) {
         if (attivo) toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
       } finally {
@@ -709,6 +791,10 @@ export default function BackofficeLavorazioniPage() {
       nome: lavorazione.nome,
       ordine: String(lavorazione.ordine),
       percentuale_completamento: String(lavorazione.percentuale_completamento),
+      quantita: lavorazione.quantita != null ? String(lavorazione.quantita) : "",
+      prezzo_unitario:
+        lavorazione.prezzo_unitario != null ? String(lavorazione.prezzo_unitario) : "",
+      unita_misura: lavorazione.unita_misura ?? "",
       attiva: lavorazione.attiva,
     });
   };
@@ -1201,6 +1287,35 @@ export default function BackofficeLavorazioniPage() {
                     disabled={salvataggio}
                   />
 
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input
+                      label="Quantità"
+                      type="text"
+                      inputMode="decimal"
+                      value={form.quantita}
+                      onChange={(e) => setForm((f) => ({ ...f, quantita: e.target.value }))}
+                      disabled={salvataggio}
+                      placeholder="0"
+                    />
+                    <Input
+                      label="U.M."
+                      type="text"
+                      value={form.unita_misura}
+                      onChange={(e) => setForm((f) => ({ ...f, unita_misura: e.target.value }))}
+                      disabled={salvataggio}
+                      placeholder="mq, ml, n…"
+                    />
+                    <Input
+                      label="Prezzo unitario €"
+                      type="text"
+                      inputMode="decimal"
+                      value={form.prezzo_unitario}
+                      onChange={(e) => setForm((f) => ({ ...f, prezzo_unitario: e.target.value }))}
+                      disabled={salvataggio}
+                      placeholder="0,00"
+                    />
+                  </div>
+
                   <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                     <input
                       type="checkbox"
@@ -1268,6 +1383,26 @@ export default function BackofficeLavorazioniPage() {
                   </div>
                 </div>
 
+                {/* Invio lavorazioni ai subappaltatori collegati */}
+                {collaborazioniCantiere.length > 0 && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border bg-bg-subtle p-3">
+                    <span className="text-xs font-medium text-text-muted">
+                      Invia lavorazioni assegnate:
+                    </span>
+                    {collaborazioniCantiere.map((c) => (
+                      <Button
+                        key={c.id}
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void handleInviaACollaborazione(c)}
+                        disabled={salvataggio}
+                      >
+                        Invia a {c.azienda_collaboratrice_nome}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
                 {loadingLavorazioni && (
                   <p className="text-sm text-text-muted py-4">{LAVORAZIONI_TESTI.CARICAMENTO}</p>
                 )}
@@ -1314,6 +1449,25 @@ export default function BackofficeLavorazioniPage() {
                                   <Badge variant="muted" size="sm" className="mt-0.5">
                                     {LAVORAZIONI_TESTI.NON_ATTIVO}
                                   </Badge>
+                                )}
+                                {collaborazioniCantiere.length > 0 && (
+                                  <select
+                                    value={l.subappaltata_a_collaborazione_id ?? ""}
+                                    onChange={(e) =>
+                                      void handleAssegnaSubappalto(
+                                        l.id,
+                                        e.target.value || null
+                                      )
+                                    }
+                                    className="mt-1.5 h-7 w-full max-w-[200px] rounded-md border border-border bg-bg-card px-2 text-xs text-text-primary outline-none focus:border-brand-500"
+                                  >
+                                    <option value="">Non subappaltata</option>
+                                    {collaborazioniCantiere.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        Subappalta a {c.azienda_collaboratrice_nome}
+                                      </option>
+                                    ))}
+                                  </select>
                                 )}
                               </td>
 

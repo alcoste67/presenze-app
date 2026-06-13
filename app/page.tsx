@@ -62,6 +62,7 @@ import {
   type DipendenteBase,
 } from "@/services/dipendenti/loadDipendenteByUserId";
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
+import { loadCollaborazioni } from "@/services/collaborazioni/loadCollaborazioni";
 import { proponiLavorazione } from "@/services/lavorazioni/proponiLavorazione";
 import { creaCantiere } from "@/services/cantieri/creaCantiere";
 import { assegnaCantiereTimbratura } from "@/services/timbrature/assegnaCantiereTimbratura";
@@ -333,6 +334,11 @@ export default function HomePage() {
   const [inizializzato, setInizializzato] = useState(false);
 
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
+  const [invitiCollabInAttesa, setInvitiCollabInAttesa] = useState(0);
+  const [novitaLavorazioniCantiereId, setNovitaLavorazioniCantiereId] = useState<
+    string | null
+  >(null);
+  const [novitaAvanzamentiCollab, setNovitaAvanzamentiCollab] = useState(false);
 
   const [emailLogin, setEmailLogin] = useState("");
 
@@ -450,6 +456,9 @@ export default function HomePage() {
           setDipendente(null);
           setMostraBackoffice(false);
           setCantieri([]);
+          setInvitiCollabInAttesa(0);
+          setNovitaLavorazioniCantiereId(null);
+          setNovitaAvanzamentiCollab(false);
           await refreshUltimaTimbratura(null);
           return null;
         }
@@ -467,6 +476,7 @@ export default function HomePage() {
         }
 
         setUser(currentUser);
+        const emailCorrente = (currentUser.email || "").toLowerCase();
         await Promise.all([
           refreshMostraBackoffice(currentUser),
           refreshDipendente(currentUser),
@@ -474,6 +484,32 @@ export default function HomePage() {
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
           // della PWA non deve sopravvivere a login/logout/switch account
           loadCantieri().then(setCantieri),
+          // Inviti + novità di collaborazione
+          loadCollaborazioni()
+            .then((collab) => {
+              setInvitiCollabInAttesa(
+                collab.filter(
+                  (c) =>
+                    c.stato === "invitata" &&
+                    c.email_invito === emailCorrente
+                ).length
+              );
+              // Avviso lato subappaltatore: l'appaltatore ha aggiornato le lavorazioni
+              // (porta al cantiere del subappaltatore in pagina Lavorazioni)
+              setNovitaLavorazioniCantiereId(
+                collab.find((c) => c.novita_per_collaboratore)
+                  ?.cantiere_collaboratore_id ?? null
+              );
+              // Avviso lato appaltatore: il subappaltatore ha aggiornato gli avanzamenti
+              setNovitaAvanzamentiCollab(
+                collab.some((c) => c.novita_per_committente)
+              );
+            })
+            .catch(() => {
+              setInvitiCollabInAttesa(0);
+              setNovitaLavorazioniCantiereId(null);
+              setNovitaAvanzamentiCollab(false);
+            }),
         ]);
 
         return currentUser;
@@ -1543,6 +1579,52 @@ export default function HomePage() {
       <AppHeader />
 
       <main className="mx-auto max-w-[640px] px-5 py-5 md:px-6 flex flex-col gap-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+
+        {/* Alert collaborazioni in attesa */}
+        {invitiCollabInAttesa > 0 && (
+          <Link href={APP_ROUTES.BACKOFFICE_COLLABORAZIONI}>
+            <Card className="border-warning-500/50 bg-warning-50 p-4 transition-colors hover:bg-warning-100">
+              <p className="text-sm font-medium text-text-primary">
+                {invitiCollabInAttesa === 1
+                  ? "Hai un cantiere condiviso in attesa di accettazione"
+                  : `Hai ${invitiCollabInAttesa} cantieri condivisi in attesa di accettazione`}
+              </p>
+              <p className="mt-0.5 text-xs text-text-muted">
+                Tocca per gestire gli inviti di collaborazione →
+              </p>
+            </Card>
+          </Link>
+        )}
+
+        {/* Avviso: l'appaltatore ha aggiornato le lavorazioni (lato subappaltatore) */}
+        {novitaLavorazioniCantiereId && (
+          <Link
+            href={`${APP_ROUTES.BACKOFFICE_LAVORAZIONI}?cantiere=${novitaLavorazioniCantiereId}`}
+          >
+            <Card className="border-info-500/50 bg-info-50 p-4 transition-colors hover:bg-info-50/70">
+              <p className="text-sm font-medium text-text-primary">
+                Un committente ha aggiornato le lavorazioni di un cantiere condiviso
+              </p>
+              <p className="mt-0.5 text-xs text-text-muted">
+                Tocca per aprire le lavorazioni del cantiere →
+              </p>
+            </Card>
+          </Link>
+        )}
+
+        {/* Avviso: il subappaltatore ha aggiornato gli avanzamenti (lato appaltatore) */}
+        {novitaAvanzamentiCollab && (
+          <Link href={APP_ROUTES.BACKOFFICE_COLLABORAZIONI}>
+            <Card className="border-info-500/50 bg-info-50 p-4 transition-colors hover:bg-info-50/70">
+              <p className="text-sm font-medium text-text-primary">
+                Un subappaltatore ha aggiornato gli avanzamenti di un cantiere condiviso
+              </p>
+              <p className="mt-0.5 text-xs text-text-muted">
+                Tocca per vedere le collaborazioni →
+              </p>
+            </Card>
+          </Link>
+        )}
 
         {/* ── Card 1: Profilo ── */}
         <Card className="p-5">

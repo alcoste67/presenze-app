@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 
 const SELECT_LAVORAZIONE_CANTIERE =
-  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, created_at";
+  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, quantita, prezzo_unitario, unita_misura, subappaltata_a_collaborazione_id, created_at";
 
 export async function loadLavorazioniCantiere(
   cantiereId: string

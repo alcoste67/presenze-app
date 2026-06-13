@@ -162,6 +162,28 @@ function buildSalSheet({
     ]);
   });
 
+  // Lavorazioni del subappaltatore (collaborazioni), raggruppate per azienda
+  if (freezeExport.collaborazioni.length > 0) {
+    const perAzienda = new Map<string, typeof freezeExport.collaborazioni>();
+    for (const c of freezeExport.collaborazioni) {
+      const lista = perAzienda.get(c.azienda_collaboratrice_nome) || [];
+      lista.push(c);
+      perAzienda.set(c.azienda_collaboratrice_nome, lista);
+    }
+
+    for (const [azienda, righe] of perAzienda) {
+      rows.push([]);
+      rows.push([sanitizeExcelText(`Subappaltatore: ${azienda}`)]);
+      rows.push(["Lavorazione", "% completamento"]);
+      righe.forEach((c) => {
+        rows.push([
+          sanitizeExcelText(c.lavorazione_nome),
+          c.percentuale_completamento,
+        ]);
+      });
+    }
+  }
+
   return rows;
 }
 

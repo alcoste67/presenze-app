@@ -61,6 +61,14 @@ export type SalFreezeDettaglio = {
   macchinari: SalFreezeMacchinario[];
 };
 
+export type SalFreezeCollaborazione = {
+  azienda_collaboratrice_nome: string;
+  cantiere_collaboratore_nome: string;
+  lavorazione_nome: string;
+  percentuale_completamento: number;
+  ordine: number;
+};
+
 export type SalFreezeExportCommittente = {
   freeze: SalFreezeMensile;
   cantiere: {
@@ -68,5 +76,6 @@ export type SalFreezeExportCommittente = {
     nome: string;
   } | null;
   lavorazioni: SalFreezeLavorazione[];
+  collaborazioni: SalFreezeCollaborazione[];
   foto: SalFreezeFotoPreview[];
 };

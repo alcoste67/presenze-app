@@ -593,6 +593,63 @@ async function cleanupFreeze({
   } catch {}
 }
 
+async function loadCollaborazioniFreeze(
+  cantiereId: string,
+  supabaseClient: SupabaseClient
+): Promise<
+  {
+    azienda_collaboratrice_nome: string;
+    cantiere_collaboratore_nome: string;
+    lavorazione_nome: string;
+    percentuale_completamento: number;
+    ordine: number;
+  }[]
+> {
+  // Collaborazioni accettate dove questo cantiere è il committente
+  const { data: collab, error: collabError } = await supabaseClient
+    .from("cantieri_collaborazioni")
+    .select(
+      "azienda_collaboratrice_nome, cantiere_collaboratore_nome, cantiere_collaboratore_id"
+    )
+    .eq("cantiere_committente_id", cantiereId)
+    .eq("stato", "accettata");
+
+  if (collabError || !collab || collab.length === 0) {
+    return [];
+  }
+
+  const righe: {
+    azienda_collaboratrice_nome: string;
+    cantiere_collaboratore_nome: string;
+    lavorazione_nome: string;
+    percentuale_completamento: number;
+    ordine: number;
+  }[] = [];
+
+  for (const c of collab) {
+    if (!c.cantiere_collaboratore_id) continue;
+    const { data: lavorazioni } = await supabaseClient
+      .from("lavorazioni_cantiere")
+      .select("nome, percentuale_completamento, ordine, attiva, stato")
+      .eq("cantiere_id", c.cantiere_collaboratore_id)
+      .eq("attiva", true)
+      .neq("stato", "rifiutata")
+      .order("ordine", { ascending: true });
+
+    for (const l of lavorazioni || []) {
+      righe.push({
+        azienda_collaboratrice_nome: c.azienda_collaboratrice_nome,
+        cantiere_collaboratore_nome: c.cantiere_collaboratore_nome,
+        lavorazione_nome: l.nome,
+        percentuale_completamento: l.percentuale_completamento,
+        ordine: l.ordine,
+      });
+    }
+  }
+
+  return righe;
+}
+
 export async function createSalFreeze({
   cantiereId,
   periodStart,
@@ -717,7 +774,18 @@ export async function createSalFreeze({
       ),
     ]);
 
-  if (salLive.lavorazioni.length === 0) {
+  const collaborazioniFreezeRows = await runSalFreezeStep(
+    "load_sal_live",
+    "load collaborazioni freeze",
+    () => loadCollaborazioniFreeze(cantiereId, supabaseClient)
+  );
+
+  // Il freeze è valido se c'è almeno una lavorazione propria O del
+  // subappaltatore (committente che monitora solo il subappalto)
+  if (
+    salLive.lavorazioni.length === 0 &&
+    collaborazioniFreezeRows.length === 0
+  ) {
     throwSalFreezeError(
       SAL_FREEZE_ERRORI.NESSUNA_LAVORAZIONE,
       "Nessuna lavorazione SAL trovata per il cantiere selezionato",
@@ -894,6 +962,34 @@ export async function createSalFreeze({
       if (error) {
         throwErroreSupabase(
           "Salvataggio macchinari freeze SAL",
+          error
+        );
+      }
+    }
+
+    if (collaborazioniFreezeRows.length > 0) {
+      const collaborazioniInsert = collaborazioniFreezeRows.map((r, index) => ({
+        freeze_id: freezeId,
+        azienda_id: aziendaId,
+        azienda_collaboratrice_nome: r.azienda_collaboratrice_nome,
+        cantiere_collaboratore_nome: r.cantiere_collaboratore_nome,
+        lavorazione_nome: r.lavorazione_nome,
+        percentuale_completamento: r.percentuale_completamento,
+        ordine: index,
+      }));
+
+      const { error } = await runSalFreezeStep(
+        "insert_lavorazioni",
+        "insert sal_freeze_collaborazioni",
+        async () =>
+          await supabaseClient
+            .from("sal_freeze_collaborazioni")
+            .insert(collaborazioniInsert)
+      );
+
+      if (error) {
+        throwErroreSupabase(
+          "Salvataggio collaborazioni freeze SAL",
           error
         );
       }

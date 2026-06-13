@@ -28,6 +28,10 @@ import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffi
 import { creaSalLavorazioniFoto } from "@/services/sal/creaSalLavorazioniFoto";
 import { loadSalLavorazioniFoto } from "@/services/sal/loadSalLavorazioniFoto";
 import { loadSalCantiere } from "@/services/lavorazioni/loadSalCantiere";
+import {
+  loadSalCollaborazioni,
+  type LavorazioneCollaboratore,
+} from "@/services/collaborazioni/loadSalCollaborazioni";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type {
   SalLavorazioneFoto,
@@ -189,6 +193,8 @@ export default function BackofficeSalPage() {
     useState<SalCantiere | null>(null);
   const [fotoLavorazioni, setFotoLavorazioni] =
     useState<SalLavorazioneFoto[]>([]);
+  const [lavorazioniCollab, setLavorazioniCollab] =
+    useState<LavorazioneCollaboratore[]>([]);
   const [fotoDaCaricare, setFotoDaCaricare] =
     useState<
       {
@@ -261,6 +267,7 @@ export default function BackofficeSalPage() {
       if (!cantiereId) {
         setSal(null);
         setFotoLavorazioni([]);
+        setLavorazioniCollab([]);
         setLoadingSal(false);
         setLoadingFoto(false);
         return;
@@ -270,7 +277,7 @@ export default function BackofficeSalPage() {
         setLoadingSal(true);
         setLoadingFoto(true);
 
-        const [salCaricato, fotoCaricate] =
+        const [salCaricato, fotoCaricate, collabCaricate] =
           await Promise.all([
             loadSalCantiere(cantiereId),
             loadSalLavorazioniFoto({
@@ -278,6 +285,7 @@ export default function BackofficeSalPage() {
               dataRiferimento,
               limit: 12,
             }),
+            loadSalCollaborazioni({ cantiereCommittenteId: cantiereId }),
           ]);
 
         if (!attivo) {
@@ -286,6 +294,7 @@ export default function BackofficeSalPage() {
 
         setSal(salCaricato);
         setFotoLavorazioni(fotoCaricate);
+        setLavorazioniCollab(collabCaricate);
       } catch (error: unknown) {
         if (attivo) {
           toast.error(getMessaggioErrore(error, SAL_TESTI.ERRORI.GENERICO));
@@ -709,6 +718,49 @@ export default function BackofficeSalPage() {
                 </div>
               )}
             </div>
+
+            {/* Lavorazioni subappaltatore (collaborazioni) */}
+            {lavorazioniCollab.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="font-heading text-lg font-medium text-text-primary">
+                  Lavorazioni subappaltatore
+                </h2>
+                {Array.from(
+                  new Set(lavorazioniCollab.map((l) => l.azienda_collaboratrice_nome))
+                ).map((azienda) => (
+                  <Card key={azienda} className="p-4">
+                    <p className="text-sm font-medium text-text-primary mb-3">
+                      {azienda}
+                    </p>
+                    <div className="space-y-3">
+                      {lavorazioniCollab
+                        .filter((l) => l.azienda_collaboratrice_nome === azienda)
+                        .map((l, i) => (
+                          <div key={`${azienda}-${i}`}>
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <span className="text-sm text-text-primary">
+                                {l.lavorazione_nome}
+                              </span>
+                              <span className="text-xs text-text-muted">
+                                {l.percentuale_completamento}%
+                              </span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-border overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  getProgressBarClass(l.percentuale_completamento)
+                                )}
+                                style={{ width: `${l.percentuale_completamento}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )}
 

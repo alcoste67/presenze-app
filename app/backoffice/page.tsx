@@ -11,6 +11,7 @@ import {
   CalendarRange,
   ClipboardList,
   Contact,
+  Handshake,
   FileText,
   Home,
   ListCheck,
@@ -177,6 +178,12 @@ export default function BackofficePage() {
                 icon={<Contact className="h-5 w-5" />}
                 nome="Clienti"
                 descrizione="Anagrafica clienti e committenti"
+              />
+              <ModuloCard
+                href="/backoffice/collaborazioni"
+                icon={<Handshake className="h-5 w-5" />}
+                nome="Collaborazioni"
+                descrizione="Cantieri condivisi con altre aziende"
               />
               <CardMacchinariAdmin />
             </div>
