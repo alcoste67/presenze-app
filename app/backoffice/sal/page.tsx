@@ -601,12 +601,24 @@ export default function BackofficeSalPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-              <Link href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}>
+              <Link
+                href={
+                  cantiereId
+                    ? `${APP_ROUTES.BACKOFFICE_SAL_FREEZE}?cantiere=${encodeURIComponent(cantiereId)}`
+                    : APP_ROUTES.BACKOFFICE_SAL_FREEZE
+                }
+              >
                 <Button variant="primary" size="sm">
                   {SAL_FREEZE_TESTI.CREA_FREEZE}
                 </Button>
               </Link>
-              <Link href={APP_ROUTES.BACKOFFICE_SAL_FREEZE}>
+              <Link
+                href={
+                  cantiereId
+                    ? `${APP_ROUTES.BACKOFFICE_SAL_FREEZE}?cantiere=${encodeURIComponent(cantiereId)}`
+                    : APP_ROUTES.BACKOFFICE_SAL_FREEZE
+                }
+              >
                 <Button variant="secondary" size="sm">
                   {SAL_FREEZE_TESTI.LISTA_FREEZE}
                 </Button>

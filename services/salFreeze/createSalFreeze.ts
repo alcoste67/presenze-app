@@ -34,6 +34,7 @@ export const SAL_FREEZE_ERRORI = {
   FREEZE_ESISTENTE: "FREEZE_ESISTENTE",
   FREEZE_NON_TROVATO: "FREEZE_NON_TROVATO",
   FREEZE_GIA_ANNULLATO: "FREEZE_GIA_ANNULLATO",
+  FREEZE_GIA_DEFINITIVO: "FREEZE_GIA_DEFINITIVO",
   NESSUNA_LAVORAZIONE: "NESSUNA_LAVORAZIONE",
   FOTO_NON_TROVATA: "FOTO_NON_TROVATA",
   COPIA_FOTO_FALLITA: "COPIA_FOTO_FALLITA",
@@ -133,6 +134,9 @@ type FreezeHeaderRow = {
   metadata: Record<string, unknown> | null;
   annullato_at: string | null;
   annullato_by: string | null;
+  stato: "bozza" | "definitivo";
+  confermato_at: string | null;
+  confermato_by: string | null;
 };
 
 type SalFreezeLavorazioneInsert = {
@@ -145,6 +149,19 @@ type SalFreezeLavorazioneInsert = {
   ore_uomo_minuti: number;
   ordine: number;
   azienda_id: string;
+  unita_misura_snapshot: string | null;
+  quantita_snapshot: number | null;
+  prezzo_unitario_snapshot: number | null;
+  importo_totale: number | null;
+  importo_maturato: number | null;
+  importo_periodo: number | null;
+};
+
+type LavorazioneValorizzazioneRow = {
+  id: string;
+  unita_misura: string | null;
+  quantita: number | null;
+  prezzo_unitario: number | null;
 };
 
 type SalFreezeFotoInsert = {
@@ -197,7 +214,9 @@ export type SalFreezeCreato = {
 };
 
 const SELECT_FREEZE_PRECEDENTE =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
+  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
+const SELECT_LAVORAZIONE_VALORIZZAZIONE =
+  "id, unita_misura, quantita, prezzo_unitario";
 const SELECT_FREEZE_LAVORAZIONI =
   "lavorazione_id, lavorazione_nome_snapshot, percentuale_attuale";
 const SELECT_SAL_FOTO =
@@ -275,7 +294,7 @@ function sanitizeFileName(value: string) {
     .slice(0, 80);
 }
 
-function getPercentualePrecedente({
+export function getPercentualePrecedente({
   lavorazioneId,
   lavorazioneNome,
   freezePrecedenteById,
@@ -322,7 +341,7 @@ async function loadFreezePrecedente(
   return data as FreezeHeaderRow | null;
 }
 
-async function loadFreezePrecedenteLavorazioni(
+export async function loadFreezePrecedenteLavorazioni(
   freezeId: string,
   supabaseClient: SupabaseClient
 ) {
@@ -404,6 +423,84 @@ async function loadMacchinariFreeze(
   }
 
   return (data || []) as MacchinarioFreezeSourceRow[];
+}
+
+export async function loadValorizzazioneLavorazioni(
+  cantiereId: string,
+  supabaseClient: SupabaseClient
+): Promise<Map<string, LavorazioneValorizzazioneRow>> {
+  const { data, error } = await supabaseClient
+    .from("lavorazioni_cantiere")
+    .select(SELECT_LAVORAZIONE_VALORIZZAZIONE)
+    .eq("cantiere_id", cantiereId);
+
+  if (error) {
+    throwErroreSupabase(
+      "Lettura valorizzazione lavorazioni",
+      error
+    );
+  }
+
+  return new Map(
+    ((data || []) as LavorazioneValorizzazioneRow[]).map((row) => [
+      row.id,
+      row,
+    ])
+  );
+}
+
+function arrotonda2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+// Importi della voce: totale = quantità×prezzo; maturato = totale×%attuale;
+// periodo = totale×delta%. Null se manca quantità o prezzo (voce non
+// valorizzata) → nell'export l'importo resta vuoto.
+export function calcolaImportiVoce({
+  valorizzazione,
+  percentualeAttuale,
+  deltaPercentuale,
+}: {
+  valorizzazione: LavorazioneValorizzazioneRow | undefined;
+  percentualeAttuale: number;
+  deltaPercentuale: number;
+}): {
+  unita_misura_snapshot: string | null;
+  quantita_snapshot: number | null;
+  prezzo_unitario_snapshot: number | null;
+  importo_totale: number | null;
+  importo_maturato: number | null;
+  importo_periodo: number | null;
+} {
+  const quantita = valorizzazione?.quantita ?? null;
+  const prezzo = valorizzazione?.prezzo_unitario ?? null;
+  const unita = valorizzazione?.unita_misura ?? null;
+
+  if (quantita === null || prezzo === null) {
+    return {
+      unita_misura_snapshot: unita,
+      quantita_snapshot: quantita,
+      prezzo_unitario_snapshot: prezzo,
+      importo_totale: null,
+      importo_maturato: null,
+      importo_periodo: null,
+    };
+  }
+
+  const importoTotale = arrotonda2(quantita * prezzo);
+
+  return {
+    unita_misura_snapshot: unita,
+    quantita_snapshot: quantita,
+    prezzo_unitario_snapshot: prezzo,
+    importo_totale: importoTotale,
+    importo_maturato: arrotonda2(
+      (importoTotale * percentualeAttuale) / 100
+    ),
+    importo_periodo: arrotonda2(
+      (importoTotale * deltaPercentuale) / 100
+    ),
+  };
 }
 
 async function insertHeaderFreeze({
@@ -593,7 +690,7 @@ async function cleanupFreeze({
   } catch {}
 }
 
-async function loadCollaborazioniFreeze(
+export async function loadCollaborazioniFreeze(
   cantiereId: string,
   supabaseClient: SupabaseClient
 ): Promise<
@@ -630,13 +727,21 @@ async function loadCollaborazioniFreeze(
     if (!c.cantiere_collaboratore_id) continue;
     const { data: lavorazioni } = await supabaseClient
       .from("lavorazioni_cantiere")
-      .select("nome, percentuale_completamento, ordine, attiva, stato")
+      .select(
+        "nome, percentuale_completamento, ordine, attiva, stato, origine_lavorazione_id"
+      )
       .eq("cantiere_id", c.cantiere_collaboratore_id)
       .eq("attiva", true)
       .neq("stato", "rifiutata")
       .order("ordine", { ascending: true });
 
     for (const l of lavorazioni || []) {
+      // Le voci con origine_lavorazione_id sono copie di voci del committente:
+      // vengono già valorizzate nella tabella lavorazioni principale (prezzo
+      // committente × % subappaltatore). Qui restano SOLO le voci extra che il
+      // subappaltatore ha aggiunto di suo (origine null), informative.
+      if (l.origine_lavorazione_id) continue;
+
       righe.push({
         azienda_collaboratrice_nome: c.azienda_collaboratrice_nome,
         cantiere_collaboratore_nome: c.cantiere_collaboratore_nome,
@@ -648,6 +753,56 @@ async function loadCollaborazioniFreeze(
   }
 
   return righe;
+}
+
+// Avanzamento riportato dai subappaltatori, mappato sulla voce ORIGINE del
+// committente (via origine_lavorazione_id). Permette di valorizzare le voci
+// subappaltate al prezzo del committente × % del subappaltatore. Lettura
+// cross-tenant server-side (service role): il prezzo non lascia mai il
+// committente. Chiave = id voce committente, valore = % subappaltatore.
+export async function loadAvanzamentoSubappaltoByVoce(
+  cantiereId: string,
+  supabaseClient: SupabaseClient
+): Promise<Map<string, number>> {
+  const { data: collab, error: collabError } = await supabaseClient
+    .from("cantieri_collaborazioni")
+    .select("cantiere_collaboratore_id")
+    .eq("cantiere_committente_id", cantiereId)
+    .eq("stato", "accettata");
+
+  const mappa = new Map<string, number>();
+
+  if (collabError || !collab || collab.length === 0) {
+    return mappa;
+  }
+
+  const cantieriCollaboratori = collab
+    .map((c) => c.cantiere_collaboratore_id)
+    .filter((id): id is string => Boolean(id));
+
+  if (cantieriCollaboratori.length === 0) {
+    return mappa;
+  }
+
+  const { data: voci } = await supabaseClient
+    .from("lavorazioni_cantiere")
+    .select("origine_lavorazione_id, percentuale_completamento, attiva, stato")
+    .in("cantiere_id", cantieriCollaboratori)
+    .eq("attiva", true)
+    .neq("stato", "rifiutata")
+    .not("origine_lavorazione_id", "is", null);
+
+  for (const v of voci || []) {
+    if (!v.origine_lavorazione_id) continue;
+    // Se più subappaltatori puntano alla stessa voce origine, tiene il massimo.
+    const corrente = mappa.get(v.origine_lavorazione_id) ?? 0;
+    mappa.set(
+      v.origine_lavorazione_id,
+      Math.max(corrente, v.percentuale_completamento ?? 0)
+    );
+  }
+
+  return mappa;
 }
 
 export async function createSalFreeze({
@@ -780,6 +935,18 @@ export async function createSalFreeze({
     () => loadCollaborazioniFreeze(cantiereId, supabaseClient)
   );
 
+  const valorizzazioneById = await runSalFreezeStep(
+    "load_sal_live",
+    "load valorizzazione lavorazioni",
+    () => loadValorizzazioneLavorazioni(cantiereId, supabaseClient)
+  );
+
+  const avanzamentoSubByVoce = await runSalFreezeStep(
+    "load_sal_live",
+    "load avanzamento subappalto per voce",
+    () => loadAvanzamentoSubappaltoByVoce(cantiereId, supabaseClient)
+  );
+
   // Il freeze è valido se c'è almeno una lavorazione propria O del
   // subappaltatore (committente che monitora solo il subappalto)
   if (
@@ -837,11 +1004,22 @@ export async function createSalFreeze({
         freezePrecedenteByNome,
       });
 
+      // Voce subappaltata: la % effettiva è quella riportata dal
+      // subappaltatore; altrimenti vale l'avanzamento proprio del committente.
+      const avanzamentoSub = avanzamentoSubByVoce.get(lavorazione.id);
       const percentualeAttuale =
-        lavorazione.percentuale_completamento;
+        avanzamentoSub != null
+          ? avanzamentoSub
+          : lavorazione.percentuale_completamento;
       const deltaPercentuale =
         percentualeAttuale - percentualePrecedente;
       const oreUomoMinuti = lavorazione.oreUomoMinuti;
+
+      const importi = calcolaImportiVoce({
+        valorizzazione: valorizzazioneById.get(lavorazione.id),
+        percentualeAttuale,
+        deltaPercentuale,
+      });
 
       return {
         freeze_id: freezeId,
@@ -853,6 +1031,7 @@ export async function createSalFreeze({
         ore_uomo_minuti: oreUomoMinuti,
         ordine: lavorazione.ordine,
         azienda_id: aziendaId,
+        ...importi,
       };
     })
     .filter((lavorazione) => {

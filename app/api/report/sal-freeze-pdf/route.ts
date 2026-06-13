@@ -479,30 +479,11 @@ function getErroreExportPdf(error: unknown) {
   };
 }
 
-function getDeltaColor(delta: number) {
-  if (delta > 0) {
-    return {
-      background: COLORS.successSoft,
-      text: COLORS.success,
-    };
-  }
-
-  if (delta < 0) {
-    return {
-      background: COLORS.dangerSoft,
-      text: COLORS.danger,
-    };
-  }
-
-  return {
-    background: COLORS.graySoft,
-    text: COLORS.gray,
-  };
-}
-
-function formattaDelta(delta: number) {
-  const sign = delta > 0 ? "+" : "";
-  return `${sign}${delta.toFixed(0)}%`;
+function formattaEuro(value: number) {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(value);
 }
 
 function drawCenteredText({
@@ -745,10 +726,10 @@ export async function GET(
     });
 
     const headers = [
-      { label: SAL_FREEZE_PDF.LAVORAZIONE, width: 250 },
-      { label: SAL_FREEZE_PDF.PERCENTUALE_PRECEDENTE, width: 84 },
-      { label: SAL_FREEZE_PDF.PERCENTUALE_ATTUALE, width: 84 },
-      { label: SAL_FREEZE_PDF.DELTA_PERIODO, width: 84 },
+      { label: SAL_FREEZE_PDF.LAVORAZIONE, width: 235 },
+      { label: "Att. %", width: 55 },
+      { label: "Importo maturato", width: 115 },
+      { label: "Importo periodo", width: 0 },
     ];
     let cursorX = MARGIN_X + 8;
 
@@ -817,7 +798,7 @@ export async function GET(
         text: lavorazione.lavorazione_nome_snapshot,
         x: MARGIN_X + 8,
         y: cursorY - 10,
-        maxWidth: 228,
+        maxWidth: 215,
         size: 9,
         font: fonts.bold,
         color: COLORS.text,
@@ -825,42 +806,111 @@ export async function GET(
         lineHeight: 10,
       });
 
-      drawText(page, `${lavorazione.percentuale_precedente}%`, {
-        x: MARGIN_X + 248,
-        y: cursorY - 10,
-        size: 9,
-        font: fonts.regular,
-        color: COLORS.text,
-      });
-
       drawText(page, `${lavorazione.percentuale_attuale}%`, {
-        x: MARGIN_X + 338,
+        x: MARGIN_X + 243,
         y: cursorY - 10,
         size: 9,
         font: fonts.regular,
         color: COLORS.text,
       });
 
-      const deltaColor = getDeltaColor(
-        lavorazione.delta_percentuale
+      drawText(
+        page,
+        lavorazione.importo_maturato == null
+          ? "—"
+          : formattaEuro(lavorazione.importo_maturato),
+        {
+          x: MARGIN_X + 298,
+          y: cursorY - 10,
+          size: 9,
+          font: fonts.regular,
+          color: COLORS.text,
+        }
       );
-      page.drawRectangle({
-        x: MARGIN_X + 428,
-        y: cursorY - 16,
-        width: 70,
-        height: 18,
-        color: deltaColor.background,
-      });
-      drawText(page, formattaDelta(lavorazione.delta_percentuale), {
-        x: MARGIN_X + 439,
-        y: cursorY - 10,
-        size: 9,
-        font: fonts.bold,
-        color: deltaColor.text,
-      });
+
+      drawText(
+        page,
+        lavorazione.importo_periodo == null
+          ? "—"
+          : formattaEuro(lavorazione.importo_periodo),
+        {
+          x: MARGIN_X + 413,
+          y: cursorY - 10,
+          size: 9,
+          font: fonts.regular,
+          color: COLORS.text,
+        }
+      );
 
       cursorY -= rowHeight;
     });
+
+    // Totali valorizzati (contabilità verso il cliente finale).
+    // Mostrati solo se almeno una voce è valorizzata (importi non nulli).
+    const totaleMaturato = freezeExport.lavorazioni.reduce(
+      (somma, l) => somma + (l.importo_maturato ?? 0),
+      0
+    );
+    const totalePeriodo = freezeExport.lavorazioni.reduce(
+      (somma, l) => somma + (l.importo_periodo ?? 0),
+      0
+    );
+    const haImporti = freezeExport.lavorazioni.some(
+      (l) => l.importo_maturato != null || l.importo_periodo != null
+    );
+
+    if (haImporti) {
+      if (cursorY < 150) {
+        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        drawHeader({
+          page,
+          fonts,
+          cantiereNome,
+          freeze: freezeExport.freeze,
+        });
+        cursorY = 512;
+      }
+
+      cursorY -= 8;
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: cursorY - 40,
+        width: PAGE_WIDTH - MARGIN_X * 2,
+        height: 44,
+        color: COLORS.surface,
+        borderColor: COLORS.border,
+        borderWidth: 0.5,
+      });
+      drawText(page, "Totale importo maturato", {
+        x: MARGIN_X + 8,
+        y: cursorY - 14,
+        size: 9,
+        font: fonts.bold,
+        color: COLORS.muted,
+      });
+      drawText(page, formattaEuro(totaleMaturato), {
+        x: MARGIN_X + 200,
+        y: cursorY - 14,
+        size: 10,
+        font: fonts.bold,
+        color: COLORS.text,
+      });
+      drawText(page, "Totale importo periodo", {
+        x: MARGIN_X + 8,
+        y: cursorY - 32,
+        size: 9,
+        font: fonts.bold,
+        color: COLORS.muted,
+      });
+      drawText(page, formattaEuro(totalePeriodo), {
+        x: MARGIN_X + 200,
+        y: cursorY - 32,
+        size: 10,
+        font: fonts.bold,
+        color: COLORS.text,
+      });
+      cursorY -= 52;
+    }
 
     const foto = freezeExport.foto.slice(
       0,

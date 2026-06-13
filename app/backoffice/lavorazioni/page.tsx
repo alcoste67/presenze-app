@@ -149,6 +149,9 @@ function getUpdateDaLavorazione(
     ordine: lavorazione.ordine,
     attiva: lavorazione.attiva,
     percentuale_completamento: lavorazione.percentuale_completamento,
+    quantita: lavorazione.quantita ?? null,
+    prezzo_unitario: lavorazione.prezzo_unitario ?? null,
+    unita_misura: lavorazione.unita_misura ?? null,
   };
 }
 
@@ -574,6 +577,9 @@ export default function BackofficeLavorazioniPage() {
             ordine: risultato.payload.ordine,
             attiva: risultato.payload.attiva,
             percentuale_completamento: risultato.payload.percentuale_completamento,
+            quantita: risultato.payload.quantita,
+            prezzo_unitario: risultato.payload.prezzo_unitario,
+            unita_misura: risultato.payload.unita_misura,
           },
         });
         aggiornaLavorazioneInLista(lavorazioneAggiornata);

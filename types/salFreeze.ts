@@ -1,3 +1,5 @@
+export type StatoSalFreeze = "bozza" | "definitivo";
+
 export type SalFreezeMensile = {
   id: string;
   cantiere_id: string;
@@ -9,6 +11,9 @@ export type SalFreezeMensile = {
   metadata: Record<string, unknown> | null;
   annullato_at: string | null;
   annullato_by: string | null;
+  stato: StatoSalFreeze;
+  confermato_at: string | null;
+  confermato_by: string | null;
 };
 
 export type SalFreezeLavorazione = {
@@ -22,6 +27,14 @@ export type SalFreezeLavorazione = {
   ore_uomo_minuti: number;
   ordine: number;
   created_at: string;
+  // Valorizzazione (Fase D) — solo voci PROPRIE del committente. Nullable
+  // quando la voce non ha quantità/prezzo. Mai condivisa col subappaltatore.
+  unita_misura_snapshot: string | null;
+  quantita_snapshot: number | null;
+  prezzo_unitario_snapshot: number | null;
+  importo_totale: number | null;
+  importo_maturato: number | null;
+  importo_periodo: number | null;
 };
 
 export type SalFreezeFoto = {

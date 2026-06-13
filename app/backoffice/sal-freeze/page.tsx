@@ -112,6 +112,17 @@ function formattaOreUomo(minutiTotali: number) {
   return `${ore}h ${minuti}m`;
 }
 
+function formattaEuro(value: number | null | undefined) {
+  if (value == null) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(value);
+}
+
 function formattaDeltaPercentuale(value: number) {
   const segno = value > 0 ? "+" : "";
   return `${segno}${value.toFixed(0)}%`;
@@ -212,6 +223,12 @@ export default function BackofficeSalFreezePage() {
   const [ruoloUtente, setRuoloUtente] = useState<RuoloUtente>(null);
   const [loadingRuolo, setLoadingRuolo] = useState(true);
 
+  const [azioneFreeze, setAzioneFreeze] = useState(false);
+  const [rigaInEdit, setRigaInEdit] = useState<string | null>(null);
+  const [editPercentuale, setEditPercentuale] = useState("");
+  const [editMaturato, setEditMaturato] = useState("");
+  const [editPeriodo, setEditPeriodo] = useState("");
+  const [salvandoRiga, setSalvandoRiga] = useState(false);
   const puoCreareFreeze = ruoloUtente === "ADMIN";
   const puoEsportareMensile = ruoloUtente === "ADMIN" || ruoloUtente === "RESPONSABILE";
 
@@ -239,6 +256,16 @@ export default function BackofficeSalFreezePage() {
   const freezeSelezionatoAnnullato = Boolean(
     freezeDettaglioDaMostrare?.freeze.annullato_at
   );
+
+  const freezeSelezionatoDefinitivo =
+    freezeDettaglioDaMostrare?.freeze.stato === "definitivo";
+
+  // In bozza un ADMIN può rigenerare, correggere a mano e confermare
+  const freezeModificabile =
+    puoCreareFreeze &&
+    !!freezeDettaglioDaMostrare &&
+    !freezeSelezionatoAnnullato &&
+    !freezeSelezionatoDefinitivo;
 
   // Effects
   useEffect(() => {
@@ -287,6 +314,14 @@ export default function BackofficeSalFreezePage() {
         const dati = await loadCantieriBackoffice();
         if (!attivo) return;
         setCantieri(dati);
+
+        // Preseleziona il cantiere passato da "SAL corrente" (?cantiere=...)
+        const cantiereDaUrl = new URLSearchParams(window.location.search).get(
+          "cantiere"
+        );
+        if (cantiereDaUrl && dati.some((c) => c.id === cantiereDaUrl)) {
+          setCantiereId(cantiereDaUrl);
+        }
       } catch (error: unknown) {
         if (attivo) toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
       } finally {
@@ -470,6 +505,123 @@ export default function BackofficeSalFreezePage() {
       toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
+    }
+  };
+
+  const ricaricaDettaglioCorrente = async (freezeId: string) => {
+    const dettaglio = await loadSalFreezeDettaglio({ freezeId });
+    setFreezeDettaglio(dettaglio);
+    await caricaStoricoFreeze({
+      cantiereIdCorrente: cantiereId,
+      freezeIdDaSelezionare: freezeId,
+    });
+  };
+
+  const postAzioneSalFreeze = async (
+    url: string,
+    body: Record<string, unknown>
+  ) => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error(SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+        [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(getMessaggioApi(payload) || SAL_FREEZE_TESTI.ERRORI.GENERICO);
+    }
+
+    return payload;
+  };
+
+  const handleRigeneraFreeze = async () => {
+    const freezeId = freezeDettaglioDaMostrare?.freeze.id;
+    if (!freezeId || !freezeModificabile) return;
+
+    try {
+      setAzioneFreeze(true);
+      await postAzioneSalFreeze(API_ROUTES.SAL_FREEZE_RIGENERA, { freezeId });
+      await ricaricaDettaglioCorrente(freezeId);
+      toast.success("SAL periodo rigenerato dagli avanzamenti correnti");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
+    } finally {
+      setAzioneFreeze(false);
+    }
+  };
+
+  const handleConfermaFreeze = async () => {
+    const freezeId = freezeDettaglioDaMostrare?.freeze.id;
+    if (!freezeId || !freezeModificabile) return;
+
+    const conferma = window.confirm(
+      "Confermare il SAL periodo come definitivo? Dopo la conferma non sarà più modificabile."
+    );
+    if (!conferma) return;
+
+    try {
+      setAzioneFreeze(true);
+      await postAzioneSalFreeze(API_ROUTES.SAL_FREEZE_CONFERMA, { freezeId });
+      await ricaricaDettaglioCorrente(freezeId);
+      toast.success("SAL periodo confermato come definitivo");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
+    } finally {
+      setAzioneFreeze(false);
+    }
+  };
+
+  const handleAvviaEditRiga = (lav: SalFreezeDettaglio["lavorazioni"][number]) => {
+    setRigaInEdit(lav.id);
+    setEditPercentuale(String(lav.percentuale_attuale));
+    setEditMaturato(lav.importo_maturato == null ? "" : String(lav.importo_maturato));
+    setEditPeriodo(lav.importo_periodo == null ? "" : String(lav.importo_periodo));
+  };
+
+  const handleAnnullaEditRiga = () => {
+    setRigaInEdit(null);
+    setEditPercentuale("");
+    setEditMaturato("");
+    setEditPeriodo("");
+  };
+
+  const handleSalvaEditRiga = async () => {
+    const freezeId = freezeDettaglioDaMostrare?.freeze.id;
+    if (!freezeId || !rigaInEdit) return;
+
+    const percentualeAttuale =
+      editPercentuale.trim() === "" ? undefined : Number(editPercentuale);
+    const importoMaturato =
+      editMaturato.trim() === "" ? null : Number(editMaturato);
+    const importoPeriodo =
+      editPeriodo.trim() === "" ? null : Number(editPeriodo);
+
+    try {
+      setSalvandoRiga(true);
+      await postAzioneSalFreeze(API_ROUTES.SAL_FREEZE_LAVORAZIONE, {
+        rigaId: rigaInEdit,
+        percentualeAttuale,
+        importoMaturato,
+        importoPeriodo,
+      });
+      await ricaricaDettaglioCorrente(freezeId);
+      toast.success("Riga aggiornata");
+      handleAnnullaEditRiga();
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, SAL_FREEZE_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvandoRiga(false);
     }
   };
 
@@ -1037,8 +1189,20 @@ export default function BackofficeSalFreezePage() {
 
                   {freezeDettaglioDaMostrare && (
                     <>
-                      {/* Bottoni export in alto */}
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      {/* Stato SAL periodo */}
+                      {!freezeSelezionatoAnnullato && (
+                        <Badge
+                          variant={freezeSelezionatoDefinitivo ? "success" : "warning"}
+                          size="sm"
+                        >
+                          {freezeSelezionatoDefinitivo
+                            ? "Definitivo"
+                            : "Bozza (modificabile)"}
+                        </Badge>
+                      )}
+
+                      {/* Bottoni export + azioni in alto */}
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                         <Button
                           variant="secondary"
                           size="sm"
@@ -1059,6 +1223,26 @@ export default function BackofficeSalFreezePage() {
                         >
                           Esporta Excel
                         </Button>
+                        {freezeModificabile && (
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              loading={azioneFreeze}
+                              onClick={() => void handleRigeneraFreeze()}
+                            >
+                              Rigenera
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              loading={azioneFreeze}
+                              onClick={() => void handleConfermaFreeze()}
+                            >
+                              Conferma SAL periodo
+                            </Button>
+                          </>
+                        )}
                       </div>
 
                       {/* KPI cards */}
@@ -1123,39 +1307,150 @@ export default function BackofficeSalFreezePage() {
                               <thead className="bg-bg-subtle border-b border-border">
                                 <tr className="text-xs font-medium text-text-muted uppercase">
                                   <th className="p-3 text-left">Lavorazione</th>
-                                  <th className="p-3 text-right">Prec. %</th>
+                                  <th className="p-3 text-right">U.M.</th>
+                                  <th className="p-3 text-right">Q.tà</th>
+                                  <th className="p-3 text-right">Prezzo</th>
                                   <th className="p-3 text-right">Att. %</th>
                                   <th className="p-3 text-right">Delta</th>
-                                  <th className="p-3 text-right">Ore</th>
+                                  <th className="p-3 text-right">Importo maturato</th>
+                                  <th className="p-3 text-right">Importo periodo</th>
+                                  {freezeModificabile && (
+                                    <th className="p-3 text-right">Azioni</th>
+                                  )}
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border">
-                                {freezeDettaglioDaMostrare.lavorazioni.map((lav) => (
-                                  <tr key={lav.id} className="hover:bg-bg-subtle transition-colors">
-                                    <td className="p-3 font-medium text-text-primary">
-                                      {lav.lavorazione_nome_snapshot}
-                                    </td>
-                                    <td className="p-3 text-right text-text-muted">
-                                      {lav.percentuale_precedente}%
-                                    </td>
-                                    <td className="p-3 text-right text-text-primary font-medium">
-                                      {lav.percentuale_attuale}%
-                                    </td>
-                                    <td className="p-3 text-right">
-                                      <Badge
-                                        variant={getDeltaBadgeVariant(lav.delta_percentuale)}
-                                        size="sm"
-                                        className="inline-flex items-center gap-1"
-                                      >
-                                        {getDeltaIcon(lav.delta_percentuale)}
-                                        {formattaDeltaPercentuale(lav.delta_percentuale)}
-                                      </Badge>
-                                    </td>
-                                    <td className="p-3 text-right text-text-muted">
-                                      {formattaOreUomo(lav.ore_uomo_minuti)}
-                                    </td>
-                                  </tr>
-                                ))}
+                                {freezeDettaglioDaMostrare.lavorazioni.map((lav) => {
+                                  const inEdit = rigaInEdit === lav.id;
+
+                                  return (
+                                    <tr key={lav.id} className="hover:bg-bg-subtle transition-colors">
+                                      <td className="p-3 font-medium text-text-primary">
+                                        {lav.lavorazione_nome_snapshot}
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted">
+                                        {lav.unita_misura_snapshot || "—"}
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted">
+                                        {lav.quantita_snapshot ?? "—"}
+                                      </td>
+                                      <td className="p-3 text-right text-text-muted">
+                                        {formattaEuro(lav.prezzo_unitario_snapshot)}
+                                      </td>
+                                      <td className="p-3 text-right text-text-primary font-medium">
+                                        {inEdit ? (
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            value={editPercentuale}
+                                            onChange={(e) => setEditPercentuale(e.target.value)}
+                                            className="w-16 rounded border border-border px-2 py-1 text-right"
+                                          />
+                                        ) : (
+                                          `${lav.percentuale_attuale}%`
+                                        )}
+                                      </td>
+                                      <td className="p-3 text-right">
+                                        <Badge
+                                          variant={getDeltaBadgeVariant(lav.delta_percentuale)}
+                                          size="sm"
+                                          className="inline-flex items-center gap-1"
+                                        >
+                                          {getDeltaIcon(lav.delta_percentuale)}
+                                          {formattaDeltaPercentuale(lav.delta_percentuale)}
+                                        </Badge>
+                                      </td>
+                                      <td className="p-3 text-right text-text-primary">
+                                        {inEdit ? (
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={editMaturato}
+                                            placeholder="auto"
+                                            onChange={(e) => setEditMaturato(e.target.value)}
+                                            className="w-24 rounded border border-border px-2 py-1 text-right"
+                                          />
+                                        ) : (
+                                          formattaEuro(lav.importo_maturato)
+                                        )}
+                                      </td>
+                                      <td className="p-3 text-right text-text-primary">
+                                        {inEdit ? (
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={editPeriodo}
+                                            placeholder="auto"
+                                            onChange={(e) => setEditPeriodo(e.target.value)}
+                                            className="w-24 rounded border border-border px-2 py-1 text-right"
+                                          />
+                                        ) : (
+                                          formattaEuro(lav.importo_periodo)
+                                        )}
+                                      </td>
+                                      {freezeModificabile && (
+                                        <td className="p-3 text-right whitespace-nowrap">
+                                          {inEdit ? (
+                                            <span className="inline-flex gap-2">
+                                              <Button
+                                                variant="primary"
+                                                size="sm"
+                                                loading={salvandoRiga}
+                                                onClick={() => void handleSalvaEditRiga()}
+                                              >
+                                                Salva
+                                              </Button>
+                                              <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                disabled={salvandoRiga}
+                                                onClick={handleAnnullaEditRiga}
+                                              >
+                                                Annulla
+                                              </Button>
+                                            </span>
+                                          ) : (
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              disabled={rigaInEdit !== null}
+                                              onClick={() => handleAvviaEditRiga(lav)}
+                                            >
+                                              Correggi
+                                            </Button>
+                                          )}
+                                        </td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                                {(() => {
+                                  const totMaturato = freezeDettaglioDaMostrare.lavorazioni.reduce(
+                                    (s, l) => s + (l.importo_maturato ?? 0),
+                                    0
+                                  );
+                                  const totPeriodo = freezeDettaglioDaMostrare.lavorazioni.reduce(
+                                    (s, l) => s + (l.importo_periodo ?? 0),
+                                    0
+                                  );
+                                  const haImporti = freezeDettaglioDaMostrare.lavorazioni.some(
+                                    (l) => l.importo_maturato != null || l.importo_periodo != null
+                                  );
+
+                                  if (!haImporti) return null;
+
+                                  return (
+                                    <tr className="bg-bg-subtle font-semibold text-text-primary">
+                                      <td className="p-3" colSpan={6}>
+                                        TOTALE
+                                      </td>
+                                      <td className="p-3 text-right">{formattaEuro(totMaturato)}</td>
+                                      <td className="p-3 text-right">{formattaEuro(totPeriodo)}</td>
+                                      {freezeModificabile && <td className="p-3" />}
+                                    </tr>
+                                  );
+                                })()}
                               </tbody>
                             </table>
                           </div>

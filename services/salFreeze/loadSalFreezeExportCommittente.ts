@@ -79,9 +79,9 @@ export function isSalFreezeExportError(
 }
 
 const SELECT_SAL_FREEZE_MENSILE =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
+  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
 const SELECT_SAL_FREEZE_LAVORAZIONI =
-  "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at";
+  "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at, unita_misura_snapshot, quantita_snapshot, prezzo_unitario_snapshot, importo_totale, importo_maturato, importo_periodo";
 const SELECT_SAL_FREEZE_FOTO =
   "id, freeze_id, storage_path_snapshot, descrizione, data_riferimento, selected_at, ordine";
 const SELECT_CANTIERE =

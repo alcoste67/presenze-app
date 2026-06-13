@@ -25,6 +25,12 @@ export const API_ROUTES = {
     "/api/sal-freeze/mensili",
   SAL_FREEZE_DETTAGLIO:
     "/api/sal-freeze/dettaglio",
+  SAL_FREEZE_CONFERMA:
+    "/api/sal-freeze/conferma",
+  SAL_FREEZE_RIGENERA:
+    "/api/sal-freeze/rigenera",
+  SAL_FREEZE_LAVORAZIONE:
+    "/api/sal-freeze/lavorazione",
   REPORT_RAPPORTO_INTERVENTO_PDF:
     "/api/report/rapporto-intervento-pdf",
   VERIFICA_DIPENDENTE_ATTIVO:

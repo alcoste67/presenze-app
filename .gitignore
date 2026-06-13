@@ -60,3 +60,6 @@ auth_apply.log
 *.backup-pre-restyle
 schema_prod_pre_sprint.sql
 schema_dev_attuale.sql
+
+# Migration one-shot, non committare (azzeramento A2C già eseguito)
+migrations/reset_a2c_prod.sql

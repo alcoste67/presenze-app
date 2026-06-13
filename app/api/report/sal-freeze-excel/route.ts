@@ -97,6 +97,17 @@ function formattaDelta(value: number) {
   return `${sign}${value.toFixed(0)}%`;
 }
 
+function formattaEuro(value: number | null | undefined) {
+  if (value == null) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(value);
+}
+
 function sanitizeExcelText(value: unknown) {
   const testo =
     typeof value === "string"
@@ -147,20 +158,52 @@ function buildSalSheet({
     [],
     [
       SAL_FREEZE_PDF.LAVORAZIONE,
+      "U.M.",
+      "Quantità",
+      "Prezzo unit.",
       SAL_FREEZE_PDF.PERCENTUALE_PRECEDENTE,
       SAL_FREEZE_PDF.PERCENTUALE_ATTUALE,
       SAL_FREEZE_PDF.DELTA_PERIODO,
+      "Importo totale",
+      "Importo maturato",
+      "Importo periodo",
     ],
   ];
 
+  let totaleMaturato = 0;
+  let totalePeriodo = 0;
+
   freezeExport.lavorazioni.forEach((lavorazione) => {
+    totaleMaturato += lavorazione.importo_maturato ?? 0;
+    totalePeriodo += lavorazione.importo_periodo ?? 0;
+
     rows.push([
       sanitizeExcelText(lavorazione.lavorazione_nome_snapshot),
+      sanitizeExcelText(lavorazione.unita_misura_snapshot),
+      lavorazione.quantita_snapshot ?? "",
+      sanitizeExcelText(formattaEuro(lavorazione.prezzo_unitario_snapshot)),
       lavorazione.percentuale_precedente,
       lavorazione.percentuale_attuale,
       sanitizeExcelText(formattaDelta(lavorazione.delta_percentuale)),
+      sanitizeExcelText(formattaEuro(lavorazione.importo_totale)),
+      sanitizeExcelText(formattaEuro(lavorazione.importo_maturato)),
+      sanitizeExcelText(formattaEuro(lavorazione.importo_periodo)),
     ]);
   });
+
+  // Riga totali importi (contabilità verso il cliente finale)
+  rows.push([
+    "TOTALE",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    sanitizeExcelText(formattaEuro(totaleMaturato)),
+    sanitizeExcelText(formattaEuro(totalePeriodo)),
+  ]);
 
   // Lavorazioni del subappaltatore (collaborazioni), raggruppate per azienda
   if (freezeExport.collaborazioni.length > 0) {
