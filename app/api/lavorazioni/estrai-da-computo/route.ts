@@ -245,6 +245,121 @@ function normalizzaLavorazioniImport(
     }));
 }
 
+// ─── parsing CSV diretto (senza AI) ────────────────────────────────────────────
+// Se il CSV ha un'intestazione riconoscibile, importiamo le voci in modo
+// deterministico — niente chiamata AI. Header e ordine colonne liberi,
+// case/accent-insensitive. Richiesto: una colonna nome/descrizione + almeno
+// un'altra colonna nota. Altrimenti si torna al fallback Claude.
+
+const CSV_HEADER_PATTERNS: Record<string, RegExp> = {
+  nome: /(descrizione|lavorazione|voce|nome)/,
+  categoria: /categoria/,
+  unita: /(u\.?\s?m\.?|unit)/,
+  quantita: /(quantit|q\.?\s?t|qta)/,
+  prezzo: /(prezzo|importo\s*unit|€|eur)/,
+};
+
+function normalizzaHeader(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
+function parseNumeroIt(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  let s = raw.replace(/[€\s]/g, "").trim();
+  if (!s) return undefined;
+  // Formato italiano: la virgola è il decimale, il punto separa le migliaia.
+  if (s.includes(",")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  }
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function righeCelleCsv(csv: string): string[][] {
+  const righe = csv
+    .replace(/^﻿/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .filter((r) => r.trim());
+  const sep = getSeparatoreCsv(righe);
+  return righe.map((r) => splitRigaCsv(r, sep));
+}
+
+function trovaHeaderCsv(
+  righe: string[][]
+): { rowIndex: number; map: Record<string, number> } | null {
+  for (let i = 0; i < Math.min(righe.length, 8); i += 1) {
+    const celle = righe[i].map(normalizzaHeader);
+    const map: Record<string, number> = {};
+    celle.forEach((c, idx) => {
+      for (const [chiave, re] of Object.entries(CSV_HEADER_PATTERNS)) {
+        if (map[chiave] === undefined && re.test(c)) map[chiave] = idx;
+      }
+    });
+    const haAltra =
+      map.categoria !== undefined ||
+      map.unita !== undefined ||
+      map.quantita !== undefined ||
+      map.prezzo !== undefined;
+    if (map.nome !== undefined && haAltra) {
+      return { rowIndex: i, map };
+    }
+  }
+  return null;
+}
+
+function parseCsvLavorazioniDirette(
+  csv: string
+): RisultatoEstrazione | null {
+  const righe = righeCelleCsv(csv);
+  if (righe.length < 2) return null;
+
+  const header = trovaHeaderCsv(righe);
+  if (!header) return null;
+
+  const { rowIndex, map } = header;
+  const lavorazioni: LavorazioneImportPreview[] = [];
+
+  for (let i = rowIndex + 1; i < righe.length; i += 1) {
+    const celle = righe[i];
+    const nome = (celle[map.nome] ?? "").trim();
+    if (!nome) continue;
+
+    const lav: LavorazioneImportPreview = {
+      nome,
+      ordine: lavorazioni.length + 1,
+    };
+
+    if (map.categoria !== undefined) {
+      const v = (celle[map.categoria] ?? "").trim();
+      if (v) lav.categoria = v;
+    }
+    if (map.unita !== undefined) {
+      const v = (celle[map.unita] ?? "").trim();
+      if (v) lav.unita_misura = v;
+    }
+    if (map.quantita !== undefined) {
+      const v = parseNumeroIt(celle[map.quantita]);
+      if (v !== undefined) lav.quantita = v;
+    }
+    if (map.prezzo !== undefined) {
+      const v = parseNumeroIt(celle[map.prezzo]);
+      if (v !== undefined) lav.prezzo_unitario = v;
+    }
+
+    lavorazioni.push(lav);
+  }
+
+  if (lavorazioni.length === 0) return null;
+
+  return { lavorazioni: normalizzaLavorazioniImport(lavorazioni) };
+}
+
 // ─── Claude API ───────────────────────────────────────────────────────────────
 
 type ContentBlock =
@@ -431,7 +546,16 @@ export async function POST(request: Request): Promise<Response> {
       }
       content = [{ type: "text", text: `Foglio Excel:\n${testo}` }];
     } else {
-      const testo = csvToTesto(await file.text());
+      const csvText = await file.text();
+
+      // Tentativo deterministico: se il CSV ha intestazione riconoscibile,
+      // import senza AI (più veloce, gratis, niente dipendenza da Anthropic).
+      const diretto = parseCsvLavorazioniDirette(csvText);
+      if (diretto && diretto.lavorazioni.length > 0) {
+        return jsonOk(diretto);
+      }
+
+      const testo = csvToTesto(csvText);
       if (!testo.trim()) {
         return jsonErrore(LAVORAZIONI_TESTI.ERRORI.FILE_CSV_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
       }
