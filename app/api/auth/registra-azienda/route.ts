@@ -1,3 +1,5 @@
+import { Resend } from "resend";
+
 import { HTTP_STATUS } from "@/constants/api";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
@@ -45,6 +47,11 @@ type Payload = {
   gdpr_terzi: boolean;
   // TODO: re-enable Turnstile captcha before go-live
 };
+
+// Mittente notifiche (dominio verificato su Resend) e destinatario avviso
+const MITTENTE_NOTIFICA = "Cantivo <notifiche@cantivo.it>";
+const NOTIFICA_REGISTRAZIONE_A =
+  process.env.NOTIFICA_REGISTRAZIONE_EMAIL || "alcoste67@gmail.com";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -206,6 +213,37 @@ export async function POST(request: Request): Promise<Response> {
     if (dipendenteError) {
       console.error("[registra-azienda] INSERT dipendenti error:", JSON.stringify(dipendenteError, null, 2));
       throw dipendenteError;
+    }
+
+    // Notifica registrazione a Cantivo (best-effort: non blocca la
+    // registrazione se l'invio fallisce).
+    try {
+      const apiKey = process.env.RESEND_API_KEY;
+      if (apiKey) {
+        const resend = new Resend(apiKey);
+        const righe = [
+          ["Azienda", nomeAzienda],
+          ["P. IVA", strOrNull(azienda.partita_iva) ?? "—"],
+          ["Email azienda", strOrNull(azienda.email) ?? "—"],
+          ["Telefono", strOrNull(azienda.telefono) ?? "—"],
+          ["Referente", `${nomeAdmin} ${cognomeAdmin}`],
+          ["Email referente", emailAdmin],
+        ]
+          .map(
+            ([k, v]) =>
+              `<tr><td style="padding:4px 12px 4px 0;color:#666">${k}</td><td style="padding:4px 0"><strong>${v}</strong></td></tr>`
+          )
+          .join("");
+
+        await resend.emails.send({
+          from: MITTENTE_NOTIFICA,
+          to: NOTIFICA_REGISTRAZIONE_A,
+          subject: `Nuova azienda registrata su Cantivo: ${nomeAzienda}`,
+          html: `<p>Una nuova azienda si è registrata su Cantivo.</p><table style="border-collapse:collapse;font-size:14px">${righe}</table>`,
+        });
+      }
+    } catch (mailErr: unknown) {
+      console.error("[registra-azienda] notifica email fallita", mailErr);
     }
 
     return Response.json({ success: true }, { status: HTTP_STATUS.CREATED });
