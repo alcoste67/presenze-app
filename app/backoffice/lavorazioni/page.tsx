@@ -26,8 +26,12 @@ import { loadLavorazioniCantiere } from "@/services/lavorazioni/loadLavorazioniC
 import { loadLavorazioniAttiveCantiere } from "@/services/lavorazioni/loadLavorazioniAttiveCantiere";
 import { loadCollaborazioni } from "@/services/collaborazioni/loadCollaborazioni";
 import { assegnaSubappalto } from "@/services/lavorazioni/assegnaSubappalto";
+import { assegnaCategoriaLavorazioni } from "@/services/lavorazioni/assegnaCategoriaLavorazioni";
+import { assegnaSubappaltoLavorazioni } from "@/services/lavorazioni/assegnaSubappaltoLavorazioni";
 import { inviaLavorazioniSubappaltatore } from "@/services/collaborazioni/inviaLavorazioniSubappaltatore";
+import { loadCategorieLavorazione } from "@/services/categorie/loadCategorieLavorazione";
 import type { Collaborazione } from "@/types/collaborazioni";
+import type { CategoriaLavorazione } from "@/types/categorie";
 import {
   approvaLavorazioneProposta,
   loadLavorazioniProposte,
@@ -152,6 +156,7 @@ function getUpdateDaLavorazione(
     quantita: lavorazione.quantita ?? null,
     prezzo_unitario: lavorazione.prezzo_unitario ?? null,
     unita_misura: lavorazione.unita_misura ?? null,
+    categoria: lavorazione.categoria ?? null,
   };
 }
 
@@ -268,6 +273,12 @@ export default function BackofficeLavorazioniPage() {
     }
   };
   const [percentualiDraft, setPercentualiDraft] = useState<Record<string, string>>({});
+  const [categorieAzienda, setCategorieAzienda] = useState<CategoriaLavorazione[]>([]);
+  const [selezionate, setSelezionate] = useState<Set<string>>(new Set());
+  const [categoriaBulk, setCategoriaBulk] = useState("");
+  const [assegnazioneBulk, setAssegnazioneBulk] = useState(false);
+  const [categoriaFiltroLista, setCategoriaFiltroLista] = useState("");
+  const [subappaltoBulk, setSubappaltoBulk] = useState("");
   const [form, setForm] = useState<LavorazioneForm>(FORM_INIZIALE);
   const [fileComputo, setFileComputo] = useState<File | null>(null);
   const [previewImport, setPreviewImport] = useState<LavorazioneImportPreview[]>([]);
@@ -304,6 +315,17 @@ export default function BackofficeLavorazioniPage() {
   useEffect(() => {
     void ricaricaProposte();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const caricaCategorie = async () => {
+      try {
+        setCategorieAzienda(await loadCategorieLavorazione());
+      } catch (error: unknown) {
+        console.error("Errore caricamento categorie", error);
+      }
+    };
+    void caricaCategorie();
+  }, []);
 
   const caricaDestinazioniMerge = async (proposta: LavorazioneProposta) => {
     if (destinazioniMerge[proposta.cantiere_id]) return;
@@ -392,9 +414,14 @@ export default function BackofficeLavorazioniPage() {
 
   const lavorazioniFiltrate = useMemo(() => {
     const q = ricerca.trim().toLowerCase();
-    if (!q) return lavorazioni;
-    return lavorazioni.filter((l) => l.nome.toLowerCase().includes(q));
-  }, [lavorazioni, ricerca]);
+    return lavorazioni.filter((l) => {
+      if (q && !l.nome.toLowerCase().includes(q)) return false;
+      if (categoriaFiltroLista === "__SENZA__") return !l.categoria;
+      if (categoriaFiltroLista && (l.categoria ?? "") !== categoriaFiltroLista)
+        return false;
+      return true;
+    });
+  }, [lavorazioni, ricerca, categoriaFiltroLista]);
 
   const categorieDisponibili = useMemo(() => {
     const map = new Map<string, number>();
@@ -447,9 +474,81 @@ export default function BackofficeLavorazioniPage() {
     }));
   };
 
+  const toggleSelezione = (id: string) => {
+    setSelezionate((correnti) => {
+      const next = new Set(correnti);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelezionaTutte = (ids: string[]) => {
+    setSelezionate((correnti) => {
+      const tutteSelezionate = ids.length > 0 && ids.every((id) => correnti.has(id));
+      return tutteSelezionate ? new Set() : new Set(ids);
+    });
+  };
+
+  const handleAssegnaCategoriaBulk = async () => {
+    const ids = [...selezionate];
+    if (ids.length === 0) return;
+
+    try {
+      setAssegnazioneBulk(true);
+      const aggiornate = await assegnaCategoriaLavorazioni({
+        lavorazioneIds: ids,
+        categoria: categoriaBulk || null,
+      });
+      const byId = new Map(aggiornate.map((l) => [l.id, l]));
+      setLavorazioni((correnti) =>
+        ordinaLavorazioni(correnti.map((l) => byId.get(l.id) ?? l))
+      );
+      setSelezionate(new Set());
+      toast.success(
+        categoriaBulk
+          ? `Categoria assegnata a ${aggiornate.length} lavorazioni`
+          : `Categoria rimossa da ${aggiornate.length} lavorazioni`
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setAssegnazioneBulk(false);
+    }
+  };
+
+  const handleAssegnaSubappaltoBulk = async () => {
+    const ids = [...selezionate];
+    if (ids.length === 0) return;
+
+    try {
+      setAssegnazioneBulk(true);
+      const aggiornate = await assegnaSubappaltoLavorazioni({
+        lavorazioneIds: ids,
+        collaborazioneId: subappaltoBulk || null,
+      });
+      const byId = new Map(aggiornate.map((l) => [l.id, l]));
+      setLavorazioni((correnti) =>
+        ordinaLavorazioni(correnti.map((l) => byId.get(l.id) ?? l))
+      );
+      setSelezionate(new Set());
+      const collab = collaborazioniCantiere.find((c) => c.id === subappaltoBulk);
+      toast.success(
+        subappaltoBulk
+          ? `${aggiornate.length} lavorazioni assegnate a ${collab?.azienda_collaboratrice_nome ?? "subappaltatore"}`
+          : `Subappalto rimosso da ${aggiornate.length} lavorazioni`
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, LAVORAZIONI_TESTI.ERRORI.GENERICO));
+    } finally {
+      setAssegnazioneBulk(false);
+    }
+  };
+
   // ── Init ─────────────────────────────────────────────────────────────────
 
   const caricaLavorazioni = useCallback(async (nextCantiereId: string) => {
+    setSelezionate(new Set());
     if (!nextCantiereId) {
       setLavorazioni([]);
       setPercentualiDraft({});
@@ -580,6 +679,10 @@ export default function BackofficeLavorazioniPage() {
             quantita: risultato.payload.quantita,
             prezzo_unitario: risultato.payload.prezzo_unitario,
             unita_misura: risultato.payload.unita_misura,
+            // preserva la categoria (il form non la espone): evita l'azzeramento
+            categoria:
+              lavorazioni.find((x) => x.id === lavorazioneInModificaId)?.categoria ??
+              null,
           },
         });
         aggiornaLavorazioneInLista(lavorazioneAggiornata);
@@ -1378,6 +1481,19 @@ export default function BackofficeLavorazioniPage() {
                         className="h-9 pl-8 pr-3 text-sm border border-border rounded-md bg-bg-card text-text-primary placeholder:text-text-subtle outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors duration-150"
                       />
                     </div>
+                    <select
+                      value={categoriaFiltroLista}
+                      onChange={(e) => setCategoriaFiltroLista(e.target.value)}
+                      className="h-9 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    >
+                      <option value="">Tutte le aree</option>
+                      {categorieAzienda.map((c) => (
+                        <option key={c.id} value={c.nome}>
+                          {c.nome}
+                        </option>
+                      ))}
+                      <option value="__SENZA__">Senza categoria</option>
+                    </select>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -1420,10 +1536,97 @@ export default function BackofficeLavorazioniPage() {
                 )}
 
                 {!loadingLavorazioni && lavorazioniFiltrate.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg-subtle px-3 py-2">
+                    <span className="text-xs text-text-muted">
+                      {selezionate.size > 0
+                        ? `${selezionate.size} selezionate`
+                        : "Seleziona le voci per assegnare una macro-area"}
+                    </span>
+                    <select
+                      value={categoriaBulk}
+                      onChange={(e) => setCategoriaBulk(e.target.value)}
+                      className="h-8 rounded-md border border-border bg-bg-card px-2 text-xs text-text-primary outline-none focus:border-brand-500"
+                    >
+                      <option value="">— Nessuna categoria —</option>
+                      {categorieAzienda.map((c) => (
+                        <option key={c.id} value={c.nome}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      disabled={selezionate.size === 0}
+                      loading={assegnazioneBulk}
+                      onClick={() => void handleAssegnaCategoriaBulk()}
+                    >
+                      Assegna a {selezionate.size} selezionate
+                    </Button>
+                    {selezionate.size > 0 && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => setSelezionate(new Set())}
+                      >
+                        Deseleziona
+                      </Button>
+                    )}
+                    {collaborazioniCantiere.length > 0 && (
+                      <>
+                        <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+                        <select
+                          value={subappaltoBulk}
+                          onChange={(e) => setSubappaltoBulk(e.target.value)}
+                          className="h-8 rounded-md border border-border bg-bg-card px-2 text-xs text-text-primary outline-none focus:border-brand-500"
+                        >
+                          <option value="">— Non subappaltata —</option>
+                          {collaborazioniCantiere.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.azienda_collaboratrice_nome}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          disabled={selezionate.size === 0}
+                          loading={assegnazioneBulk}
+                          onClick={() => void handleAssegnaSubappaltoBulk()}
+                        >
+                          Subappalta {selezionate.size} selezionate
+                        </Button>
+                      </>
+                    )}
+                    {categorieAzienda.length === 0 && (
+                      <span className="text-xs text-text-muted">
+                        Nessuna categoria: creala in Back-office → Categorie lavorazioni
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {!loadingLavorazioni && lavorazioniFiltrate.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border">
+                          <th className="py-2.5 pr-3 text-left">
+                            <input
+                              type="checkbox"
+                              aria-label="Seleziona tutte"
+                              checked={
+                                lavorazioniFiltrate.length > 0 &&
+                                lavorazioniFiltrate.every((l) => selezionate.has(l.id))
+                              }
+                              onChange={() =>
+                                toggleSelezionaTutte(lavorazioniFiltrate.map((l) => l.id))
+                              }
+                            />
+                          </th>
                           <th className="py-2.5 pr-4 text-left text-xs font-medium text-text-muted">
                             {LAVORAZIONI_TESTI.NOME}
                           </th>
@@ -1445,12 +1648,27 @@ export default function BackofficeLavorazioniPage() {
                                 "transition-colors duration-150 hover:bg-bg-base"
                               )}
                             >
+                              {/* Selezione */}
+                              <td className="py-3 pr-3 align-top">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Seleziona ${l.nome}`}
+                                  checked={selezionate.has(l.id)}
+                                  onChange={() => toggleSelezione(l.id)}
+                                />
+                              </td>
+
                               {/* Lavorazione */}
                               <td className="py-3 pr-4">
                                 <p className="font-medium text-text-primary">{l.nome}</p>
                                 <p className="text-xs text-text-muted mt-0.5">
                                   #{l.ordine}
                                 </p>
+                                {l.categoria && (
+                                  <Badge variant="info" size="sm" className="mt-0.5">
+                                    {l.categoria}
+                                  </Badge>
+                                )}
                                 {!l.attiva && (
                                   <Badge variant="muted" size="sm" className="mt-0.5">
                                     {LAVORAZIONI_TESTI.NON_ATTIVO}

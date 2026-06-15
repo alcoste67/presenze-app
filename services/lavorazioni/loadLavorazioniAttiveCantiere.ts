@@ -3,7 +3,7 @@ import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 
 const SELECT_LAVORAZIONE_CANTIERE =
-  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, stato, created_at";
+  "id, cantiere_id, nome, ordine, attiva, percentuale_completamento, stato, categoria, created_at";
 
 export async function loadLavorazioniAttiveCantiere(
   cantiereId: string

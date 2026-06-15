@@ -19,6 +19,8 @@ export const APP_ROUTES = {
     "/backoffice/collaborazioni",
   BACKOFFICE_LAVORAZIONI:
     "/backoffice/lavorazioni",
+  BACKOFFICE_CATEGORIE:
+    "/backoffice/categorie",
   BACKOFFICE_CONTROLLO_COSTI:
     "/backoffice/controllo-costi",
   SUPERADMIN: "/superadmin",

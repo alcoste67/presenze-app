@@ -17,6 +17,7 @@ import {
   ListCheck,
   MapPin,
   ShieldAlert,
+  Tags,
   Users,
 } from "lucide-react";
 
@@ -200,6 +201,12 @@ export default function BackofficePage() {
                 icon={<ListCheck className="h-5 w-5" />}
                 nome={LAVORAZIONI_TESTI.TITOLO}
                 descrizione={LAVORAZIONI_TESTI.CARD_DESCRIZIONE}
+              />
+              <ModuloCard
+                href="/backoffice/categorie"
+                icon={<Tags className="h-5 w-5" />}
+                nome="Categorie lavorazioni"
+                descrizione="Macro-aree personalizzabili per etichettare e filtrare le lavorazioni"
               />
               <ModuloCard
                 href="/backoffice/rapporti-intervento"

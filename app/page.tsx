@@ -285,6 +285,9 @@ export default function HomePage() {
   const [lavorazioniUscitaSelezionate, setLavorazioniUscitaSelezionate] =
     useState<string[]>([]);
 
+  // Filtro per macro-area in uscita ("" = tutte)
+  const [categoriaFiltroUscita, setCategoriaFiltroUscita] = useState("");
+
   const [
     percentualiLavorazioniUscita,
     setPercentualiLavorazioniUscita,
@@ -679,6 +682,7 @@ export default function HomePage() {
     setMostraLavorazioniUscita(false);
     setLavorazioniUscita([]);
     setLavorazioniUscitaSelezionate([]);
+    setCategoriaFiltroUscita("");
     setPercentualiLavorazioniUscita({});
     setCantiereIdUscita(null);
     setCantiereIdNuovoCambio(null);
@@ -2057,7 +2061,50 @@ export default function HomePage() {
                     {TIMBRATURE_LAVORAZIONI_TESTI.NESSUNA_LAVORAZIONE}
                   </p>
                 )}
-                {lavorazioniUscita.map((lavorazione) => (
+                {(() => {
+                  const categorie = Array.from(
+                    new Set(
+                      lavorazioniUscita
+                        .map((l) => l.categoria)
+                        .filter((c): c is string => !!c)
+                    )
+                  ).sort();
+                  if (categorie.length === 0) return null;
+                  const chip = (attivo: boolean) =>
+                    `rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                      attivo
+                        ? "bg-brand-500 text-white border-brand-500"
+                        : "bg-bg-card text-text-muted border-border"
+                    }`;
+                  return (
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      <button
+                        type="button"
+                        className={chip(categoriaFiltroUscita === "")}
+                        onClick={() => setCategoriaFiltroUscita("")}
+                      >
+                        Tutte
+                      </button>
+                      {categorie.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={chip(categoriaFiltroUscita === c)}
+                          onClick={() => setCategoriaFiltroUscita(c)}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {lavorazioniUscita
+                  .filter(
+                    (l) =>
+                      !categoriaFiltroUscita ||
+                      (l.categoria ?? "") === categoriaFiltroUscita
+                  )
+                  .map((lavorazione) => (
                 <div
                   key={lavorazione.id}
                   className="flex flex-col gap-4 p-4 bg-bg-subtle rounded-md"
