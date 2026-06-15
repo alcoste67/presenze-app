@@ -273,6 +273,7 @@ export const RAPPORTI_INTERVENTO_TESTI = {
     SNAPSHOT_CARICATO:
       "Lavorazioni caricate",
     CLIENTE_CREATO: "Cliente creato",
+    FIRMATO: "Rapporto firmato",
     CANTIERE_PROPOSTO:
       "Cantiere creato: in attesa di verifica dell'amministratore",
     INVIATO: "Rapporto inviato a",

@@ -36,6 +36,8 @@ import { loadLavorazioniRapportoIntervento } from "@/services/rapportiIntervento
 import { loadRapportiIntervento } from "@/services/rapportiIntervento/loadRapportiIntervento";
 import { inviaRapportoIntervento } from "@/services/rapportiIntervento/inviaRapportoIntervento";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
+import { firmaRapportoIntervento } from "@/services/rapportiIntervento/firmaRapportoIntervento";
+import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 import {
   formatMinutiOre,
   formatMinutiOreInput,
@@ -523,12 +525,20 @@ export default function BackofficeRapportiInterventoPage() {
   const [lavoriExtra, setLavoriExtra] = useState<ExtraForm[]>([]);
   const [rapportoInModificaId, setRapportoInModificaId] = useState<string | null>(null);
   const [readonly, setReadonly] = useState(false);
+  // Wizard a step (1..6). In sola lettura (readonly) si mostra tutto su una pagina.
+  const [stepCorrente, setStepCorrente] = useState(1);
+  // Firma a schermo intero su mobile (una alla volta): quale firma è aperta
+  const [firmaFullscreen, setFirmaFullscreen] = useState<
+    "responsabile" | "cliente" | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [utenteAdmin, setUtenteAdmin] = useState(false);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
   const [salvataggio, setSalvataggio] = useState(false);
   const [pdfId, setPdfId] = useState<string | null>(null);
   const [rapportoDaInviare, setRapportoDaInviare] = useState<RapportoIntervento | null>(null);
+  // Invio automatico dopo la firma: id del rapporto appena firmato
+  const [invioAutoId, setInvioAutoId] = useState<string | null>(null);
   // Cliente senza email: la si chiede al momento dell'invio
   const [rapportoSenzaEmail, setRapportoSenzaEmail] = useState<RapportoIntervento | null>(null);
   const [emailNuovoInvio, setEmailNuovoInvio] = useState("");
@@ -671,6 +681,7 @@ export default function BackofficeRapportiInterventoPage() {
     setLavoriExtra([]);
     setRapportoInModificaId(null);
     setReadonly(false);
+    setStepCorrente(1);
     if (!mantieniMessaggio) {
       setMostraListaRapporti(false);
     }
@@ -1236,6 +1247,77 @@ export default function BackofficeRapportiInterventoPage() {
     }
   };
 
+  const handleFirmaWizard = async () => {
+    if (!form.firma_responsabile_data_url || !form.firma_cliente_data_url) {
+      toast.error(RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRME_OBBLIGATORIE);
+      return;
+    }
+
+    // Stessa validazione del salvataggio (cliente, responsabile, ecc.)
+    const preparazione = preparaPayload({
+      form,
+      lavorazioni,
+      operatori,
+      foto,
+      materiali,
+      extra: lavoriExtra,
+    });
+    if ("errore" in preparazione) {
+      toast.error(preparazione.errore);
+      return;
+    }
+
+    try {
+      setSalvataggio(true);
+
+      // Salva la bozza SENZA firme: con le firme nel payload il rapporto
+      // diventerebbe FIRMATO e il lock DB bloccherebbe l'inserimento delle
+      // lavorazioni. Le firme le applica firmaRapportoIntervento subito dopo.
+      const payloadBozza = {
+        ...preparazione.payload,
+        firma_responsabile_data_url: null,
+        firma_responsabile_nome: null,
+        firma_cliente_data_url: null,
+        firma_cliente_nome: null,
+      };
+
+      let id = rapportoInModificaId;
+      if (id) {
+        await aggiornaRapportoIntervento({
+          rapportoInterventoId: id,
+          rapporto: payloadBozza,
+        });
+      } else {
+        const nuovo = await creaRapportoIntervento(payloadBozza);
+        id = nuovo.id;
+        setRapportoInModificaId(id);
+      }
+
+      await firmaRapportoIntervento({
+        rapportoId: id,
+        firmaResponsabileDataUrl: form.firma_responsabile_data_url,
+        firmaResponsabileNome:
+          form.firma_responsabile_nome.trim() || form.responsabile_nome.trim(),
+        firmaClienteDataUrl: form.firma_cliente_data_url,
+        firmaClienteNome:
+          form.firma_cliente_nome.trim() || form.cliente_committente.trim(),
+      });
+      toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.FIRMATO);
+      await caricaDati();
+      await caricaRapportoInForm({ id } as RapportoIntervento);
+      // Invio automatico al cliente subito dopo la firma (solo se il
+      // committente è un cliente in anagrafica). Parte quando i dati sono
+      // ricaricati (vedi effetto su invioAutoId).
+      if (form.cliente_id) {
+        setInvioAutoId(id);
+      }
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
+    } finally {
+      setSalvataggio(false);
+    }
+  };
+
   const handleCreaCantiereProposto = async () => {
     const nome = nomeNuovoCantiere.trim();
     if (!nome) {
@@ -1314,6 +1396,18 @@ export default function BackofficeRapportiInterventoPage() {
 
     setRapportoDaInviare(rapporto);
   };
+
+  // Invio automatico dopo la firma: appena la lista è ricaricata col
+  // rapporto FIRMATO, avvia l'invio al cliente (conferma + eventuale email).
+  useEffect(() => {
+    if (!invioAutoId) return;
+    const rapporto = rapporti.find((r) => r.id === invioAutoId);
+    if (rapporto && rapporto.stato === RAPPORTI_INTERVENTO_STATI.FIRMATO) {
+      setInvioAutoId(null);
+      avviaInvio(rapporto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invioAutoId, rapporti]);
 
   const salvaEmailEProsegui = async () => {
     if (!rapportoSenzaEmail?.cliente_id) return;
@@ -1400,6 +1494,62 @@ export default function BackofficeRapportiInterventoPage() {
     }
   };
 
+  // ── Wizard ─────────────────────────────────────────────────────────────────
+  const STEP_WIZARD = [
+    "Dati generali",
+    "Operatori",
+    "Lavorazioni",
+    "Materiali ed extra",
+    "Foto",
+    "Riepilogo e firma",
+  ];
+  const TOTALE_STEP = STEP_WIZARD.length;
+
+  // In modifica/sola lettura mostra tutto; in compilazione mostra solo lo step.
+  const stepCls = (n: number) =>
+    readonly || stepCorrente === n ? "" : "hidden";
+
+  // Validazione dei dati richiesti per lo step indicato (riusa i normalizzatori
+  // del salvataggio). Ritorna il messaggio d'errore o null se lo step è valido.
+  const validaStep = (n: number): string | null => {
+    if (n === 1) {
+      if (!form.cliente_id && !form.cliente_committente.trim()) {
+        return RAPPORTI_INTERVENTO_TESTI.ERRORI.CLIENTE_OBBLIGATORIO;
+      }
+      return null;
+    }
+    if (n === 2) {
+      const r = normalizzaOperatori(operatori);
+      return "errore" in r ? r.errore : null;
+    }
+    if (n === 3) {
+      const r = normalizzaLavorazioni(lavorazioni);
+      return "errore" in r ? r.errore : null;
+    }
+    if (n === 4) {
+      const m = normalizzaMateriali(materiali);
+      if ("errore" in m) return m.errore;
+      const e = normalizzaExtra(lavoriExtra);
+      return "errore" in e ? e.errore : null;
+    }
+    if (n === 5) {
+      const r = normalizzaFoto(foto);
+      return "errore" in r ? r.errore : null;
+    }
+    return null;
+  };
+
+  const vaiAvanti = () => {
+    const errore = validaStep(stepCorrente);
+    if (errore) {
+      toast.error(errore);
+      return;
+    }
+    setStepCorrente((s) => Math.min(TOTALE_STEP, s + 1));
+  };
+
+  const vaiIndietro = () => setStepCorrente((s) => Math.max(1, s - 1));
+
   return (
     <div className="min-h-dvh bg-bg-base">
       <AppHeader
@@ -1469,8 +1619,28 @@ export default function BackofficeRapportiInterventoPage() {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Barra avanzamento wizard (solo in compilazione) */}
+              {!readonly && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-medium text-text-primary">
+                      {STEP_WIZARD[stepCorrente - 1]}
+                    </span>
+                    <span className="text-text-muted">
+                      Passo {stepCorrente} di {TOTALE_STEP}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
+                    <div
+                      className="h-full rounded-full bg-brand-500 transition-all duration-300"
+                      style={{ width: `${(stepCorrente / TOTALE_STEP) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Anagrafica */}
-              <section className="space-y-4">
+              <section className={cn("space-y-4", stepCls(1))}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Select
                     label={RAPPORTI_INTERVENTO_TESTI.CANTIERE}
@@ -1667,7 +1837,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Operatori (riga compatta) */}
-              <section className="space-y-3">
+              <section className={cn("space-y-3", stepCls(2))}>
                 <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</h3>
 
                 {operatori.length === 0 ? (
@@ -1738,7 +1908,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Lavorazioni (riga compatta) */}
-              <section className="space-y-3">
+              <section className={cn("space-y-3", stepCls(3))}>
                 <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.LAVORAZIONI}</h3>
 
                 {lavorazioni.length === 0 ? (
@@ -1804,7 +1974,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Materiali (riga compatta) */}
-              <section className="space-y-3">
+              <section className={cn("space-y-3", stepCls(4))}>
                 <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</h3>
 
                 {materiali.length === 0 ? (
@@ -1887,7 +2057,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Lavori extra (righe libere fuori catalogo) */}
-              <section className="space-y-3">
+              <section className={cn("space-y-3", stepCls(4))}>
                 <h3 className="font-medium text-text-primary">
                   {RAPPORTI_INTERVENTO_TESTI.LAVORI_EXTRA}
                 </h3>
@@ -1976,7 +2146,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Foto (thumbnail compatto + descrizione) */}
-              <section className="space-y-3">
+              <section className={cn("space-y-3", stepCls(5))}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.FOTO}</h3>
                   {!readonly && (
@@ -2042,8 +2212,43 @@ export default function BackofficeRapportiInterventoPage() {
                 )}
               </section>
 
+              {/* Riepilogo (step finale) */}
+              <section className={cn("space-y-3 rounded-md border border-border p-4", stepCls(6))}>
+                <h3 className="font-medium text-text-primary">Riepilogo</h3>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO}</dt>
+                    <dd className="text-text-primary">{form.data_intervento || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.CLIENTE_COMMITTENTE}</dt>
+                    <dd className="text-text-primary">{form.cliente_committente || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.OPERATORI}</dt>
+                    <dd className="text-text-primary">{operatori.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">Lavorazioni</dt>
+                    <dd className="text-text-primary">{lavorazioni.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.MATERIALI}</dt>
+                    <dd className="text-text-primary">{materiali.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.LAVORI_EXTRA}</dt>
+                    <dd className="text-text-primary">{lavoriExtra.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-muted">{RAPPORTI_INTERVENTO_TESTI.FOTO}</dt>
+                    <dd className="text-text-primary">{foto.length}</dd>
+                  </div>
+                </dl>
+              </section>
+
               {/* KPI / Calculus (display) */}
-              <section className="space-y-3 rounded-md bg-bg-subtle p-4">
+              <section className={cn("space-y-3 rounded-md bg-bg-subtle p-4", stepCls(6))}>
                 <h3 className="font-medium text-text-primary">Calcoli fatturazione</h3>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -2076,7 +2281,7 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Firme: pagina dedicata; qui anteprima se già firmate */}
-              <section className="space-y-4">
+              <section className={cn("space-y-4", stepCls(6))}>
                 <h3 className="font-medium text-text-primary">{RAPPORTI_INTERVENTO_TESTI.FIRMA}</h3>
 
                 {readonly &&
@@ -2115,14 +2320,153 @@ export default function BackofficeRapportiInterventoPage() {
                       </div>
                     )}
                   </div>
-                ) : rapportoInModificaId && !readonly ? (
-                  <Link
-                    href={`${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}/${rapportoInModificaId}/firma`}
-                  >
-                    <Button type="button" variant="secondary">
-                      {RAPPORTI_INTERVENTO_TESTI.VAI_ALLA_FIRMA}
+                ) : !readonly ? (
+                  <div className="space-y-4">
+                    <p className="text-xs text-text-muted">
+                      Firma qui sotto. Con &laquo;Firma rapporto&raquo; viene
+                      salvato come definitivo e non più modificabile.
+                    </p>
+                    {/* Desktop: entrambe le firme affiancate */}
+                    <div className="hidden sm:grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Input
+                          label={`${RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE} — nome`}
+                          value={form.firma_responsabile_nome}
+                          placeholder={form.responsabile_nome}
+                          onChange={(e) =>
+                            handleFormChange("firma_responsabile_nome", e.target.value)
+                          }
+                        />
+                        <FirmaCanvas
+                          label={RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
+                          clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
+                          value={form.firma_responsabile_data_url}
+                          onChange={(v) =>
+                            handleFormChange("firma_responsabile_data_url", v)
+                          }
+                          disabled={salvataggio}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          label={`${RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE} — nome`}
+                          value={form.firma_cliente_nome}
+                          placeholder={form.cliente_committente}
+                          onChange={(e) =>
+                            handleFormChange("firma_cliente_nome", e.target.value)
+                          }
+                        />
+                        <FirmaCanvas
+                          label={RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                          clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
+                          value={form.firma_cliente_data_url}
+                          onChange={(v) =>
+                            handleFormChange("firma_cliente_data_url", v)
+                          }
+                          disabled={salvataggio}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mobile: una firma alla volta, a schermo intero */}
+                    <div className="grid grid-cols-1 gap-2 sm:hidden">
+                      <Button
+                        type="button"
+                        variant={form.firma_responsabile_data_url ? "secondary" : "primary"}
+                        onClick={() => setFirmaFullscreen("responsabile")}
+                      >
+                        {form.firma_responsabile_data_url ? "✓ " : ""}
+                        {RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={form.firma_cliente_data_url ? "secondary" : "primary"}
+                        onClick={() => setFirmaFullscreen("cliente")}
+                      >
+                        {form.firma_cliente_data_url ? "✓ " : ""}
+                        {RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                      </Button>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="primary"
+                      loading={salvataggio}
+                      disabled={
+                        !form.firma_responsabile_data_url ||
+                        !form.firma_cliente_data_url
+                      }
+                      onClick={() => void handleFirmaWizard()}
+                    >
+                      {RAPPORTI_INTERVENTO_TESTI.FIRMA}
                     </Button>
-                  </Link>
+
+                    {/* Overlay firma a schermo intero (mobile) */}
+                    {firmaFullscreen && (
+                      <div className="fixed inset-0 z-50 flex flex-col gap-3 bg-bg-base p-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-text-primary">
+                            {firmaFullscreen === "responsabile"
+                              ? RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE
+                              : RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE}
+                          </h3>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => setFirmaFullscreen(null)}
+                          >
+                            Fatto
+                          </Button>
+                        </div>
+                        <Input
+                          label="Nome"
+                          value={
+                            firmaFullscreen === "responsabile"
+                              ? form.firma_responsabile_nome
+                              : form.firma_cliente_nome
+                          }
+                          placeholder={
+                            firmaFullscreen === "responsabile"
+                              ? form.responsabile_nome
+                              : form.cliente_committente
+                          }
+                          onChange={(e) =>
+                            handleFormChange(
+                              firmaFullscreen === "responsabile"
+                                ? "firma_responsabile_nome"
+                                : "firma_cliente_nome",
+                              e.target.value
+                            )
+                          }
+                        />
+                        <div className="flex flex-1 items-center justify-center">
+                          <FirmaCanvas
+                            label={
+                              firmaFullscreen === "responsabile"
+                                ? RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE
+                                : RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE
+                            }
+                            clearLabel={RAPPORTI_INTERVENTO_TESTI.CANCELLA_FIRMA}
+                            value={
+                              firmaFullscreen === "responsabile"
+                                ? form.firma_responsabile_data_url
+                                : form.firma_cliente_data_url
+                            }
+                            onChange={(v) =>
+                              handleFormChange(
+                                firmaFullscreen === "responsabile"
+                                  ? "firma_responsabile_data_url"
+                                  : "firma_cliente_data_url",
+                                v
+                              )
+                            }
+                            disabled={salvataggio}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : !rapportoInModificaId ? (
                   <p className="text-sm text-text-muted">
                     {RAPPORTI_INTERVENTO_TESTI.FIRMA_DISPONIBILE_DOPO_SALVATAGGIO}
@@ -2131,17 +2475,14 @@ export default function BackofficeRapportiInterventoPage() {
               </section>
 
               {/* Pulsanti finali */}
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className={cn("flex flex-col sm:flex-row gap-2", stepCls(6))}>
                 {!readonly && (
                   <Button
                     type="submit"
-                    variant="primary"
+                    variant="secondary"
                     loading={salvataggio}
-                    icon={rapportoInModificaId ? undefined : <Plus className="h-4 w-4" />}
                   >
-                    {rapportoInModificaId
-                      ? RAPPORTI_INTERVENTO_TESTI.SALVA
-                      : RAPPORTI_INTERVENTO_TESTI.SALVA_RAPPORTO}
+                    Salva bozza
                   </Button>
                 )}
 
@@ -2183,6 +2524,27 @@ export default function BackofficeRapportiInterventoPage() {
                   </>
                 )}
               </div>
+
+              {/* Navigazione wizard (solo in compilazione) */}
+              {!readonly && (
+                <div className="flex items-center justify-between gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={stepCorrente === 1}
+                    onClick={vaiIndietro}
+                  >
+                    Indietro
+                  </Button>
+                  {stepCorrente < TOTALE_STEP ? (
+                    <Button type="button" variant="primary" onClick={vaiAvanti}>
+                      Avanti
+                    </Button>
+                  ) : (
+                    <span aria-hidden="true" />
+                  )}
+                </div>
+              )}
             </form>
           </Card>
 
