@@ -327,6 +327,8 @@ export default function HomePage() {
   const [propostaInCorso, setPropostaInCorso] = useState(false);
   const [nomeCantiereNuovo, setNomeCantiereNuovo] = useState("");
   const [indirizzoCantiereNuovo, setIndirizzoCantiereNuovo] = useState("");
+  // true quando la creazione cantiere nuovo avviene all'ingresso (non all'uscita)
+  const [cantiereNuovoEntrata, setCantiereNuovoEntrata] = useState(false);
   const [creazioneCantiereInCorso, setCreazioneCantiereInCorso] = useState(false);
   const [creaBozzaRapporto, setCreaBozzaRapporto] = useState(false);
 
@@ -698,6 +700,7 @@ export default function HomePage() {
     setPropostaInCorso(false);
     setNomeCantiereNuovo("");
     setIndirizzoCantiereNuovo("");
+    setCantiereNuovoEntrata(false);
     setCreazioneCantiereInCorso(false);
     setCreaBozzaRapporto(false);
   };
@@ -956,6 +959,19 @@ export default function HomePage() {
         toast.error(TIMBRATURE_TESTI.ERRORI.DESTINAZIONE_ESCLUSIVA);
         return;
       }
+
+      // "Nuovo cantiere": si compila e crea SUBITO all'ingresso, poi si
+      // timbra entrata su quel cantiere (niente attesa fino all'uscita).
+      if (attivitaTipo === ATTIVITA.CANTIERE_NUOVO) {
+        setCantiereNuovoEntrata(true);
+        setNomeCantiereNuovo("");
+        setIndirizzoCantiereNuovo("");
+        setErroreLavorazioniUscita(null);
+        setTipoDialogLavorazioni(null);
+        setStepUscita("CANTIERE");
+        setMostraLavorazioniUscita(true);
+        return;
+      }
     }
 
     if (tipo === TIMBRATURE.USCITA) {
@@ -1140,6 +1156,24 @@ export default function HomePage() {
         attivo: true,
         cliente_id: null,
       });
+
+      // Creazione all'INGRESSO: timbra entrata direttamente sul nuovo cantiere
+      if (cantiereNuovoEntrata) {
+        setCantieri((correnti) =>
+          [
+            ...correnti,
+            { id: nuovoCantiere.id, nome: nuovoCantiere.nome },
+          ].sort((a, b) => a.nome.localeCompare(b.nome))
+        );
+        setCantiereNuovoEntrata(false);
+        setAttivitaTipo("");
+        await registraTimbraturaPage({
+          tipo: TIMBRATURE.ENTRATA,
+          cantiereIdTimbratura: nuovoCantiere.id,
+          attivitaTipoTimbratura: null,
+        });
+        return;
+      }
 
       // Le ore della giornata finiscono sul cantiere appena creato
       if (ultimaTimbratura?.id) {
@@ -1755,6 +1789,8 @@ export default function HomePage() {
               cantieri={cantieri}
               cantiereId={cantiereId}
               onChange={handleCantiereChange}
+              onNuovoCantiere={() => handleAttivitaChange(ATTIVITA.CANTIERE_NUOVO)}
+              nuovoCantiereAttivo={attivitaTipo === ATTIVITA.CANTIERE_NUOVO}
             />
             <SelectAttivita
               attivitaTipo={attivitaTipo}

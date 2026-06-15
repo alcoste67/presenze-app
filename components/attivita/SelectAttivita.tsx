@@ -49,11 +49,13 @@ export function SelectAttivita({
         >
           <option value="">Seleziona attività</option>
 
-          {Object.values(ATTIVITA).map((attivita) => (
-            <option key={attivita} value={attivita}>
-              {LABEL_ATTIVITA[attivita]}
-            </option>
-          ))}
+          {Object.values(ATTIVITA)
+            .filter((attivita) => attivita !== ATTIVITA.CANTIERE_NUOVO)
+            .map((attivita) => (
+              <option key={attivita} value={attivita}>
+                {LABEL_ATTIVITA[attivita]}
+              </option>
+            ))}
         </select>
 
         <ChevronIcon />

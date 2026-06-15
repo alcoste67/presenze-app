@@ -18,6 +18,10 @@ type Props = {
   cantiereId: string;
   onChange: (cantiereId: string) => void;
   disabled?: boolean;
+  /** Mostra una voce dedicata "+ Nuovo cantiere" in cima all'elenco */
+  onNuovoCantiere?: () => void;
+  /** true quando è selezionata l'opzione "Nuovo cantiere" */
+  nuovoCantiereAttivo?: boolean;
 };
 
 function ChevronIcon() {
@@ -44,6 +48,8 @@ export function SelectCantiere({
   cantiereId,
   onChange,
   disabled,
+  onNuovoCantiere,
+  nuovoCantiereAttivo,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -79,7 +85,9 @@ export function SelectCantiere({
     };
   }, []);
 
-  const inputValue = cantiereSelezionato?.nome || query;
+  const inputValue = nuovoCantiereAttivo
+    ? "Nuovo cantiere"
+    : cantiereSelezionato?.nome || query;
 
   const cantieriFiltrati = useMemo(() => {
     const ricerca = inputValue.trim().toLowerCase();
@@ -129,6 +137,21 @@ export function SelectCantiere({
 
       {aperto && !disabled && (
         <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-bg-card shadow-[0_4px_16px_rgb(0_0_0/0.08)]">
+          {onNuovoCantiere && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onNuovoCantiere();
+                setQuery("");
+                setAperto(false);
+                inputRef.current?.blur();
+              }}
+              className="block w-full border-b border-border px-3 py-2.5 text-left text-sm font-medium text-brand-500 transition-colors duration-150 hover:bg-bg-subtle"
+            >
+              + Nuovo cantiere
+            </button>
+          )}
           {cantieriFiltrati.map((cantiere) => (
             <button
               key={cantiere.id}
