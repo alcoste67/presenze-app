@@ -8,6 +8,9 @@ import { ChevronDown, Download, Home, PenLine, Plus, Search, Send, Trash2 } from
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { comprimiFoto } from "@/lib/compressioneFoto";
+import { supabase } from "@/lib/supabase";
+import { API_HEADERS } from "@/constants/api";
+import { isRecord } from "@/lib/typeGuards";
 import { getMessaggioErrore } from "@/lib/errors";
 import {
   LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
@@ -532,6 +535,9 @@ export default function BackofficeRapportiInterventoPage() {
   const [firmaFullscreen, setFirmaFullscreen] = useState<
     "responsabile" | "cliente" | null
   >(null);
+  // Firma remota: link generato da mostrare (WhatsApp/copia)
+  const [firmaRemotaLink, setFirmaRemotaLink] = useState<string | null>(null);
+  const [invioRemotaLoading, setInvioRemotaLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [utenteAdmin, setUtenteAdmin] = useState(false);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
@@ -1318,6 +1324,83 @@ export default function BackofficeRapportiInterventoPage() {
       toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
     } finally {
       setSalvataggio(false);
+    }
+  };
+
+  const handleInviaFirmaRemota = async () => {
+    if (!form.firma_responsabile_data_url) {
+      toast.error("Firma prima come responsabile, poi invia per la firma del cliente");
+      return;
+    }
+
+    const preparazione = preparaPayload({
+      form,
+      lavorazioni,
+      operatori,
+      foto,
+      materiali,
+      extra: lavoriExtra,
+    });
+    if ("errore" in preparazione) {
+      toast.error(preparazione.errore);
+      return;
+    }
+
+    try {
+      setInvioRemotaLoading(true);
+
+      // Salva la bozza con la sola firma responsabile (resta BOZZA)
+      const payloadRemota = {
+        ...preparazione.payload,
+        firma_cliente_data_url: null,
+        firma_cliente_nome: null,
+      };
+
+      let id = rapportoInModificaId;
+      if (id) {
+        await aggiornaRapportoIntervento({
+          rapportoInterventoId: id,
+          rapporto: payloadRemota,
+        });
+      } else {
+        const nuovo = await creaRapportoIntervento(payloadRemota);
+        id = nuovo.id;
+        setRapportoInModificaId(id);
+      }
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.SESSIONE_MANCANTE);
+
+      const response = await fetch("/api/firma-remota/crea", {
+        method: "POST",
+        headers: {
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+        },
+        body: JSON.stringify({ rapportoInterventoId: id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          isRecord(payload) && typeof payload.errore === "string"
+            ? payload.errore
+            : RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO
+        );
+      }
+
+      await caricaDati();
+      setFirmaRemotaLink(isRecord(payload) && typeof payload.link === "string" ? payload.link : null);
+      toast.success(
+        isRecord(payload) && payload.emailInviata
+          ? "Link creato e inviato via email al cliente"
+          : "Link di firma creato"
+      );
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, RAPPORTI_INTERVENTO_TESTI.ERRORI.GENERICO));
+    } finally {
+      setInvioRemotaLoading(false);
     }
   };
 
@@ -2404,6 +2487,55 @@ export default function BackofficeRapportiInterventoPage() {
                     >
                       Invia rapporto
                     </Button>
+
+                    {/* Firma remota: il responsabile firma qui, il cliente da link */}
+                    <div className="rounded-md border border-dashed border-border p-3 space-y-2">
+                      <p className="text-xs text-text-muted">
+                        Oppure firma solo come responsabile e invia al cliente
+                        il link per firmare a distanza.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        loading={invioRemotaLoading}
+                        disabled={!form.firma_responsabile_data_url}
+                        onClick={() => void handleInviaFirmaRemota()}
+                      >
+                        Invia per firma remota (cliente)
+                      </Button>
+
+                      {firmaRemotaLink && (
+                        <div className="space-y-2 rounded-md bg-bg-subtle p-2">
+                          <p className="break-all text-xs text-text-primary">
+                            {firmaRemotaLink}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(
+                                `Firma il rapporto di lavoro: ${firmaRemotaLink}`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-8 items-center rounded-md bg-[#25D366] px-3 text-xs font-medium text-white"
+                            >
+                              Condividi su WhatsApp
+                            </a>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => {
+                                void navigator.clipboard?.writeText(firmaRemotaLink);
+                                toast.success("Link copiato");
+                              }}
+                            >
+                              Copia link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Overlay firma a schermo intero (mobile) */}
                     {firmaFullscreen && (
