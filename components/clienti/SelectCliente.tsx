@@ -202,6 +202,28 @@ export function SelectCliente({
             </>
           ) : (
             <>
+              {/* Voce dedicata sempre in cima: crea un nuovo cliente */}
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (nomeNuovo && !esisteEsatto) {
+                    void handleCreaClick();
+                  } else {
+                    inputRef.current?.focus();
+                  }
+                }}
+                disabled={creazione}
+                className="flex w-full items-center gap-2 border-b border-border bg-brand-50/40 px-3 py-2.5 text-left text-sm font-medium text-brand-500 transition-colors duration-150 hover:bg-brand-50 disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                {creazione
+                  ? "Creazione..."
+                  : nomeNuovo && !esisteEsatto
+                    ? `Crea nuovo cliente «${nomeNuovo}»`
+                    : "Nuovo cliente — scrivi la ragione sociale"}
+              </button>
+
               {opzioniFiltrate.map((cliente) => (
                 <button
                   key={cliente.id}
@@ -231,19 +253,6 @@ export function SelectCliente({
                 <div className="px-3 py-3 text-sm text-text-muted">
                   Nessun cliente in anagrafica
                 </div>
-              )}
-
-              {nomeNuovo && !esisteEsatto && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => void handleCreaClick()}
-                  disabled={creazione}
-                  className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left text-sm font-medium text-brand-500 transition-colors duration-150 hover:bg-bg-subtle disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  {creazione ? "Creazione..." : `Crea cliente «${nomeNuovo}»`}
-                </button>
               )}
             </>
           )}
