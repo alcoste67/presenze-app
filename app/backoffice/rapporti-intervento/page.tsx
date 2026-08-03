@@ -1739,7 +1739,7 @@ export default function BackofficeRapportiInterventoPage() {
                     disabled={readonly}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label={RAPPORTI_INTERVENTO_TESTI.ORA_ARRIVO}
                       type="time"
