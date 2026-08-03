@@ -1,8 +1,11 @@
 // Compressione client-side delle foto prima dell'upload: fondamentale
-// da cantiere con rete 4G scarsa. Resize max ~1920px + JPEG qualità 0.8.
+// da cantiere con rete 4G scarsa E per tenere leggeri i PDF (pdf-lib
+// incorpora il JPEG così com'è). Le foto servono solo a certificare la
+// presenza/esecuzione delle lavorazioni: non serve alta definizione, quindi
+// resize aggressivo (max 1000px) + JPEG qualità 0.5 → file molto più piccoli.
 
-const LATO_MASSIMO_PX = 1920;
-const QUALITA_JPEG = 0.8;
+const LATO_MASSIMO_PX = 1000;
+const QUALITA_JPEG = 0.5;
 
 export async function comprimiFoto(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);

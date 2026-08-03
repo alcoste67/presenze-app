@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { getMessaggioErrore } from "@/lib/errors";
+import { comprimiFoto } from "@/lib/compressioneFoto";
 import { isRecord } from "@/lib/typeGuards";
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
 import { API_HEADERS } from "@/constants/api";
@@ -330,7 +331,7 @@ export default function BackofficeSalPage() {
   };
 
   const leggiFileComeDataUrl = (
-    file: File
+    file: Blob
   ) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -382,7 +383,9 @@ export default function BackofficeSalPage() {
               );
             }
 
-            return leggiFileComeDataUrl(file);
+            // Comprime prima di allegare: PDF SAL più leggero
+            const compressa = await comprimiFoto(file);
+            return leggiFileComeDataUrl(compressa);
           })
         );
 

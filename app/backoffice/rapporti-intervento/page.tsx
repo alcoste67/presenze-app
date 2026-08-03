@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Download, Home, PenLine, Plus, Search, Send, Trash2 } from "lucide-react";
 
 import { FileInputPicker } from "@/components/backoffice/FileInputPicker";
+import { comprimiFoto } from "@/lib/compressioneFoto";
 import { getMessaggioErrore } from "@/lib/errors";
 import {
   LABEL_REGOLE_FATTURAZIONE_INTERVENTO,
@@ -931,7 +932,7 @@ export default function BackofficeRapportiInterventoPage() {
     );
   }, []);
 
-  const leggiFileComeDataUrl = (file: File) =>
+  const leggiFileComeDataUrl = (file: Blob) =>
     new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
 
@@ -967,7 +968,9 @@ export default function BackofficeRapportiInterventoPage() {
             throw new Error(RAPPORTI_INTERVENTO_TESTI.ERRORI.FOTO_NON_VALIDA);
           }
 
-          return leggiFileComeDataUrl(file);
+          // Comprime (resize + JPEG) prima di allegare: PDF molto più leggero
+          const compressa = await comprimiFoto(file);
+          return leggiFileComeDataUrl(compressa);
         })
       );
 
@@ -2323,8 +2326,9 @@ export default function BackofficeRapportiInterventoPage() {
                 ) : !readonly ? (
                   <div className="space-y-4">
                     <p className="text-xs text-text-muted">
-                      Firma qui sotto. Con &laquo;Firma rapporto&raquo; viene
-                      salvato come definitivo e non più modificabile.
+                      Firma qui sotto. Con &laquo;Invia rapporto&raquo; viene
+                      salvato come definitivo, non più modificabile, e inviato
+                      al cliente.
                     </p>
                     {/* Desktop: entrambe le firme affiancate */}
                     <div className="hidden sm:grid sm:grid-cols-2 gap-4">
@@ -2398,7 +2402,7 @@ export default function BackofficeRapportiInterventoPage() {
                       }
                       onClick={() => void handleFirmaWizard()}
                     >
-                      {RAPPORTI_INTERVENTO_TESTI.FIRMA}
+                      Invia rapporto
                     </Button>
 
                     {/* Overlay firma a schermo intero (mobile) */}
