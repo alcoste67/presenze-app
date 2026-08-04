@@ -584,6 +584,15 @@ export default function BackofficeRapportiInterventoPage() {
     return mostraListaRapporti ? lista : lista.slice(0, 3);
   }, [rapporti, ricercaRapporti, mostraListaRapporti]);
 
+  // Se un cliente/committente è selezionato, mostra solo i suoi cantieri
+  // (mantenendo comunque visibile quello già scelto, per non farlo sparire).
+  const cantieriVisibili = useMemo(() => {
+    if (!form.cliente_id) return cantieri;
+    return cantieri.filter(
+      (c) => c.cliente_id === form.cliente_id || c.id === form.cantiere_id
+    );
+  }, [cantieri, form.cliente_id, form.cantiere_id]);
+
   const caricaDati = useCallback(
     async ({ attivo = true }: { attivo?: boolean } = {}) => {
       try {
@@ -1735,9 +1744,9 @@ export default function BackofficeRapportiInterventoPage() {
                       const nextCantiereId = e.target.value;
                       handleFormChange("cantiere_id", nextCantiereId);
 
-                      // Precompila il cliente dal cantiere (se il campo è vuoto)
+                      // Il cantiere ha un cliente agganciato → mostralo subito
                       const cantiere = cantieri.find((c) => c.id === nextCantiereId);
-                      if (cantiere?.cliente_id && !form.cliente_committente.trim()) {
+                      if (cantiere?.cliente_id) {
                         const cliente = clienti.find((c) => c.id === cantiere.cliente_id);
                         if (cliente) {
                           setForm((f) => ({
@@ -1752,7 +1761,7 @@ export default function BackofficeRapportiInterventoPage() {
                     disabled={readonly}
                   >
                     <option value="">{RAPPORTI_INTERVENTO_TESTI.SELEZIONA_CANTIERE}</option>
-                    {cantieri.map((c) => (
+                    {cantieriVisibili.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nome}
                         {c.da_verificare ? ` ${RAPPORTI_INTERVENTO_TESTI.SUFFISSO_DA_VERIFICARE}` : ""}
