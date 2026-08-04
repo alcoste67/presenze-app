@@ -1,7 +1,6 @@
-import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
-import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
+import { verificaAccessoCommessa } from "@/lib/authCommessa";
 import { isRecord } from "@/lib/typeGuards";
 
 export const dynamic = "force-dynamic";
@@ -25,31 +24,6 @@ function jsonErr(msg: string, status: number) {
   return Response.json({ errore: msg }, { status, headers: NO_STORE });
 }
 
-function estraiToken(request: Request): string | null {
-  const auth = request.headers.get(API_HEADERS.AUTHORIZATION);
-  if (!auth?.startsWith(API_HEADERS.BEARER_PREFIX)) return null;
-  return auth.slice(API_HEADERS.BEARER_PREFIX.length).trim() || null;
-}
-
-type AuthOk = { ok: true; userId: string };
-type AuthFail = { ok: false; risposta: Response };
-
-async function verificaAdmin(request: Request): Promise<AuthOk | AuthFail> {
-  const token = estraiToken(request);
-  if (!token)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_MANCANTE, HTTP_STATUS.UNAUTHORIZED) };
-
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user?.email)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_NON_VALIDO, HTTP_STATUS.UNAUTHORIZED) };
-
-  const adminOk = await isAdmin(user.email, supabaseAdmin);
-  if (!adminOk)
-    return { ok: false, risposta: jsonErr(ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN) };
-
-  return { ok: true, userId: user.id };
-}
-
 function numOrNull(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
@@ -64,21 +38,19 @@ function strOrNull(v: unknown): string | null {
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const auth = await verificaAdmin(request);
-    if (!auth.ok) return auth.risposta;
-
     const { searchParams } = new URL(request.url);
     const cantiereId = searchParams.get("cantiereId");
     if (!cantiereId)
       return jsonErr(ERRORI.CANTIERE_MANCANTE, HTTP_STATUS.BAD_REQUEST);
 
-    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, auth.userId);
+    const auth = await verificaAccessoCommessa(request, cantiereId);
+    if (!auth.ok) return auth.risposta;
 
     const { data, error } = await supabaseAdmin
       .from("costi_materiali_cantiere")
       .select("*")
       .eq("cantiere_id", cantiereId)
-      .eq("azienda_id", aziendaId)
+      .eq("azienda_id", auth.aziendaId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -92,9 +64,6 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const auth = await verificaAdmin(request);
-    if (!auth.ok) return auth.risposta;
-
     let body: unknown;
     try {
       body = await request.json();
@@ -112,17 +81,18 @@ export async function POST(request: Request): Promise<Response> {
       return jsonErr(ERRORI.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
     }
 
+    const auth = await verificaAccessoCommessa(request, body.cantiere_id);
+    if (!auth.ok) return auth.risposta;
+
     const prezzoUnitario = numOrNull(body.prezzo_unitario);
     if (prezzoUnitario === null)
       return jsonErr(ERRORI.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
-
-    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, auth.userId);
 
     const { data, error } = await supabaseAdmin
       .from("costi_materiali_cantiere")
       .insert({
         cantiere_id: body.cantiere_id as string,
-        azienda_id: aziendaId,
+        azienda_id: auth.aziendaId,
         descrizione: (body.descrizione as string).trim(),
         fornitore: strOrNull(body.fornitore),
         quantita: numOrNull(body.quantita) ?? 1,

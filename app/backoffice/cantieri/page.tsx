@@ -15,7 +15,9 @@ import { creaCantiere } from "@/services/cantieri/creaCantiere";
 import { eliminaCantiereSeVuoto } from "@/services/cantieri/eliminaCantiereSeVuoto";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { loadClienti } from "@/services/clienti/loadClienti";
+import { loadDipendentiAttivi } from "@/services/dipendenti/loadDipendentiAttivi";
 import type { Cliente } from "@/types/clienti";
+import type { Dipendente } from "@/types/dipendenti";
 
 import {
   type CantiereBackoffice,
@@ -41,6 +43,7 @@ const FORM_INIZIALE: CantiereInput = {
   lavorazioni: "",
   attivo: true,
   cliente_id: null,
+  responsabile_commessa_user_id: null,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,6 +56,8 @@ function preparaCantiere(cantiere: CantiereInput): CantiereInput {
     lavorazioni: cantiere.lavorazioni.trim(),
     attivo: cantiere.attivo,
     cliente_id: cantiere.cliente_id,
+    responsabile_commessa_user_id:
+      cantiere.responsabile_commessa_user_id ?? null,
   };
 }
 
@@ -64,6 +69,7 @@ export default function BackofficeCantieriPage() {
 
   const [cantieri, setCantieri] = useState<CantiereBackoffice[]>([]);
   const [clienti, setClienti] = useState<Cliente[]>([]);
+  const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [form, setForm] = useState<CantiereInput>(FORM_INIZIALE);
   const [cantiereInModificaId, setCantiereInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,13 +110,15 @@ export default function BackofficeCantieriPage() {
 
     const caricaCantieriIniziali = async () => {
       try {
-        const [dati, clientiData] = await Promise.all([
+        const [dati, clientiData, dipendentiData] = await Promise.all([
           loadCantieriBackoffice(),
           loadClienti(),
+          loadDipendentiAttivi(),
         ]);
         if (!attivo) return;
         setCantieri(dati);
         setClienti(clientiData);
+        setDipendenti(dipendentiData);
 
         // Arrivo dal flow clienti: ?cliente=<id> precompila il form
         const clienteId = new URLSearchParams(window.location.search).get("cliente");
@@ -193,6 +201,8 @@ export default function BackofficeCantieriPage() {
       lavorazioni: cantiere.lavorazioni,
       attivo: cantiere.attivo,
       cliente_id: cantiere.cliente_id ?? null,
+      responsabile_commessa_user_id:
+        cantiere.responsabile_commessa_user_id ?? null,
     });
   };
 
@@ -380,6 +390,28 @@ export default function BackofficeCantieriPage() {
                     {cliente.ragione_sociale}
                   </option>
                 ))}
+              </Select>
+
+              <Select
+                label="Responsabile commessa"
+                value={form.responsabile_commessa_user_id ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    responsabile_commessa_user_id: e.target.value || null,
+                  }))
+                }
+                disabled={salvataggio}
+                helperText="Può inserire costi/DDT di questo cantiere dalla Home"
+              >
+                <option value="">Nessuno</option>
+                {dipendenti
+                  .filter((d) => d.auth_user_id)
+                  .map((d) => (
+                    <option key={d.id} value={d.auth_user_id as string}>
+                      {d.cognome} {d.nome}
+                    </option>
+                  ))}
               </Select>
 
               <div className="flex flex-col gap-1">

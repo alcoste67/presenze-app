@@ -7,7 +7,7 @@ export async function loadCantieriBackoffice(): Promise<
   const { data, error } = await supabase
     .from("cantieri")
     .select(
-      "id, nome, indirizzo, lavorazioni, attivo, cliente_id, da_verificare"
+      "id, nome, indirizzo, lavorazioni, attivo, cliente_id, da_verificare, responsabile_commessa_user_id"
     )
     .order("nome", {
       ascending: true,

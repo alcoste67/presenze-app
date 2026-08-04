@@ -1,16 +1,12 @@
-import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
-import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
+import { verificaAccessoCommessa } from "@/lib/authCommessa";
 
 export const dynamic = "force-dynamic";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ERRORI = {
-  TOKEN_MANCANTE: "Token autenticazione mancante",
-  TOKEN_NON_VALIDO: "Token autenticazione non valido",
-  ACCESSO_NEGATO: "Accesso non autorizzato",
   NON_TROVATO: "Materiale non trovato",
   ERRORE_GENERICO: "Errore eliminazione materiale",
 } as const;
@@ -23,31 +19,6 @@ function jsonErr(msg: string, status: number) {
   return Response.json({ errore: msg }, { status, headers: NO_STORE });
 }
 
-function estraiToken(request: Request): string | null {
-  const auth = request.headers.get(API_HEADERS.AUTHORIZATION);
-  if (!auth?.startsWith(API_HEADERS.BEARER_PREFIX)) return null;
-  return auth.slice(API_HEADERS.BEARER_PREFIX.length).trim() || null;
-}
-
-type AuthOk = { ok: true; userId: string };
-type AuthFail = { ok: false; risposta: Response };
-
-async function verificaAdmin(request: Request): Promise<AuthOk | AuthFail> {
-  const token = estraiToken(request);
-  if (!token)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_MANCANTE, HTTP_STATUS.UNAUTHORIZED) };
-
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user?.email)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_NON_VALIDO, HTTP_STATUS.UNAUTHORIZED) };
-
-  const adminOk = await isAdmin(user.email, supabaseAdmin);
-  if (!adminOk)
-    return { ok: false, risposta: jsonErr(ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN) };
-
-  return { ok: true, userId: user.id };
-}
-
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function DELETE(
@@ -55,19 +26,34 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   try {
-    const auth = await verificaAdmin(request);
-    if (!auth.ok) return auth.risposta;
-
     const { id } = await params;
     if (!id) return jsonErr(ERRORI.NON_TROVATO, HTTP_STATUS.NOT_FOUND);
 
-    const aziendaId = await getAziendaIdFromAuthUser(supabaseAdmin, auth.userId);
+    // Recupera il cantiere del materiale per autorizzare admin o responsabile.
+    const { data: materiale } = await supabaseAdmin
+      .from("costi_materiali_cantiere")
+      .select("cantiere_id, azienda_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!materiale)
+      return jsonErr(ERRORI.NON_TROVATO, HTTP_STATUS.NOT_FOUND);
+
+    const auth = await verificaAccessoCommessa(
+      request,
+      materiale.cantiere_id as string
+    );
+    if (!auth.ok) return auth.risposta;
+
+    // Difesa multi-tenant: il materiale deve appartenere all'azienda dell'utente.
+    if (materiale.azienda_id !== auth.aziendaId)
+      return jsonErr(ERRORI.NON_TROVATO, HTTP_STATUS.NOT_FOUND);
 
     const { error, count } = await supabaseAdmin
       .from("costi_materiali_cantiere")
       .delete({ count: "exact" })
       .eq("id", id)
-      .eq("azienda_id", aziendaId);
+      .eq("azienda_id", auth.aziendaId);
 
     if (error) throw error;
     if (!count) return jsonErr(ERRORI.NON_TROVATO, HTTP_STATUS.NOT_FOUND);

@@ -30,10 +30,12 @@ export async function creaCantiere(
       attivo: cantiere.attivo,
       cliente_id: cantiere.cliente_id,
       da_verificare: cantiere.da_verificare ?? false,
+      responsabile_commessa_user_id:
+        cantiere.responsabile_commessa_user_id ?? null,
       azienda_id: aziendaId,
     })
     .select(
-      "id, nome, indirizzo, lavorazioni, attivo, cliente_id, da_verificare"
+      "id, nome, indirizzo, lavorazioni, attivo, cliente_id, da_verificare, responsabile_commessa_user_id"
     )
     .single();
 

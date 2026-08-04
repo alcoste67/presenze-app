@@ -2,8 +2,7 @@ import { inflateRawSync } from "zlib";
 import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { LAVORAZIONI_IMPORT, LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { verificaAccessoCommessa } from "@/lib/authCommessa";
 
 export const dynamic = "force-dynamic";
 
@@ -40,33 +39,6 @@ function jsonErr(msg: string, status: number) {
 
 function jsonOk(payload: unknown) {
   return Response.json(payload, { status: HTTP_STATUS.OK, headers: NO_STORE });
-}
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-function estraiToken(request: Request): string | null {
-  const auth = request.headers.get(API_HEADERS.AUTHORIZATION);
-  if (!auth?.startsWith(API_HEADERS.BEARER_PREFIX)) return null;
-  return auth.slice(API_HEADERS.BEARER_PREFIX.length).trim() || null;
-}
-
-type AuthOk = { ok: true };
-type AuthFail = { ok: false; risposta: Response };
-
-async function verificaAdmin(request: Request): Promise<AuthOk | AuthFail> {
-  const token = estraiToken(request);
-  if (!token)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_MANCANTE, HTTP_STATUS.UNAUTHORIZED) };
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user?.email)
-    return { ok: false, risposta: jsonErr(ERRORI.TOKEN_NON_VALIDO, HTTP_STATUS.UNAUTHORIZED) };
-  const adminOk = await isAdmin(user.email, supabaseAdmin);
-  if (!adminOk)
-    return { ok: false, risposta: jsonErr(ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN) };
-  return { ok: true };
 }
 
 // ─── Validazione file ─────────────────────────────────────────────────────────
@@ -376,15 +348,19 @@ async function estraiMaterialiConClaude(
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const auth = await verificaAdmin(request);
-    if (!auth.ok) return auth.risposta;
-
     let formData: FormData;
     try {
       formData = await request.formData();
     } catch {
       return jsonErr(ERRORI.FILE_OBBLIGATORIO, HTTP_STATUS.BAD_REQUEST);
     }
+
+    const cantiereId = formData.get("cantiereId");
+    const auth = await verificaAccessoCommessa(
+      request,
+      typeof cantiereId === "string" && cantiereId ? cantiereId : null
+    );
+    if (!auth.ok) return auth.risposta;
 
     const file = formData.get("file");
     if (!isFileEntry(file))

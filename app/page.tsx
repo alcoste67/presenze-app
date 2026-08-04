@@ -77,6 +77,7 @@ import { useTimbrature } from "@/hooks/useTimbrature";
 
 import { SelectAttivita } from "@/components/attivita/SelectAttivita";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
+import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -1849,6 +1850,9 @@ export default function HomePage() {
             )}
           </div>
         </Card>
+
+        {/* ── Costi commessa (solo responsabili commessa) ── */}
+        <CostiCommessaHome />
       </main>
 
       {/* ── Dialog lavorazioni uscita ── */}
