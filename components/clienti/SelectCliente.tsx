@@ -150,6 +150,7 @@ export function SelectCliente({
           type="text"
           value={value}
           onFocus={() => setAperto(true)}
+          onClick={() => setAperto(true)}
           onChange={(event) => {
             onSearchChange(event.target.value);
             setSimili(null);
