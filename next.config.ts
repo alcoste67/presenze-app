@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // sharp è nativo: tienilo esterno al bundle server (compressione foto PDF)
+  serverExternalPackages: ["sharp"],
   images: {
     remotePatterns: [
       // Foto su Supabase Storage (signed URL) — DEV e PROD

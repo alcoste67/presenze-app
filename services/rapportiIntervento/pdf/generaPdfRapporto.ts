@@ -4,6 +4,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import sharp from "sharp";
+
 import {
   PDFDocument,
   PDFImage,
@@ -320,6 +322,9 @@ async function embedFirma(
   return pdfDoc.embedJpg(bytes);
 }
 
+// Ridimensiona/ricomprime le FOTO prima di incorporarle: le foto servono
+// solo a certificare l'esecuzione, non serve alta definizione. Vale anche
+// per le foto già salvate grandi (rapporti vecchi) → PDF molto più leggeri.
 async function embedImmagineDataUrl(
   pdfDoc: PDFDocument,
   dataUrl: string
@@ -336,11 +341,25 @@ async function embedImmagineDataUrl(
   const mime = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
 
-  if (mime === "png") {
-    return pdfDoc.embedPng(bytes);
+  try {
+    const compressa = await sharp(bytes)
+      .rotate() // auto-orienta in base all'EXIF (foto da smartphone)
+      .resize({
+        width: 1000,
+        height: 1000,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 50 })
+      .toBuffer();
+    return pdfDoc.embedJpg(compressa);
+  } catch {
+    // Fallback: se sharp fallisce, incorpora l'originale
+    if (mime === "png") {
+      return pdfDoc.embedPng(bytes);
+    }
+    return pdfDoc.embedJpg(bytes);
   }
-
-  return pdfDoc.embedJpg(bytes);
 }
 
 function drawHeader({

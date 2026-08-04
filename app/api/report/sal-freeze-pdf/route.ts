@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import sharp from "sharp";
 import {
   PDFDocument,
   type PDFImage,
@@ -521,55 +522,40 @@ function drawCenteredText({
   });
 }
 
+// Recupera i bytes (da data URL o da fetch) e li ricomprime con sharp
+// (resize + JPEG) prima di incorporarli: PDF SAL molto più leggero, anche
+// per foto già salvate grandi.
 async function embedImageFromUrl(
   pdfDoc: PDFDocument,
   url: string
 ): Promise<PDFImage | null> {
   try {
+    let bytes: Buffer | null = null;
+
     const dataUrlMatch =
-      /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(
-        url
-      );
-
+      /^data:image\/(png|jpe?g|webp);base64,(.+)$/i.exec(url);
     if (dataUrlMatch) {
-      const [, mime, encoded] = dataUrlMatch;
-      const bytes = Buffer.from(encoded, "base64");
-
-      if (mime.toLowerCase() === "png") {
-        return pdfDoc.embedPng(bytes);
-      }
-
-      if (mime.toLowerCase() === "webp") {
-        return null;
-      }
-
-      return pdfDoc.embedJpg(bytes);
+      bytes = Buffer.from(dataUrlMatch[2], "base64");
+    } else {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      bytes = Buffer.from(await response.arrayBuffer());
     }
 
-    const response = await fetch(url);
+    if (!bytes) return null;
 
-    if (!response.ok) {
-      return null;
-    }
+    const compressa = await sharp(bytes)
+      .rotate()
+      .resize({
+        width: 1000,
+        height: 1000,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 50 })
+      .toBuffer();
 
-    const contentType =
-      response.headers.get("content-type") || "";
-    const bytes = Buffer.from(
-      await response.arrayBuffer()
-    );
-
-    if (contentType.includes("png")) {
-      return pdfDoc.embedPng(bytes);
-    }
-
-    if (
-      contentType.includes("jpeg") ||
-      contentType.includes("jpg")
-    ) {
-      return pdfDoc.embedJpg(bytes);
-    }
-
-    return null;
+    return pdfDoc.embedJpg(compressa);
   } catch {
     return null;
   }
