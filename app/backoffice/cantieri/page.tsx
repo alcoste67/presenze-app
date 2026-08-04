@@ -24,6 +24,7 @@ import {
   type CantiereInput,
 } from "@/types/cantieri";
 
+import { SelectCliente } from "@/components/clienti/SelectCliente";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -71,6 +72,8 @@ export default function BackofficeCantieriPage() {
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [dipendenti, setDipendenti] = useState<Dipendente[]>([]);
   const [form, setForm] = useState<CantiereInput>(FORM_INIZIALE);
+  // Testo visualizzato nel campo cliente (ragione sociale, anche in modifica)
+  const [clienteText, setClienteText] = useState("");
   const [cantiereInModificaId, setCantiereInModificaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [salvataggio, setSalvataggio] = useState(false);
@@ -122,8 +125,12 @@ export default function BackofficeCantieriPage() {
 
         // Arrivo dal flow clienti: ?cliente=<id> precompila il form
         const clienteId = new URLSearchParams(window.location.search).get("cliente");
-        if (clienteId && clientiData.some((c) => c.id === clienteId)) {
-          setForm((f) => ({ ...f, cliente_id: clienteId }));
+        const clientePrefill = clienteId
+          ? clientiData.find((c) => c.id === clienteId)
+          : undefined;
+        if (clientePrefill) {
+          setForm((f) => ({ ...f, cliente_id: clientePrefill.id }));
+          setClienteText(clientePrefill.ragione_sociale);
           window.history.replaceState(null, "", window.location.pathname);
         }
       } catch (error: unknown) {
@@ -145,6 +152,7 @@ export default function BackofficeCantieriPage() {
 
   const resetForm = () => {
     setForm(FORM_INIZIALE);
+    setClienteText("");
     setCantiereInModificaId(null);
   };
 
@@ -204,6 +212,9 @@ export default function BackofficeCantieriPage() {
       responsabile_commessa_user_id:
         cantiere.responsabile_commessa_user_id ?? null,
     });
+    setClienteText(
+      clienti.find((c) => c.id === cantiere.cliente_id)?.ragione_sociale ?? ""
+    );
   };
 
   const approvaCantiere = async (cantiere: CantiereBackoffice) => {
@@ -376,21 +387,32 @@ export default function BackofficeCantieriPage() {
                 disabled={salvataggio}
               />
 
-              <Select
+              <SelectCliente
                 label="Cliente"
-                value={form.cliente_id ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, cliente_id: e.target.value || null }))
-                }
+                placeholder="Nessun cliente — cerca o crea"
+                value={clienteText}
+                selectedId={form.cliente_id ?? null}
+                options={clienti}
                 disabled={salvataggio}
-              >
-                <option value="">Nessun cliente</option>
-                {clienti.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
-                    {cliente.ragione_sociale}
-                  </option>
-                ))}
-              </Select>
+                onSearchChange={(value) => {
+                  setClienteText(value);
+                  setForm((f) => ({ ...f, cliente_id: null }));
+                }}
+                onSelect={(cliente) => {
+                  setClienteText(cliente.ragione_sociale);
+                  setForm((f) => ({ ...f, cliente_id: cliente.id }));
+                }}
+                onCreate={(cliente) => {
+                  setClienti((correnti) =>
+                    [...correnti, cliente].sort((a, b) =>
+                      a.ragione_sociale.localeCompare(b.ragione_sociale)
+                    )
+                  );
+                  setClienteText(cliente.ragione_sociale);
+                  setForm((f) => ({ ...f, cliente_id: cliente.id }));
+                }}
+                onError={(messaggio) => toast.error(messaggio)}
+              />
 
               <Select
                 label="Responsabile commessa"
