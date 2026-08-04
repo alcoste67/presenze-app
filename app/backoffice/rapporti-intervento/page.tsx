@@ -1820,15 +1820,17 @@ export default function BackofficeRapportiInterventoPage() {
                   <Input
                     label={RAPPORTI_INTERVENTO_TESTI.DATA_INTERVENTO}
                     type="date"
+                    className="appearance-none min-w-0"
                     value={form.data_intervento}
                     onChange={(e) => handleFormChange("data_intervento", e.target.value)}
                     disabled={readonly}
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
                     <Input
                       label={RAPPORTI_INTERVENTO_TESTI.ORA_ARRIVO}
                       type="time"
+                      className="appearance-none min-w-0"
                       value={form.ora_arrivo}
                       onChange={(e) => handleFormChange("ora_arrivo", e.target.value)}
                       disabled={readonly}
@@ -1836,6 +1838,7 @@ export default function BackofficeRapportiInterventoPage() {
                     <Input
                       label={RAPPORTI_INTERVENTO_TESTI.ORA_PARTENZA}
                       type="time"
+                      className="appearance-none min-w-0"
                       value={form.ora_partenza}
                       onChange={(e) => handleFormChange("ora_partenza", e.target.value)}
                       disabled={readonly}
