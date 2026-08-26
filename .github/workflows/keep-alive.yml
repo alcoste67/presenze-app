@@ -7,6 +7,7 @@ name: Supabase keep-alive
 # Richiede due secret nel repo (Settings → Secrets and variables → Actions):
 #   - SUPABASE_DEV_ANON_KEY   (Supabase DEV  → Project Settings → API → anon public)
 #   - SUPABASE_PROD_ANON_KEY  (Supabase PROD → Project Settings → API → anon public)
+#   - RESEND_API_KEY          (per la mail di avviso in caso di errore; facoltativo)
 # I project ref sono pubblici (compaiono già negli URL client), quindi restano qui.
 
 on:
@@ -43,3 +44,24 @@ jobs:
             "https://$REF.supabase.co/rest/v1/cantieri?select=id&limit=1")
           echo "PROD → HTTP $code"
           case "$code" in 200|206) exit 0 ;; *) echo "::error::Risposta inattesa ($code): DB non pingato"; exit 1 ;; esac
+
+      # Inviata SOLO se uno dei ping sopra è fallito (chiave errata, progetto
+      # già in pausa, rete). Oltre alla mail automatica che GitHub manda al
+      # proprietario del repo.
+      - name: Notifica email in caso di errore
+        if: ${{ failure() }}
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then echo "RESEND_API_KEY mancante: salto la mail"; exit 0; fi
+          curl -s -X POST "https://api.resend.com/emails" \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"from\": \"Cantivo <notifiche@cantivo.it>\",
+              \"to\": [\"alcoste67@gmail.com\"],
+              \"subject\": \"⚠️ Keep-alive Supabase FALLITO\",
+              \"html\": \"<p>Il keep-alive giornaliero di Supabase è fallito: un progetto (DEV o PROD) potrebbe non essere stato pingato ed essere a rischio pausa.</p><p><a href=\\\"$RUN_URL\\\">Apri il log del run</a> per vedere quale ha risposto male.</p>\"
+            }"
+          echo "Notifica email inviata."
