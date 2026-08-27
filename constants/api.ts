@@ -45,6 +45,8 @@ export const API_ROUTES = {
     "/api/commessa/cantieri",
   DIPENDENTI_IMPORTA_LUL:
     "/api/dipendenti/importa-lul",
+  DIPENDENTI_AGGIORNA_EMAIL:
+    "/api/dipendenti/aggiorna-email",
 } as const;
 
 export const API_HEADERS = {

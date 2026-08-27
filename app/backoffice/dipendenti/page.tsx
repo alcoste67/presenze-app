@@ -231,6 +231,38 @@ export default function BackofficeDipendentiPage() {
       setSalvataggio(true);
 
       if (dipendenteInModificaId) {
+        // Se l'email è cambiata, sincronizza prima l'utente Auth collegato:
+        // così l'accesso non resta legato alla vecchia email. Se fallisce si
+        // interrompe qui, senza disallineare dipendenti/Auth.
+        const originale = dipendenti.find((d) => d.id === dipendenteInModificaId);
+        const emailCambiata =
+          !!originale &&
+          originale.email.trim().toLowerCase() !== payload.email.toLowerCase();
+
+        if (emailCambiata) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session?.access_token) throw new Error("Sessione non valida");
+          const res = await fetch(API_ROUTES.DIPENDENTI_AGGIORNA_EMAIL, {
+            method: "POST",
+            headers: {
+              [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${session.access_token}`,
+              [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+            },
+            body: JSON.stringify({
+              dipendenteId: dipendenteInModificaId,
+              email: payload.email,
+            }),
+          });
+          if (!res.ok) {
+            const err = (await res.json().catch(() => null)) as
+              | { errore?: string }
+              | null;
+            throw new Error(err?.errore ?? "Errore aggiornamento email di accesso");
+          }
+        }
+
         const dipendenteAggiornato = await aggiornaDipendente({
           dipendenteId: dipendenteInModificaId,
           dipendente: payload,
