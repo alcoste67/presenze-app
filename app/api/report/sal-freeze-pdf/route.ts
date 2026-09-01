@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import sharp from "sharp";
 import {
   PDFDocument,
   type PDFImage,
@@ -12,6 +11,7 @@ import {
 
 import { HTTP_STATUS } from "@/constants/api";
 import { estraiBearerToken } from "@/lib/auth";
+import { caricaSharp } from "@/lib/sharpSafe";
 import {
   SAL_FREEZE_EXPORT,
   SAL_FREEZE_TESTI,
@@ -543,6 +543,9 @@ async function embedImageFromUrl(
     }
 
     if (!bytes) return null;
+
+    const sharp = await caricaSharp();
+    if (!sharp) return null;
 
     const compressa = await sharp(bytes)
       .rotate()

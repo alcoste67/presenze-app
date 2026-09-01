@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import sharp from "sharp";
 import {
   PDFDocument,
   type PDFImage,
@@ -20,6 +19,7 @@ import {
   SAL_STATI,
   SAL_TESTI,
 } from "@/constants/sal";
+import { caricaSharp } from "@/lib/sharpSafe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { loadCantiereBackoffice } from "@/services/cantieri/loadCantiereBackoffice";
 import { loadDashboardCommessa } from "@/services/commessa/loadDashboardCommessa";
@@ -287,8 +287,16 @@ async function embedImmagineDataUrl(
     return null;
   }
 
+  const mime = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
   const MAX_PX = 1200;
+
+  const sharp = await caricaSharp();
+  if (!sharp) {
+    // Fallback: sharp non disponibile, incorpora l'originale non ridimensionato
+    return mime === "png" ? pdfDoc.embedPng(bytes) : pdfDoc.embedJpg(bytes);
+  }
+
   const sharpInstance = sharp(bytes);
   const metadata = await sharpInstance.metadata();
   const needsResize =

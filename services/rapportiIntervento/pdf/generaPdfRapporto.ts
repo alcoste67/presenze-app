@@ -4,7 +4,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import sharp from "sharp";
+import { caricaSharp } from "@/lib/sharpSafe";
 
 import {
   PDFDocument,
@@ -342,6 +342,9 @@ async function embedImmagineDataUrl(
   const bytes = Buffer.from(match[2], "base64");
 
   try {
+    const sharp = await caricaSharp();
+    if (!sharp) throw new Error("sharp non disponibile");
+
     const compressa = await sharp(bytes)
       .rotate() // auto-orienta in base all'EXIF (foto da smartphone)
       .resize({
@@ -354,7 +357,7 @@ async function embedImmagineDataUrl(
       .toBuffer();
     return pdfDoc.embedJpg(compressa);
   } catch {
-    // Fallback: se sharp fallisce, incorpora l'originale
+    // Fallback: se sharp fallisce/non è disponibile, incorpora l'originale
     if (mime === "png") {
       return pdfDoc.embedPng(bytes);
     }
