@@ -17,7 +17,8 @@ e cantieri. Sviluppatore unico: Alex. Aziende clienti isolate per `azienda_id`.
 ## REGOLE NON NEGOZIABILI
 
 ### Git
-- MAI eseguire `git push`. Mai. I push li fa solo Alex, manualmente.
+- Il push va fatto solo dopo che Alex ha revisionato ed esplicitamente
+  confermato il commit (es. "ok fai il push"). Mai di propria iniziativa.
 - MAI committare senza che Alex abbia revisionato il diff.
 - Il deploy avviene SOLO da `main`. Non lavorare mai sul branch `dev`.
 - Mostrare sempre il diff completo prima di proporre un commit.
