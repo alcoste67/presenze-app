@@ -330,6 +330,8 @@ export default function HomePage() {
   const [indirizzoCantiereNuovo, setIndirizzoCantiereNuovo] = useState("");
   // true quando la creazione cantiere nuovo avviene all'ingresso (non all'uscita)
   const [cantiereNuovoEntrata, setCantiereNuovoEntrata] = useState(false);
+  // true quando la creazione cantiere nuovo avviene per un cambio cantiere in pausa
+  const [cantiereNuovoCambio, setCantiereNuovoCambio] = useState(false);
   const [creazioneCantiereInCorso, setCreazioneCantiereInCorso] = useState(false);
   const [creaBozzaRapporto, setCreaBozzaRapporto] = useState(false);
 
@@ -702,6 +704,7 @@ export default function HomePage() {
     setNomeCantiereNuovo("");
     setIndirizzoCantiereNuovo("");
     setCantiereNuovoEntrata(false);
+    setCantiereNuovoCambio(false);
     setCreazioneCantiereInCorso(false);
     setCreaBozzaRapporto(false);
   };
@@ -1040,7 +1043,6 @@ export default function HomePage() {
 
     if (tipo === TIMBRATURE.CAMBIO_CANTIERE) {
       const cantiereIdPrecedente = ultimaTimbratura?.cantiere_id || null;
-      const nuovoCantiereId = cantiereId || null;
 
       if (!cantiereIdPrecedente || ultimaTimbratura?.attivita_tipo) {
         toast.error(
@@ -1049,6 +1051,22 @@ export default function HomePage() {
         );
         return;
       }
+
+      // "Nuovo cantiere" come destinazione del cambio: si crea prima il
+      // cantiere (come all'ingresso), poi si prosegue il cambio come per
+      // uno già esistente (vedi handleCreaCantiereNuovo).
+      if (attivitaTipo === ATTIVITA.CANTIERE_NUOVO) {
+        setCantiereNuovoCambio(true);
+        setNomeCantiereNuovo("");
+        setIndirizzoCantiereNuovo("");
+        setErroreLavorazioniUscita(null);
+        setTipoDialogLavorazioni(null);
+        setStepUscita("CANTIERE");
+        setMostraLavorazioniUscita(true);
+        return;
+      }
+
+      const nuovoCantiereId = cantiereId || null;
 
       if (!nuovoCantiereId) {
         toast.error(TIMBRATURE_TESTI.ERRORI.CAMBIO_CANTIERE_OBBLIGATORIO);
@@ -1170,6 +1188,55 @@ export default function HomePage() {
         setAttivitaTipo("");
         await registraTimbraturaPage({
           tipo: TIMBRATURE.ENTRATA,
+          cantiereIdTimbratura: nuovoCantiere.id,
+          attivitaTipoTimbratura: null,
+        });
+        return;
+      }
+
+      // Creazione durante un CAMBIO_CANTIERE (in pausa): prosegue come per
+      // un cambio verso un cantiere già esistente (vedi handleTimbraturaPage)
+      if (cantiereNuovoCambio) {
+        const cantiereIdPrecedente = ultimaTimbratura?.cantiere_id || null;
+
+        setCantieri((correnti) =>
+          [
+            ...correnti,
+            { id: nuovoCantiere.id, nome: nuovoCantiere.nome },
+          ].sort((a, b) => a.nome.localeCompare(b.nome))
+        );
+        setCantiereNuovoCambio(false);
+        setAttivitaTipo("");
+
+        if (!cantiereIdPrecedente) {
+          setErroreLavorazioniUscita(TIMBRATURE_TESTI.ERRORI.GENERICO);
+          return;
+        }
+
+        try {
+          const lavorazioni = await loadLavorazioniAttiveCantiere(
+            cantiereIdPrecedente
+          );
+
+          if (lavorazioni.length > 0) {
+            mostraDialogLavorazioni({
+              tipo: TIMBRATURE.CAMBIO_CANTIERE,
+              cantiereIdLavorazioni: cantiereIdPrecedente,
+              cantiereIdNuovo: nuovoCantiere.id,
+              lavorazioni,
+            });
+            return;
+          }
+        } catch (error: unknown) {
+          console.error(error);
+          setErroreLavorazioniUscita(
+            TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO
+          );
+          return;
+        }
+
+        await registraTimbraturaPage({
+          tipo: TIMBRATURE.CAMBIO_CANTIERE,
           cantiereIdTimbratura: nuovoCantiere.id,
           attivitaTipoTimbratura: null,
         });
@@ -1825,6 +1892,17 @@ export default function HomePage() {
                   loading={loadingTimbratura}
                   onClick={() => handleTimbraturaPage(TIMBRATURE.USCITA)}
                 />
+              </>
+            )}
+
+            {statoAttuale === STATI.IN_PAUSA && (
+              <>
+                <TimbratureButton
+                  label={TIMBRATURE_TESTI.AZIONI.RIENTRO}
+                  sub={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.RIENTRO}
+                  loading={loadingTimbratura}
+                  onClick={() => handleTimbraturaPage(TIMBRATURE.RIENTRO)}
+                />
                 <Button
                   variant="ghost"
                   size="md"
@@ -1838,15 +1916,6 @@ export default function HomePage() {
                   {TIMBRATURE_TESTI.AZIONI.CAMBIO_CANTIERE}
                 </Button>
               </>
-            )}
-
-            {statoAttuale === STATI.IN_PAUSA && (
-              <TimbratureButton
-                label={TIMBRATURE_TESTI.AZIONI.RIENTRO}
-                sub={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.RIENTRO}
-                loading={loadingTimbratura}
-                onClick={() => handleTimbraturaPage(TIMBRATURE.RIENTRO)}
-              />
             )}
           </div>
         </Card>
