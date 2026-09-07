@@ -19,6 +19,7 @@ export type Dipendente = {
   created_at: string;
   costo_orario: number | null;
   ral: number | null;
+  avvisa_admin_timbratura: boolean;
 };
 
 export type DipendenteInput = {
@@ -30,4 +31,5 @@ export type DipendenteInput = {
   tipo_conteggio_ore: TipoConteggioOre;
   costo_orario: number | null;
   ral: number | null;
+  avvisa_admin_timbratura: boolean;
 };

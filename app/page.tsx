@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -78,6 +79,11 @@ import { useTimbrature } from "@/hooks/useTimbrature";
 import { SelectAttivita } from "@/components/attivita/SelectAttivita";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
+import { PushOptIn } from "@/components/notifichePush/PushOptIn";
+import { CorrezioneTimbraturaBanner } from "@/components/timbrature/CorrezioneTimbraturaBanner";
+import { CORREZIONI_TIMBRATURE } from "@/constants/correzioniTimbrature";
+import { dataRomaDi, dataRomaOggi, oraRomaAttuale } from "@/lib/timezoneRoma";
+import { notificaAdminSeAbilitato } from "@/services/timbrature/notificaAdminSeAbilitato";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -385,6 +391,33 @@ export default function HomePage() {
 
   const cantiereCorrentiNome =
     cantieri.find((c) => c.id === ultimaTimbratura?.cantiere_id)?.nome ?? null;
+
+  // Promemoria/correzione: entrata mancante dopo le 8, uscita mancante dopo
+  // le 17 (guardrail rivalidati comunque lato server, vedi /api/timbrature/correzione)
+  const promemoriaTimbraturaTipo = useMemo(() => {
+    const oraRoma = oraRomaAttuale();
+    const ultimaOggi = ultimaTimbratura
+      ? dataRomaDi(ultimaTimbratura.created_at) === dataRomaOggi()
+      : false;
+
+    if (
+      oraRoma >= CORREZIONI_TIMBRATURE.SOGLIA_ORA_ENTRATA &&
+      statoAttuale === STATI.FUORI &&
+      !ultimaOggi
+    ) {
+      return "ENTRATA" as const;
+    }
+
+    if (
+      oraRoma >= CORREZIONI_TIMBRATURE.SOGLIA_ORA_USCITA &&
+      statoAttuale === STATI.DENTRO &&
+      ultimaOggi
+    ) {
+      return "USCITA" as const;
+    }
+
+    return null;
+  }, [statoAttuale, ultimaTimbratura]);
 
   const displayName = dipendente
     ? `${dipendente.nome} ${dipendente.cognome}`
@@ -922,6 +955,10 @@ export default function HomePage() {
       if (tipo === TIMBRATURE.CAMBIO_CANTIERE) {
         setCantiereId(cantiereIdTimbratura || "");
         setAttivitaTipo("");
+      }
+
+      if (tipo === TIMBRATURE.ENTRATA || tipo === TIMBRATURE.USCITA) {
+        void notificaAdminSeAbilitato(tipo);
       }
 
       resetLavorazioniUscita();
@@ -1685,6 +1722,17 @@ export default function HomePage() {
       <AppHeader />
 
       <main className="mx-auto max-w-[640px] px-5 py-5 md:px-6 flex flex-col gap-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+
+        <PushOptIn />
+
+        {promemoriaTimbraturaTipo && (
+          <CorrezioneTimbraturaBanner
+            tipo={promemoriaTimbraturaTipo}
+            cantiereId={cantiereId || null}
+            attivitaTipo={attivitaTipo}
+            onCorretto={() => void refreshUltimaTimbratura(user?.id || null)}
+          />
+        )}
 
         {/* Alert collaborazioni in attesa */}
         {invitiCollabInAttesa > 0 && (

@@ -47,6 +47,14 @@ export const API_ROUTES = {
     "/api/dipendenti/importa-lul",
   DIPENDENTI_AGGIORNA_EMAIL:
     "/api/dipendenti/aggiorna-email",
+  PUSH_SUBSCRIBE:
+    "/api/push/subscribe",
+  PUSH_UNSUBSCRIBE:
+    "/api/push/unsubscribe",
+  TIMBRATURE_CORREZIONE:
+    "/api/timbrature/correzione",
+  TIMBRATURE_NOTIFICA_ADMIN:
+    "/api/timbrature/notifica-admin",
 } as const;
 
 export const API_HEADERS = {

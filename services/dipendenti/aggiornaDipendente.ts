@@ -25,10 +25,11 @@ export async function aggiornaDipendente({
         dipendente.tipo_conteggio_ore,
       costo_orario: dipendente.costo_orario,
       ral: dipendente.ral,
+      avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
     })
     .eq("id", dipendenteId)
     .select(
-      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral"
+      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral, avvisa_admin_timbratura"
     )
     .single();
 

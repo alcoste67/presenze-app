@@ -72,6 +72,7 @@ type DipendenteFormState = {
   tipo_conteggio_ore: TipoConteggioOre;
   costo_orario: string;
   ral: string;
+  avvisa_admin_timbratura: boolean;
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ const FORM_INIZIALE: DipendenteFormState = {
   tipo_conteggio_ore: TIPO_CONTEGGIO_ORE.REALE,
   costo_orario: "",
   ral: "",
+  avvisa_admin_timbratura: false,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ function preparaDipendente(dipendente: DipendenteFormState): DipendenteInput {
     tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
     costo_orario: parseNumericoDecimale(dipendente.costo_orario),
     ral: parseNumericoDecimale(dipendente.ral),
+    avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
   };
 }
 
@@ -304,6 +307,7 @@ export default function BackofficeDipendentiPage() {
       tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
       costo_orario: dipendente.costo_orario !== null ? String(dipendente.costo_orario) : "",
       ral: dipendente.ral !== null ? String(dipendente.ral) : "",
+      avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
     });
   };
 
@@ -322,6 +326,7 @@ export default function BackofficeDipendentiPage() {
           tipo_conteggio_ore: dipendente.tipo_conteggio_ore,
           costo_orario: dipendente.costo_orario,
           ral: dipendente.ral,
+          avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
         },
       });
 
@@ -341,6 +346,7 @@ export default function BackofficeDipendentiPage() {
           tipo_conteggio_ore: dipendenteAggiornato.tipo_conteggio_ore,
           costo_orario: dipendenteAggiornato.costo_orario !== null ? String(dipendenteAggiornato.costo_orario) : "",
           ral: dipendenteAggiornato.ral !== null ? String(dipendenteAggiornato.ral) : "",
+          avvisa_admin_timbratura: dipendenteAggiornato.avvisa_admin_timbratura,
         });
       }
 
@@ -454,6 +460,7 @@ export default function BackofficeDipendentiPage() {
                 ruolo: d.ruolo, attivo: d.attivo, tipo_conteggio_ore: d.tipo_conteggio_ore,
                 ral: r.ral,
                 costo_orario: Math.round((r.ral * 1.30) / 1720 * 100) / 100,
+                avvisa_admin_timbratura: d.avvisa_admin_timbratura,
               },
             });
             console.log("[lul] aggiornato:", d.id, res);
@@ -686,6 +693,19 @@ export default function BackofficeDipendentiPage() {
                   className="h-4 w-4 accent-brand-500"
                 />
                 Attivo
+              </label>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.avvisa_admin_timbratura}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, avvisa_admin_timbratura: e.target.checked }))
+                  }
+                  disabled={salvataggio}
+                  className="h-4 w-4 accent-brand-500"
+                />
+                Avvisa admin a ogni entrata/uscita
               </label>
 
               <div className="flex gap-2 pt-1">

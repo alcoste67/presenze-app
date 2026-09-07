@@ -1,0 +1,31 @@
+name: Promemoria timbrature
+
+# Avvisa via push chi non ha ancora timbrato entrata (8:00), pausa pranzo
+# (12:45), rientro dalla pausa (13:45) o uscita (17:00). Gira ogni 15 minuti
+# nella fascia che copre sia CET che CEST: è la route stessa (guardando
+# l'orario reale in Italia, con una finestra di 15 minuti per soglia) a
+# decidere se è il momento giusto, così l'ora legale non va gestita qui.
+#
+# Richiede un secret nel repo (Settings → Secrets and variables → Actions):
+#   - CRON_SECRET (stesso valore della env var CRON_SECRET su Vercel)
+
+on:
+  schedule:
+    - cron: "*/15 6-16 * * 1-5" # ogni 15 minuti, 06:00-16:00 UTC, lun-ven
+  workflow_dispatch: {}
+
+jobs:
+  promemoria:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chiama la route dei promemoria
+        env:
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then echo "::error::Secret CRON_SECRET mancante"; exit 1; fi
+          code=$(curl -s -o /tmp/risposta.json -w "%{http_code}" \
+            -H "x-cron-secret: $SECRET" \
+            "https://cantivo.it/api/cron/promemoria-timbrature")
+          echo "HTTP $code"
+          cat /tmp/risposta.json
+          case "$code" in 200) exit 0 ;; *) echo "::error::Risposta inattesa ($code)"; exit 1 ;; esac
