@@ -1366,7 +1366,7 @@ export default function BackofficeLavorazioniPage() {
             <div className="mt-4 grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
 
               {/* ── Form ── */}
-              <Card className="p-5">
+              <Card className="p-5 min-w-0">
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-4">
                   {formTitolo}
                 </h2>
@@ -1461,7 +1461,7 @@ export default function BackofficeLavorazioniPage() {
               </Card>
 
               {/* ── Lista ── */}
-              <Card className="p-5">
+              <Card className="p-5 min-w-0">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
                   <div>
                     <h2 className="font-heading text-lg font-medium text-text-primary">
@@ -1744,11 +1744,11 @@ export default function BackofficeLavorazioniPage() {
 
                               {/* Azioni */}
                               <td className="py-3">
-                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                <div className="flex items-center justify-end gap-1">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0"
+                                    className="h-10 w-10 p-0"
                                     aria-label={LAVORAZIONI_TESTI.MODIFICA}
                                     onClick={() => avviaModifica(l)}
                                     disabled={salvataggio}
@@ -1758,7 +1758,7 @@ export default function BackofficeLavorazioniPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0"
+                                    className="h-10 w-10 p-0"
                                     aria-label={l.attiva ? LAVORAZIONI_TESTI.DISATTIVA : LAVORAZIONI_TESTI.RIATTIVA}
                                     onClick={() => void toggleAttiva(l)}
                                     disabled={salvataggio}
