@@ -46,7 +46,7 @@ export const TIMBRATURE_TESTI = {
     USCITA:
       "Chiudi il turno e registra le lavorazioni",
     CAMBIO_CANTIERE:
-      "Chiudi il cantiere corrente e aprine uno nuovo",
+      "Termina la pausa e riprendi su un altro cantiere",
   },
   MESSAGGI: {
     REGISTRATA_PREFIX: "Timbratura",

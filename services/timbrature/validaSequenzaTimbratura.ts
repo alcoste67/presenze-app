@@ -18,11 +18,10 @@ export function validaSequenzaTimbratura(
       tipo === TIMBRATURE.ENTRATA) ||
     (stato === STATI.DENTRO &&
       (tipo === TIMBRATURE.PAUSA ||
-        tipo === TIMBRATURE.USCITA ||
-        tipo ===
-          TIMBRATURE.CAMBIO_CANTIERE)) ||
+        tipo === TIMBRATURE.USCITA)) ||
     (stato === STATI.IN_PAUSA &&
-      tipo === TIMBRATURE.RIENTRO);
+      (tipo === TIMBRATURE.RIENTRO ||
+        tipo === TIMBRATURE.CAMBIO_CANTIERE));
 
   if (transizioneValida) {
     return {
