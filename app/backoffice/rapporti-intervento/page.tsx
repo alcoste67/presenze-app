@@ -461,6 +461,14 @@ function preparaPayload({
     return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_TROPPO_GRANDE };
   }
 
+  if (form.firma_responsabile_data_url && !form.firma_responsabile_nome.trim()) {
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_RESPONSABILE_NOME_OBBLIGATORIO };
+  }
+
+  if (form.firma_cliente_data_url && !form.firma_cliente_nome.trim()) {
+    return { errore: RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_CLIENTE_NOME_OBBLIGATORIO };
+  }
+
   const lavorazioniNormalizzate = normalizzaLavorazioni(lavorazioni);
   if ("errore" in lavorazioniNormalizzate) return lavorazioniNormalizzate;
 
@@ -490,11 +498,11 @@ function preparaPayload({
       note: form.note.trim(),
       firma_responsabile_data_url: form.firma_responsabile_data_url,
       firma_responsabile_nome: form.firma_responsabile_data_url
-        ? form.firma_responsabile_nome.trim() || responsabile
+        ? form.firma_responsabile_nome.trim()
         : null,
       firma_cliente_data_url: form.firma_cliente_data_url,
       firma_cliente_nome: form.firma_cliente_data_url
-        ? form.firma_cliente_nome.trim() || cliente
+        ? form.firma_cliente_nome.trim()
         : null,
       lavorazioni: lavorazioniNormalizzate.lavorazioni,
       operatori: operatoriNormalizzati.operatori,
@@ -1314,11 +1322,9 @@ export default function BackofficeRapportiInterventoPage() {
       await firmaRapportoIntervento({
         rapportoId: id,
         firmaResponsabileDataUrl: form.firma_responsabile_data_url,
-        firmaResponsabileNome:
-          form.firma_responsabile_nome.trim() || form.responsabile_nome.trim(),
+        firmaResponsabileNome: form.firma_responsabile_nome.trim(),
         firmaClienteDataUrl: form.firma_cliente_data_url,
-        firmaClienteNome:
-          form.firma_cliente_nome.trim() || form.cliente_committente.trim(),
+        firmaClienteNome: form.firma_cliente_nome.trim(),
       });
       toast.success(RAPPORTI_INTERVENTO_TESTI.MESSAGGI.FIRMATO);
       await caricaDati();
@@ -2431,7 +2437,7 @@ export default function BackofficeRapportiInterventoPage() {
                         <Input
                           label={`${RAPPORTI_INTERVENTO_TESTI.FIRMA_RESPONSABILE} — nome`}
                           value={form.firma_responsabile_nome}
-                          placeholder={form.responsabile_nome}
+                          placeholder="Nome e cognome"
                           onChange={(e) =>
                             handleFormChange("firma_responsabile_nome", e.target.value)
                           }
@@ -2450,7 +2456,7 @@ export default function BackofficeRapportiInterventoPage() {
                         <Input
                           label={`${RAPPORTI_INTERVENTO_TESTI.FIRMA_CLIENTE} — nome`}
                           value={form.firma_cliente_nome}
-                          placeholder={form.cliente_committente}
+                          placeholder="Nome e cognome"
                           onChange={(e) =>
                             handleFormChange("firma_cliente_nome", e.target.value)
                           }
@@ -2568,17 +2574,13 @@ export default function BackofficeRapportiInterventoPage() {
                           </Button>
                         </div>
                         <Input
-                          label="Nome"
+                          label="Nome e cognome di chi firma"
                           value={
                             firmaFullscreen === "responsabile"
                               ? form.firma_responsabile_nome
                               : form.firma_cliente_nome
                           }
-                          placeholder={
-                            firmaFullscreen === "responsabile"
-                              ? form.responsabile_nome
-                              : form.cliente_committente
-                          }
+                          placeholder="Nome e cognome"
                           onChange={(e) =>
                             handleFormChange(
                               firmaFullscreen === "responsabile"

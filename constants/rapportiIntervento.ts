@@ -220,6 +220,10 @@ export const RAPPORTI_INTERVENTO_TESTI = {
       "Firma troppo grande",
     FIRME_OBBLIGATORIE:
       "Inserisci entrambe le firme prima di confermare",
+    FIRMA_RESPONSABILE_NOME_OBBLIGATORIO:
+      "Inserisci nome e cognome di chi firma come responsabile (non la ditta)",
+    FIRMA_CLIENTE_NOME_OBBLIGATORIO:
+      "Inserisci nome e cognome di chi firma per il cliente (non la ditta)",
     FOTO_NON_VALIDA:
       "Foto non valida",
     FOTO_TROPPO_GRANDE:

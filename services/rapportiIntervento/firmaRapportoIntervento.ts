@@ -37,6 +37,18 @@ export async function firmaRapportoIntervento({
     );
   }
 
+  if (!firmaResponsabileNome.trim()) {
+    throw new Error(
+      RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_RESPONSABILE_NOME_OBBLIGATORIO
+    );
+  }
+
+  if (!firmaClienteNome.trim()) {
+    throw new Error(
+      RAPPORTI_INTERVENTO_TESTI.ERRORI.FIRMA_CLIENTE_NOME_OBBLIGATORIO
+    );
+  }
+
   const maxCaratteri =
     RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI;
   if (

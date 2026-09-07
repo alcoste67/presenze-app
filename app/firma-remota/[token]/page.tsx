@@ -48,7 +48,6 @@ export default function FirmaRemotaPage({
           return;
         }
         setRiepilogo(payload as Riepilogo);
-        setNome((payload as Riepilogo).cliente || "");
       } catch {
         setErrore("Errore di caricamento");
       } finally {
@@ -59,7 +58,7 @@ export default function FirmaRemotaPage({
   }, [token]);
 
   const handleFirma = async () => {
-    if (!firma) return;
+    if (!firma || !nome.trim()) return;
     try {
       setInvio(true);
       const res = await fetch(`/api/firma-remota/${token}`, {
@@ -168,7 +167,7 @@ export default function FirmaRemotaPage({
 
             <button
               type="button"
-              disabled={!firma || invio}
+              disabled={!firma || !nome.trim() || invio}
               onClick={() => void handleFirma()}
               className="h-11 rounded-md bg-brand-500 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
             >

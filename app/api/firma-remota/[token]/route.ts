@@ -108,8 +108,13 @@ export async function POST(
   if (firmaDataUrl.length > RAPPORTI_INTERVENTO_LIMITI.FIRMA_MAX_DATA_URL_CARATTERI) {
     return jsonErrore("Firma troppo grande", HTTP_STATUS.BAD_REQUEST);
   }
-  const nome =
-    typeof body.nome === "string" && body.nome.trim() ? body.nome.trim() : null;
+  if (typeof body.nome !== "string" || !body.nome.trim()) {
+    return jsonErrore(
+      "Inserisci nome e cognome di chi firma",
+      HTTP_STATUS.BAD_REQUEST
+    );
+  }
+  const nome = body.nome.trim();
 
   const adesso = new Date().toISOString();
 
