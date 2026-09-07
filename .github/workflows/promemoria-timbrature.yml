@@ -23,7 +23,9 @@ jobs:
           SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$SECRET" ]; then echo "::error::Secret CRON_SECRET mancante"; exit 1; fi
-          code=$(curl -s -o /tmp/risposta.json -w "%{http_code}" \
+          # -L: cantivo.it (apex) fa redirect 308 verso www.cantivo.it — senza
+          # seguirlo curl riceve il 308 invece della risposta della route.
+          code=$(curl -sL -o /tmp/risposta.json -w "%{http_code}" \
             -H "x-cron-secret: $SECRET" \
             "https://cantivo.it/api/cron/promemoria-timbrature")
           echo "HTTP $code"
