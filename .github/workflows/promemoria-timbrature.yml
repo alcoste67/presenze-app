@@ -1,17 +1,19 @@
 name: Promemoria timbrature
 
 # Avvisa via push chi non ha ancora timbrato entrata (8:00), pausa pranzo
-# (12:45), rientro dalla pausa (13:45) o uscita (17:00). Gira ogni 15 minuti
-# nella fascia che copre sia CET che CEST: è la route stessa (guardando
-# l'orario reale in Italia, con una finestra di 15 minuti per soglia) a
-# decidere se è il momento giusto, così l'ora legale non va gestita qui.
+# (12:45), rientro dalla pausa (13:45) o uscita (17:00).
+#
+# La schedulazione vera è su un cron esterno (cron-job.org, ogni 15 minuti
+# 06:00-16:00 UTC lun-ven) che chiama /api/cron/promemoria-timbrature
+# direttamente: lo `schedule` di GitHub Actions su questo account arriva
+# sistematicamente con 4-7 ore di ritardo (verificato sul keep-alive),
+# inutilizzabile per orari precisi. Questo workflow resta solo per lanci
+# manuali di test.
 #
 # Richiede un secret nel repo (Settings → Secrets and variables → Actions):
 #   - CRON_SECRET (stesso valore della env var CRON_SECRET su Vercel)
 
 on:
-  schedule:
-    - cron: "*/15 6-16 * * 1-5" # ogni 15 minuti, 06:00-16:00 UTC, lun-ven
   workflow_dispatch: {}
 
 jobs:
