@@ -1944,18 +1944,16 @@ export default function HomePage() {
                   loading={loadingTimbratura}
                   onClick={() => handleTimbraturaPage(TIMBRATURE.RIENTRO)}
                 />
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className="w-full"
-                  loading={loadingTimbratura}
+                <TimbratureButton
+                  label={TIMBRATURE_TESTI.AZIONI.CAMBIO_CANTIERE}
+                  sub={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.CAMBIO_CANTIERE}
+                  variant="secondary"
                   icon={<Repeat className="h-4 w-4" />}
+                  loading={loadingTimbratura}
                   onClick={() =>
                     handleTimbraturaPage(TIMBRATURE.CAMBIO_CANTIERE)
                   }
-                >
-                  {TIMBRATURE_TESTI.AZIONI.CAMBIO_CANTIERE}
-                </Button>
+                />
               </>
             )}
           </div>
