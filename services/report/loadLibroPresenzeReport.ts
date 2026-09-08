@@ -387,6 +387,16 @@ function calcolaMinutiPaghe({
       : 0;
   }
 
+  if (
+    tipoConteggioOre ===
+    TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_4H
+  ) {
+    return presenzaValida
+      ? REPORT_LIBRO_PRESENZE_ORE_PAGHE
+          .MEZZA_GIORNATA_MINUTI
+      : 0;
+  }
+
   return totaleMinutiReali;
 }
 
