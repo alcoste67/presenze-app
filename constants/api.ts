@@ -11,6 +11,8 @@ export const API_ROUTES = {
     "/api/report/libro-presenze",
   REPORT_PRESENZE:
     "/api/report/presenze",
+  REPORT_PRESENZE_PDF:
+    "/api/report/presenze-pdf",
   REPORT_COMMESSA_PDF:
     "/api/report/commessa-pdf",
   REPORT_COMMESSA_EXCEL:

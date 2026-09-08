@@ -17,6 +17,7 @@ import { APP_ROUTES } from "@/constants/routes";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { loadDipendenti } from "@/services/dipendenti/loadDipendenti";
 import { fetchPresenzeReport } from "@/services/report/fetchPresenzeReport";
+import { fetchPresenzeReportPdf } from "@/services/report/fetchPresenzeReportPdf";
 
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type { Dipendente } from "@/types/dipendenti";
@@ -111,6 +112,23 @@ function scaricaCsv({
   URL.revokeObjectURL(url);
 }
 
+function scaricaBlobPdf({
+  blob,
+  nomeFile,
+}: {
+  blob: Blob;
+  nomeFile: string;
+}) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeFile;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function validaFiltri(filtri: PresenzeReportFiltri) {
   if (!filtri.dataInizio || !filtri.dataFine) {
     return REPORT_PRESENZE_TESTI.ERRORI.DATE_OBBLIGATORIE;
@@ -137,6 +155,7 @@ export default function BackofficePresenzePage() {
   const [report, setReport] = useState<PresenzeReportRisposta | null>(null);
   const [loadingOpzioni, setLoadingOpzioni] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   useEffect(() => {
     let attivo = true;
@@ -182,8 +201,17 @@ export default function BackofficePresenzePage() {
     scaricaCsv({ righe: report.righe, dataInizio: filtri.dataInizio, dataFine: filtri.dataFine });
   };
 
-  const handleStampa = () => {
-    window.print();
+  const handleScaricaPdf = async () => {
+    if (!report || report.righe.length === 0) return;
+    try {
+      setLoadingPdf(true);
+      const pdf = await fetchPresenzeReportPdf(filtri);
+      scaricaBlobPdf({ blob: pdf.blob, nomeFile: pdf.nomeFile });
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, REPORT_PRESENZE_TESTI.ERRORI.GENERICO));
+    } finally {
+      setLoadingPdf(false);
+    }
   };
 
   const loading = loadingOpzioni || loadingReport;
@@ -288,8 +316,9 @@ export default function BackofficePresenzePage() {
                   type="button"
                   variant="secondary"
                   icon={<Printer className="h-4 w-4" />}
-                  onClick={handleStampa}
-                  disabled={!hasRisultati}
+                  onClick={handleScaricaPdf}
+                  loading={loadingPdf}
+                  disabled={!hasRisultati || loadingPdf}
                 >
                   {REPORT_PRESENZE_TESTI.STAMPA_PDF}
                 </Button>

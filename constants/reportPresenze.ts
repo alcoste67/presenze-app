@@ -58,6 +58,32 @@ export const LABEL_ATTIVITA_REPORT: Record<
   [ATTIVITA.ALTRO]: "Altro",
 };
 
+export const REPORT_PRESENZE_PDF = {
+  CONTENT_TYPE: "application/pdf",
+  FILE_PREFIX: "presenze",
+  LOGO_PATH: "public/a2c-logo.png",
+  LOCALE: "it-IT",
+  TESTI: {
+    TITOLO: "Report presenze",
+    SOTTOTITOLO: "Export presenze cantiere",
+    DATA_GENERAZIONE: "Data generazione",
+    PERIODO: "Periodo",
+    DIPENDENTE: "Dipendente",
+    CANTIERE: "Cantiere",
+    TUTTI_DIPENDENTI: "Tutti i dipendenti",
+    TUTTI_CANTIERI: "Tutti i cantieri",
+    RIGHE_TOTALI: "Righe",
+    LIMITE_RAGGIUNTO_NOTA:
+      "Elenco limitato alle prime righe disponibili",
+    NESSUN_RISULTATO: "Nessuna timbratura nel periodo selezionato",
+    PAGINA: "Pagina",
+    DI: "di",
+  },
+  ERRORI: {
+    PDF_GENERICO: "Errore generazione PDF presenze",
+  },
+} as const;
+
 export const REPORT_PRESENZE_TESTI = {
   TITOLO: "Presenze",
   CARD_DESCRIZIONE:
@@ -76,7 +102,7 @@ export const REPORT_PRESENZE_TESTI = {
   CERCA: "Cerca",
   CARICAMENTO: "Caricamento...",
   ESPORTA_CSV: "Esporta CSV",
-  STAMPA_PDF: "Stampa / Salva PDF",
+  STAMPA_PDF: "Scarica PDF",
   ANTEPRIMA: "Anteprima",
   RIGHE: "righe",
   LIMITE_EXPORT_PREFIX: "Massimo",
