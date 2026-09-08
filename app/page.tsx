@@ -1120,28 +1120,21 @@ export default function HomePage() {
           cantiereIdPrecedente
         );
 
-        if (lavorazioni.length > 0) {
-          mostraDialogLavorazioni({
-            tipo,
-            cantiereIdLavorazioni: cantiereIdPrecedente,
-            cantiereIdNuovo: nuovoCantiereId,
-            lavorazioni,
-          });
-          return;
-        }
+        // Il dialogo si apre sempre, anche senza lavorazioni attive
+        // registrate: chiede comunque cosa è stato fatto nel cantiere
+        // che si lascia, come il wizard di uscita.
+        mostraDialogLavorazioni({
+          tipo,
+          cantiereIdLavorazioni: cantiereIdPrecedente,
+          cantiereIdNuovo: nuovoCantiereId,
+          lavorazioni,
+        });
+        return;
       } catch (error: unknown) {
         console.error(error);
         toast.error(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO);
         return;
       }
-
-      await registraTimbraturaPage({
-        tipo,
-        cantiereIdTimbratura: nuovoCantiereId,
-        attivitaTipoTimbratura: null,
-      });
-
-      return;
     }
 
     await registraTimbraturaPage({ tipo });

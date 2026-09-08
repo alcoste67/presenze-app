@@ -255,40 +255,48 @@ export default function BackofficePresenzePage() {
         <Card className="mt-6 p-5 print:hidden">
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Input
-                label={REPORT_PRESENZE_TESTI.DATA_INIZIO}
-                type="date"
-                value={filtri.dataInizio}
-                onChange={(e) => setFiltri((f) => ({ ...f, dataInizio: e.target.value }))}
-              />
-              <Input
-                label={REPORT_PRESENZE_TESTI.DATA_FINE}
-                type="date"
-                value={filtri.dataFine}
-                onChange={(e) => setFiltri((f) => ({ ...f, dataFine: e.target.value }))}
-              />
-              <Select
-                label={REPORT_PRESENZE_TESTI.DIPENDENTE}
-                value={filtri.dipendenteId || ""}
-                onChange={(e) => setFiltri((f) => ({ ...f, dipendenteId: e.target.value || null }))}
-                disabled={loadingOpzioni}
-              >
-                <option value="">{REPORT_PRESENZE_TESTI.TUTTI_DIPENDENTI}</option>
-                {dipendenti.map((d) => (
-                  <option key={d.id} value={d.id}>{formattaDipendenteOption(d)}</option>
-                ))}
-              </Select>
-              <Select
-                label={REPORT_PRESENZE_TESTI.CANTIERE}
-                value={filtri.cantiereId || ""}
-                onChange={(e) => setFiltri((f) => ({ ...f, cantiereId: e.target.value || null }))}
-                disabled={loadingOpzioni}
-              >
-                <option value="">{REPORT_PRESENZE_TESTI.TUTTI_CANTIERI}</option>
-                {cantieri.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </Select>
+              <div className="min-w-0">
+                <Input
+                  label={REPORT_PRESENZE_TESTI.DATA_INIZIO}
+                  type="date"
+                  value={filtri.dataInizio}
+                  onChange={(e) => setFiltri((f) => ({ ...f, dataInizio: e.target.value }))}
+                />
+              </div>
+              <div className="min-w-0">
+                <Input
+                  label={REPORT_PRESENZE_TESTI.DATA_FINE}
+                  type="date"
+                  value={filtri.dataFine}
+                  onChange={(e) => setFiltri((f) => ({ ...f, dataFine: e.target.value }))}
+                />
+              </div>
+              <div className="min-w-0">
+                <Select
+                  label={REPORT_PRESENZE_TESTI.DIPENDENTE}
+                  value={filtri.dipendenteId || ""}
+                  onChange={(e) => setFiltri((f) => ({ ...f, dipendenteId: e.target.value || null }))}
+                  disabled={loadingOpzioni}
+                >
+                  <option value="">{REPORT_PRESENZE_TESTI.TUTTI_DIPENDENTI}</option>
+                  {dipendenti.map((d) => (
+                    <option key={d.id} value={d.id}>{formattaDipendenteOption(d)}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="min-w-0">
+                <Select
+                  label={REPORT_PRESENZE_TESTI.CANTIERE}
+                  value={filtri.cantiereId || ""}
+                  onChange={(e) => setFiltri((f) => ({ ...f, cantiereId: e.target.value || null }))}
+                  disabled={loadingOpzioni}
+                >
+                  <option value="">{REPORT_PRESENZE_TESTI.TUTTI_CANTIERI}</option>
+                  {cantieri.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </Select>
+              </div>
             </div>
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

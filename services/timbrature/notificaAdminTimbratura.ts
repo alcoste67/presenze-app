@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 
+import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { inviaPush } from "@/lib/webPush";
 
@@ -29,7 +30,7 @@ export async function notificaAdminTimbratura({ dipendenteId, tipo, orario }: Pa
     .from("dipendenti")
     .select("id, email")
     .eq("azienda_id", dipendente.azienda_id)
-    .eq("ruolo", "ADMIN")
+    .in("ruolo", [RUOLI_DIPENDENTE.ADMIN, RUOLI_DIPENDENTE.SUPERADMIN])
     .eq("attivo", true);
 
   const adminList = admin || [];

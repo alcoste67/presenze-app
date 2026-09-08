@@ -831,7 +831,7 @@ export default function BackofficeDipendentiPage() {
                           </Badge>
                         </td>
 
-                        <td className="py-3 pr-4 text-text-muted">
+                        <td className="py-3 pr-4 text-text-muted whitespace-nowrap">
                           {LABEL_TIPO_CONTEGGIO_ORE[d.tipo_conteggio_ore]}
                         </td>
 

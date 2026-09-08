@@ -90,7 +90,7 @@ export function AppHeader({ actions, className }: AppHeaderProps) {
       </Link>
 
       {hasRight && (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto [&>*]:shrink-0">
           {actions}
           {isLoggedIn && isAdminUser && (
             <Link
