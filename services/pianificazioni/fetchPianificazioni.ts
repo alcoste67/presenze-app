@@ -64,7 +64,8 @@ async function leggiJsonResponse(response: Response): Promise<unknown> {
 }
 
 export async function fetchPianificazioni(
-  filtri: PianificazioniFiltri
+  filtri: PianificazioniFiltri,
+  opzioni?: { soloMie?: boolean }
 ): Promise<PianificazioniRisposta> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -78,6 +79,10 @@ export async function fetchPianificazioni(
     dataInizio: filtri.dataInizio,
     dataFine: filtri.dataFine,
   });
+
+  if (opzioni?.soloMie) {
+    parametri.set("soloMie", "true");
+  }
 
   const response = await fetch(
     `${API_ROUTES.PIANIFICAZIONI}?${parametri.toString()}`,

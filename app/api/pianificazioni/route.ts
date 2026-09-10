@@ -163,7 +163,9 @@ export async function GET(request: Request): Promise<Response> {
       return jsonErrore(erroreFiltri, HTTP_STATUS.BAD_REQUEST);
     }
 
-    const vedeTutte = puoModificare(dipendente.ruolo);
+    const puoModificareRuolo = puoModificare(dipendente.ruolo);
+    const soloMie = searchParams.get("soloMie") === "true";
+    const vedeTutte = puoModificareRuolo && !soloMie;
 
     const pianificazioni = await loadPianificazioni({
       aziendaId: dipendente.azienda_id,
@@ -174,7 +176,7 @@ export async function GET(request: Request): Promise<Response> {
     });
 
     return Response.json(
-      { pianificazioni, puoModificare: vedeTutte },
+      { pianificazioni, puoModificare: puoModificareRuolo },
       { headers: NO_STORE }
     );
   } catch (error: unknown) {

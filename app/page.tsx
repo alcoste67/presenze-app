@@ -19,6 +19,7 @@ import {
 import {
   ArrowRight,
   Building2,
+  CalendarDays,
   ClipboardList,
   History,
   Pause,
@@ -32,6 +33,7 @@ import {
   AUTH_TESTI,
 } from "@/constants/auth";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
+import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { APP_ROUTES } from "@/constants/routes";
 import {
@@ -79,6 +81,7 @@ import { useTimbrature } from "@/hooks/useTimbrature";
 import { SelectAttivita } from "@/components/attivita/SelectAttivita";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
+import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavoriHome";
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
 import { CorrezioneTimbraturaBanner } from "@/components/timbrature/CorrezioneTimbraturaBanner";
 import { CORREZIONI_TIMBRATURE } from "@/constants/correzioniTimbrature";
@@ -1812,6 +1815,16 @@ export default function HomePage() {
               </Button>
             </Link>
 
+            <Link href={APP_ROUTES.BACKOFFICE_CALENDARIO}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<CalendarDays className="h-4 w-4" />}
+              >
+                {PIANIFICAZIONI_TESTI.TITOLO}
+              </Button>
+            </Link>
+
             {mostraBackoffice && (
               <Link href={APP_ROUTES.BACKOFFICE}>
                 <Button
@@ -1958,6 +1971,9 @@ export default function HomePage() {
             )}
           </div>
         </Card>
+
+        {/* ── Calendario lavori: oggi e domani ── */}
+        <CalendarioLavoriHome />
 
         {/* ── Costi commessa (solo responsabili commessa) ── */}
         <CostiCommessaHome />
