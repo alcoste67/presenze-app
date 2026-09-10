@@ -59,6 +59,8 @@ export const API_ROUTES = {
     "/api/timbrature/notifica-admin",
   PIANIFICAZIONI:
     "/api/pianificazioni",
+  ASSENZE:
+    "/api/assenze",
 } as const;
 
 export const API_HEADERS = {

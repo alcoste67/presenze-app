@@ -6,9 +6,12 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Home, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { getMessaggioErrore } from "@/lib/errors";
+import { ASSENZE_TESTI, LABEL_TIPO_ASSENZA } from "@/constants/assenze";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { APP_ROUTES } from "@/constants/routes";
 
+import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
+import { aggiornaStatoRichiestaClient } from "@/services/assenze/salvaRichiestaAssenza";
 import { loadCantieriBackoffice } from "@/services/cantieri/loadCantieriBackoffice";
 import { loadDipendenti } from "@/services/dipendenti/loadDipendenti";
 import { loadMacchinariPubblici } from "@/services/macchinari/loadMacchinariPubblici";
@@ -19,6 +22,7 @@ import {
   eliminaPianificazioneClient,
 } from "@/services/pianificazioni/salvaPianificazione";
 
+import type { RichiestaAssenza } from "@/types/assenze";
 import type { CantiereBackoffice } from "@/types/cantieri";
 import type { Dipendente } from "@/types/dipendenti";
 import type { MacchinarioPubblico } from "@/types/macchinari";
@@ -78,6 +82,38 @@ function raggruppaPerGiorno(pianificazioni: PianificazioneLavoro[]) {
   return Array.from(gruppi.entries());
 }
 
+function getDataSuccessivaStr(data: string) {
+  const [year, month, day] = data.split("-").map(Number);
+  const dataUtc = new Date(Date.UTC(year, month - 1, day));
+  dataUtc.setUTCDate(dataUtc.getUTCDate() + 1);
+  return dataUtc.toISOString().slice(0, 10);
+}
+
+function raggruppaAssenzePerGiorno(
+  assenze: RichiestaAssenza[],
+  dataInizioVista: string,
+  dataFineVista: string
+) {
+  const gruppi = new Map<string, RichiestaAssenza[]>();
+  assenze.forEach((a) => {
+    let cursore = a.dataInizio < dataInizioVista ? dataInizioVista : a.dataInizio;
+    const fine = a.dataFine > dataFineVista ? dataFineVista : a.dataFine;
+    while (cursore <= fine) {
+      const lista = gruppi.get(cursore) || [];
+      lista.push(a);
+      gruppi.set(cursore, lista);
+      cursore = getDataSuccessivaStr(cursore);
+    }
+  });
+  return gruppi;
+}
+
+function formattaEtichettaAssenza(a: RichiestaAssenza) {
+  const tipo = LABEL_TIPO_ASSENZA[a.tipo];
+  const dettaglio = a.giornataIntera ? "" : ` (${a.ore}h)`;
+  return `${tipo} — ${a.dipendenteNome}${dettaglio}`;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BackofficeCalendarioPage() {
@@ -107,12 +143,27 @@ export default function BackofficeCalendarioPage() {
   );
   const [eliminazioneInCorso, setEliminazioneInCorso] = useState(false);
 
+  const [assenzeApprovate, setAssenzeApprovate] = useState<RichiestaAssenza[]>([]);
+  const [richiesteInAttesa, setRichiesteInAttesa] = useState<RichiestaAssenza[]>([]);
+  const [puoApprovareAssenze, setPuoApprovareAssenze] = useState(false);
+  const [azioneRichiestaId, setAzioneRichiestaId] = useState<string | null>(null);
+
   const caricaLista = async () => {
     try {
       setLoadingLista(true);
-      const risposta = await fetchPianificazioni({ dataInizio, dataFine });
+      const [risposta, rispostaAssenze] = await Promise.all([
+        fetchPianificazioni({ dataInizio, dataFine }),
+        fetchRichiesteAssenza({ dataInizio, dataFine, stato: "APPROVATA" }),
+      ]);
       setPianificazioni(risposta.pianificazioni);
       setPuoModificare(risposta.puoModificare);
+      setAssenzeApprovate(rispostaAssenze.richieste);
+      setPuoApprovareAssenze(rispostaAssenze.puoApprovare);
+
+      if (rispostaAssenze.puoApprovare) {
+        const rispostaInAttesa = await fetchRichiesteAssenza({ stato: "IN_ATTESA" });
+        setRichiesteInAttesa(rispostaInAttesa.richieste);
+      }
 
       if (risposta.puoModificare && cantieri.length === 0) {
         setLoadingOpzioni(true);
@@ -133,6 +184,21 @@ export default function BackofficeCalendarioPage() {
     }
   };
 
+  const gestisciRichiesta = async (id: string, stato: "APPROVATA" | "RIFIUTATA") => {
+    try {
+      setAzioneRichiestaId(id);
+      await aggiornaStatoRichiestaClient(id, stato);
+      toast.success(
+        stato === "APPROVATA" ? ASSENZE_TESTI.MESSAGGI.APPROVATA : ASSENZE_TESTI.MESSAGGI.RIFIUTATA
+      );
+      await caricaLista();
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, ASSENZE_TESTI.ERRORI.AGGIORNAMENTO));
+    } finally {
+      setAzioneRichiestaId(null);
+    }
+  };
+
   useEffect(() => {
     void caricaLista();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,6 +213,19 @@ export default function BackofficeCalendarioPage() {
     () => raggruppaPerGiorno(pianificazioni),
     [pianificazioni]
   );
+
+  const assenzePerGiorno = useMemo(
+    () => raggruppaAssenzePerGiorno(assenzeApprovate, dataInizio, dataFine),
+    [assenzeApprovate, dataInizio, dataFine]
+  );
+
+  const tuttiGiorni = useMemo(() => {
+    const giorni = new Set<string>([
+      ...gruppiPerGiorno.map(([giorno]) => giorno),
+      ...assenzePerGiorno.keys(),
+    ]);
+    return Array.from(giorni).sort();
+  }, [gruppiPerGiorno, assenzePerGiorno]);
 
   const resetForm = () => {
     setForm(FORM_INIZIALE);
@@ -409,24 +488,87 @@ export default function BackofficeCalendarioPage() {
           </Card>
         )}
 
+        {/* Richieste ferie/permesso in attesa (solo admin/superadmin) */}
+        {puoApprovareAssenze && (
+          <Card className="mt-4 p-5">
+            <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+              {ASSENZE_TESTI.RICHIESTE_IN_ATTESA}
+            </h2>
+            {richiesteInAttesa.length === 0 ? (
+              <p className="text-sm text-text-muted">{ASSENZE_TESTI.NESSUNA_RICHIESTA_IN_ATTESA}</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {richiesteInAttesa.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-text-primary">
+                        {LABEL_TIPO_ASSENZA[r.tipo]} — {r.dipendenteNome}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {r.dataInizio === r.dataFine ? formattaGiorno(r.dataInizio) : `${formattaGiorno(r.dataInizio)} → ${formattaGiorno(r.dataFine)}`}
+                        {!r.giornataIntera && ` · ${r.ore}h`}
+                        {r.nota && ` · ${r.nota}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        loading={azioneRichiestaId === r.id}
+                        onClick={() => void gestisciRichiesta(r.id, "APPROVATA")}
+                      >
+                        {ASSENZE_TESTI.APPROVA}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={azioneRichiestaId === r.id}
+                        onClick={() => void gestisciRichiesta(r.id, "RIFIUTATA")}
+                      >
+                        {ASSENZE_TESTI.RIFIUTA}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
         {/* Elenco per giorno */}
         <div className="mt-6 flex flex-col gap-5">
           {loadingLista && (
             <p className="text-sm text-text-muted">{PIANIFICAZIONI_TESTI.CARICAMENTO}</p>
           )}
 
-          {!loadingLista && gruppiPerGiorno.length === 0 && (
+          {!loadingLista && tuttiGiorni.length === 0 && (
             <Card className="p-5">
               <p className="text-sm text-text-muted">{PIANIFICAZIONI_TESTI.NESSUN_RISULTATO}</p>
             </Card>
           )}
 
-          {!loadingLista && gruppiPerGiorno.map(([giorno, lista]) => (
+          {!loadingLista && tuttiGiorni.map((giorno) => {
+            const lista = pianificazioni.filter((p) => p.data === giorno);
+            const assenzeGiorno = assenzePerGiorno.get(giorno) || [];
+            return (
             <div key={giorno}>
               <h2 className="mb-2 flex items-center gap-2 text-sm font-medium text-text-primary">
                 <CalendarDays className="h-4 w-4 text-text-muted" />
                 {formattaGiorno(giorno)}
               </h2>
+
+              {assenzeGiorno.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {assenzeGiorno.map((a) => (
+                    <Badge key={`${a.id}-${giorno}`} variant="warning" size="sm">
+                      {formattaEtichettaAssenza(a)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
               <div className="flex flex-col gap-3">
                 {lista.map((p) => (
                   <Card key={p.id} className="p-4">
@@ -480,7 +622,8 @@ export default function BackofficeCalendarioPage() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </main>
 

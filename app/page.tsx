@@ -32,6 +32,7 @@ import {
   AUTH_OTP,
   AUTH_TESTI,
 } from "@/constants/auth";
+import { ASSENZE_TESTI } from "@/constants/assenze";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
@@ -44,6 +45,7 @@ import {
 import { ATTIVITA } from "@/constants/attivita";
 import { TIMBRATURE_LAVORAZIONI_TESTI } from "@/constants/timbratureLavorazioni";
 import { TipoAttivita } from "@/types/attivita";
+import type { RichiestaAssenza, TipoAssenza } from "@/types/assenze";
 import type { LavorazioneCantiere } from "@/types/lavorazioni";
 import {
   type StatoLavoratore,
@@ -80,6 +82,8 @@ import { useTimbrature } from "@/hooks/useTimbrature";
 
 import { SelectAttivita } from "@/components/attivita/SelectAttivita";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
+import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
+import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
 import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavoriHome";
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
@@ -351,6 +355,9 @@ export default function HomePage() {
   const [inizializzato, setInizializzato] = useState(false);
 
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
+  const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
+    useState<TipoAssenza | null>(null);
+  const [assenzaOggi, setAssenzaOggi] = useState<RichiestaAssenza | null>(null);
   const [invitiCollabInAttesa, setInvitiCollabInAttesa] = useState(0);
   const [novitaLavorazioniCantiereId, setNovitaLavorazioniCantiereId] = useState<
     string | null
@@ -454,6 +461,29 @@ export default function HomePage() {
       }
     };
 
+    const refreshAssenzaOggi = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setAssenzaOggi(null);
+        return;
+      }
+
+      try {
+        const oggi = dataRomaOggi();
+        const risposta = await fetchRichiesteAssenza({
+          dataInizio: oggi,
+          dataFine: oggi,
+          stato: "APPROVATA",
+          soloMie: true,
+        });
+        setAssenzaOggi(
+          risposta.richieste.find((r) => r.giornataIntera) || null
+        );
+      } catch (error) {
+        console.error("Errore controllo assenza oggi", error);
+        setAssenzaOggi(null);
+      }
+    };
+
     const refreshDipendente = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setDipendente(null);
@@ -473,6 +503,7 @@ export default function HomePage() {
       setUser(null);
       setDipendente(null);
       setMostraBackoffice(false);
+      setAssenzaOggi(null);
       await refreshUltimaTimbratura(null);
       setErroreAuth(AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO);
       await esciAuth();
@@ -499,6 +530,7 @@ export default function HomePage() {
           setUser(null);
           setDipendente(null);
           setMostraBackoffice(false);
+          setAssenzaOggi(null);
           setCantieri([]);
           setInvitiCollabInAttesa(0);
           setNovitaLavorazioniCantiereId(null);
@@ -524,6 +556,7 @@ export default function HomePage() {
         await Promise.all([
           refreshMostraBackoffice(currentUser),
           refreshDipendente(currentUser),
+          refreshAssenzaOggi(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
           // della PWA non deve sopravvivere a login/logout/switch account
@@ -1839,6 +1872,9 @@ export default function HomePage() {
           </div>
         </Card>
 
+        {/* ── Calendario lavori: oggi e domani ── */}
+        <CalendarioLavoriHome />
+
         {/* ── Card 2: Stato attuale ── */}
         <Card className="p-5">
           <div className="flex items-center justify-between">
@@ -1921,13 +1957,38 @@ export default function HomePage() {
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
-            {statoAttuale === STATI.FUORI && (
-              <TimbratureButton
-                label={TIMBRATURE_TESTI.AZIONI.ENTRATA}
-                sub={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.ENTRATA}
-                loading={loadingTimbratura}
-                onClick={() => handleTimbraturaPage(TIMBRATURE.ENTRATA)}
-              />
+            {statoAttuale === STATI.FUORI && assenzaOggi && (
+              <div className="rounded-md border border-warning-500/40 bg-warning-50 px-3 py-2.5 text-sm text-warning-500">
+                Oggi sei in {assenzaOggi.tipo === "FERIE" ? "ferie" : "permesso"}
+              </div>
+            )}
+            {statoAttuale === STATI.FUORI && !assenzaOggi && (
+              <>
+                <TimbratureButton
+                  label={TIMBRATURE_TESTI.AZIONI.ENTRATA}
+                  sub={TIMBRATURE_TESTI.AZIONI_DESCRIZIONI.ENTRATA}
+                  loading={loadingTimbratura}
+                  onClick={() => handleTimbraturaPage(TIMBRATURE.ENTRATA)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setRichiestaAssenzaTipo("FERIE")}
+                  >
+                    {ASSENZE_TESTI.FERIE}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setRichiestaAssenzaTipo("PERMESSO")}
+                  >
+                    {ASSENZE_TESTI.PERMESSO}
+                  </Button>
+                </div>
+              </>
             )}
 
             {statoAttuale === STATI.DENTRO && (
@@ -1972,12 +2033,17 @@ export default function HomePage() {
           </div>
         </Card>
 
-        {/* ── Calendario lavori: oggi e domani ── */}
-        <CalendarioLavoriHome />
-
         {/* ── Costi commessa (solo responsabili commessa) ── */}
         <CostiCommessaHome />
       </main>
+
+      {richiestaAssenzaTipo && (
+        <RichiestaAssenzaDialog
+          tipo={richiestaAssenzaTipo}
+          onClose={() => setRichiestaAssenzaTipo(null)}
+          onInviata={() => setRichiestaAssenzaTipo(null)}
+        />
+      )}
 
       {/* ── Dialog lavorazioni uscita ── */}
       {mostraLavorazioniUscita && (

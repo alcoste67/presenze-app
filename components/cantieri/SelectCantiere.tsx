@@ -89,8 +89,12 @@ export function SelectCantiere({
     ? "Nuovo cantiere"
     : cantiereSelezionato?.nome || query;
 
+  // Filtra solo su ciò che l'utente ha digitato attivamente (query), non
+  // sul nome del cantiere già selezionato: altrimenti aprendo la lista con
+  // un cantiere già scelto si vedrebbe solo quello, finché non si cancella
+  // il testo a mano.
   const cantieriFiltrati = useMemo(() => {
-    const ricerca = inputValue.trim().toLowerCase();
+    const ricerca = query.trim().toLowerCase();
 
     if (!ricerca) {
       return cantieri;
@@ -99,7 +103,7 @@ export function SelectCantiere({
     return cantieri.filter((cantiere) =>
       cantiere.nome.toLowerCase().includes(ricerca)
     );
-  }, [cantieri, inputValue]);
+  }, [cantieri, query]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -127,7 +131,15 @@ export function SelectCantiere({
               onChange("");
             }
           }}
-          onFocus={() => setAperto(true)}
+          onFocus={(e) => {
+            setAperto(true);
+            // Con un cantiere già selezionato, seleziona tutto il testo:
+            // il primo carattere digitato sostituisce il nome invece di
+            // accodarsi (altrimenti "VDM 48" + "x" diventerebbe "VDM 48x").
+            if (cantiereSelezionato) {
+              e.target.select();
+            }
+          }}
           disabled={disabled}
           placeholder="Cerca cantiere"
           className={INPUT_CLASS_NAME}
