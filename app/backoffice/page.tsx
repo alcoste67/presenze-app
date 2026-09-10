@@ -24,6 +24,7 @@ import {
 import { COMMESSA_TESTI } from "@/constants/commessa";
 import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { MACCHINARI_TESTI } from "@/constants/macchinari";
+import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
@@ -150,6 +151,12 @@ export default function BackofficePage() {
                 nome={MACCHINARI_TESTI.TITOLO}
                 descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
               />
+              <ModuloCard
+                href={APP_ROUTES.BACKOFFICE_CALENDARIO}
+                icon={<CalendarDays className="h-5 w-5" />}
+                nome={PIANIFICAZIONI_TESTI.TITOLO}
+                descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
+              />
             </div>
           </section>
         )}
@@ -219,6 +226,12 @@ export default function BackofficePage() {
                 icon={<BarChart3 className="h-5 w-5" />}
                 nome={COMMESSA_TESTI.TITOLO}
                 descrizione={COMMESSA_TESTI.CARD_DESCRIZIONE}
+              />
+              <ModuloCard
+                href={APP_ROUTES.BACKOFFICE_CALENDARIO}
+                icon={<CalendarDays className="h-5 w-5" />}
+                nome={PIANIFICAZIONI_TESTI.TITOLO}
+                descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
               />
             </div>
           </section>
