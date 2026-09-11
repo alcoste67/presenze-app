@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertTriangle, Home } from "lucide-react";
 
+import { API_HEADERS } from "@/constants/api";
 import { APP_ROUTES } from "@/constants/routes";
 import {
   CHECKLIST_WALLBOX_STATI,
@@ -22,6 +23,8 @@ import { Input } from "@/components/ui/Input";
 import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 import { useToast } from "@/components/ui/Toast";
 import { getMessaggioErrore } from "@/lib/errors";
+import { isRecord } from "@/lib/typeGuards";
+import { supabase } from "@/lib/supabase";
 
 export default function FirmaChecklistWallboxPage() {
   const router = useRouter();
@@ -39,6 +42,8 @@ export default function FirmaChecklistWallboxPage() {
   const [firmaCliente, setFirmaCliente] = useState<string | null>(null);
   const [nomeCliente, setNomeCliente] = useState("");
   const [mostraPropostaInvio, setMostraPropostaInvio] = useState(false);
+  const [invioRemotaLoading, setInvioRemotaLoading] = useState(false);
+  const [linkFirmaRemota, setLinkFirmaRemota] = useState<string | null>(null);
 
   useEffect(() => {
     let attivo = true;
@@ -106,6 +111,74 @@ export default function FirmaChecklistWallboxPage() {
         getMessaggioErrore(error, CHECKLIST_WALLBOX_TESTI.ERRORI.GENERICO)
       );
       setSalvataggio(false);
+    }
+  };
+
+  const handleInviaFirmaRemota = async () => {
+    if (!checklist) return;
+
+    if (!firmaTecnico) {
+      toast.error(
+        "Firma prima come tecnico, poi invia per la firma del cliente"
+      );
+      return;
+    }
+
+    if (!nomeTecnico.trim()) {
+      toast.error(
+        CHECKLIST_WALLBOX_TESTI.ERRORI.FIRMA_TECNICO_NOME_OBBLIGATORIO
+      );
+      return;
+    }
+
+    try {
+      setInvioRemotaLoading(true);
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        throw new Error(CHECKLIST_WALLBOX_TESTI.ERRORI.SESSIONE_MANCANTE);
+      }
+
+      const response = await fetch("/api/checklist-wallbox/firma-remota/crea", {
+        method: "POST",
+        headers: {
+          [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
+          [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,
+        },
+        body: JSON.stringify({
+          checklistWallboxId: checklist.id,
+          firmaTecnicoDataUrl: firmaTecnico,
+          firmaTecnicoNome: nomeTecnico.trim(),
+          email: checklist.email_cliente || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          isRecord(payload) && typeof payload.errore === "string"
+            ? payload.errore
+            : CHECKLIST_WALLBOX_TESTI.ERRORI.GENERICO
+        );
+      }
+
+      setLinkFirmaRemota(
+        isRecord(payload) && typeof payload.link === "string"
+          ? payload.link
+          : null
+      );
+      toast.success(
+        isRecord(payload) && payload.emailInviata
+          ? "Link creato e inviato via email al cliente"
+          : "Link di firma creato"
+      );
+    } catch (error: unknown) {
+      toast.error(
+        getMessaggioErrore(error, CHECKLIST_WALLBOX_TESTI.ERRORI.GENERICO)
+      );
+    } finally {
+      setInvioRemotaLoading(false);
     }
   };
 
@@ -273,6 +346,55 @@ export default function FirmaChecklistWallboxPage() {
                 >
                   {CHECKLIST_WALLBOX_TESTI.ANNULLA}
                 </Button>
+              </div>
+
+              {/* Firma remota: il tecnico firma qui, il cliente da link */}
+              <div className="mt-4 space-y-2 rounded-md border border-dashed border-border p-3">
+                <p className="text-xs text-text-muted">
+                  Oppure firma solo come tecnico e invia al cliente il link
+                  per firmare a distanza.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={invioRemotaLoading}
+                  disabled={!firmaTecnico || salvataggio}
+                  onClick={() => void handleInviaFirmaRemota()}
+                >
+                  Invia per firma remota (cliente)
+                </Button>
+
+                {linkFirmaRemota && (
+                  <div className="space-y-2 rounded-md bg-bg-subtle p-2">
+                    <p className="break-all text-xs text-text-primary">
+                      {linkFirmaRemota}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                          `Firma la checklist wallbox: ${linkFirmaRemota}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center rounded-md bg-[#25D366] px-3 text-xs font-medium text-white"
+                      >
+                        Condividi su WhatsApp
+                      </a>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => {
+                          void navigator.clipboard?.writeText(linkFirmaRemota);
+                          toast.success("Link copiato");
+                        }}
+                      >
+                        Copia link
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
