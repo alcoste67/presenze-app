@@ -21,6 +21,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardList,
+  FileText,
   History,
   Pause,
   Repeat,
@@ -33,6 +34,7 @@ import {
   AUTH_TESTI,
 } from "@/constants/auth";
 import { ASSENZE_TESTI } from "@/constants/assenze";
+import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
@@ -1845,6 +1847,16 @@ export default function HomePage() {
                 icon={<ClipboardList className="h-4 w-4" />}
               >
                 {RAPPORTI_INTERVENTO_TESTI.TITOLO}
+              </Button>
+            </Link>
+
+            <Link href={APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<FileText className="h-4 w-4" />}
+              >
+                {CHECKLIST_WALLBOX_TESTI.TITOLO}
               </Button>
             </Link>
 
