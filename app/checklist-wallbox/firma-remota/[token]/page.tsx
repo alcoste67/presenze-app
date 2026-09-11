@@ -137,6 +137,15 @@ export default function FirmaRemotaChecklistWallboxPage({
               )}
             </div>
 
+            <a
+              href={`/api/checklist-wallbox/firma-remota/${token}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-11 items-center justify-center rounded-md border border-brand-500 text-sm font-medium text-brand-500 transition-colors hover:bg-brand-50"
+            >
+              Visualizza il documento da firmare
+            </a>
+
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-text-primary">
                 Nome di chi firma
