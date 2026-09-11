@@ -72,3 +72,15 @@
     font-family: var(--font-montserrat), system-ui, sans-serif;
   }
 }
+
+/* Fuori da @layer apposta: deve vincere sempre su Tailwind (text-sm ecc.),
+   indipendentemente dall'ordine — è così che funziona la cascata dei layer.
+   Sotto i 16px iOS Safari zooma automaticamente la pagina quando un campo
+   riceve il focus: da qui il "cambio impaginazione" al tocco di un input. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
