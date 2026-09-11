@@ -32,6 +32,8 @@ export const CORREZIONI_TIMBRATURE_TESTI = {
     ORARIO_FUTURO: "L'orario indicato non può essere nel futuro",
     ORARIO_PRECEDENTE:
       "L'orario indicato deve essere successivo all'ultima timbratura di oggi",
+    IN_FERIE_O_PERMESSO:
+      "Oggi risulti in ferie/permesso: la timbratura non è disponibile",
   },
   MESSAGGI: {
     REGISTRATA: "Timbratura registrata",

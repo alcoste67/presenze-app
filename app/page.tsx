@@ -1754,7 +1754,7 @@ export default function HomePage() {
 
         <PushOptIn />
 
-        {promemoriaTimbraturaTipo && (
+        {promemoriaTimbraturaTipo && !assenzaOggi && (
           <CorrezioneTimbraturaBanner
             tipo={promemoriaTimbraturaTipo}
             cantiereId={cantiereId || null}

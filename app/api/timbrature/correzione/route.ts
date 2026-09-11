@@ -8,6 +8,7 @@ import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
 import { dataRomaOggi, oraRomaAttuale, romaLocalToUtc } from "@/lib/timezoneRoma";
+import { haAssenzaGiornataIntera } from "@/services/assenze/haAssenzaGiornataIntera";
 import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipendente";
 import { validaSequenzaTimbratura } from "@/services/timbrature/validaSequenzaTimbratura";
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
   const attivitaTipoRichiesta = typeof body.attivitaTipo === "string" ? body.attivitaTipo : null;
 
   // ── La finestra di correzione va rivalutata qui: mai fidarsi del client ──
+  const inFerieOggi = await haAssenzaGiornataIntera({
+    dipendenteId: dipendente.id,
+    data: dataRomaOggi(),
+    supabaseClient: supabaseAdmin,
+  });
+  if (inFerieOggi) {
+    return jsonErrore(CORREZIONI_TIMBRATURE_TESTI.ERRORI.IN_FERIE_O_PERMESSO, HTTP_STATUS.CONFLICT);
+  }
+
   const statoGiornata = await caricaStatoGiornata(supabaseAdmin, user.id);
   const promemoriaAttivo = valutaPromemoria(oraRomaAttuale(), statoGiornata);
   if (promemoriaAttivo !== tipo) {

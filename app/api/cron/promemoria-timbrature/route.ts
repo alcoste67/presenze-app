@@ -4,7 +4,8 @@ import { HTTP_STATUS } from "@/constants/api";
 import { CORREZIONI_TIMBRATURE_TESTI } from "@/constants/correzioniTimbrature";
 import { inviaPush } from "@/lib/webPush";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { giornoFerialeRoma, minutiRomaAttuali } from "@/lib/timezoneRoma";
+import { dataRomaOggi, giornoFerialeRoma, minutiRomaAttuali } from "@/lib/timezoneRoma";
+import { haAssenzaGiornataIntera } from "@/services/assenze/haAssenzaGiornataIntera";
 import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipendente";
 import { valutaPromemoriaPush, type TipoPromemoriaPush } from "@/services/timbrature/valutaPromemoriaPush";
 
@@ -71,6 +72,13 @@ export async function GET(request: NextRequest) {
     const stato = await caricaStatoGiornata(supabaseAdmin, dipendente.auth_user_id);
     const promemoria = valutaPromemoriaPush(minutiRoma, stato);
     if (!promemoria) continue;
+
+    const inFerieOggi = await haAssenzaGiornataIntera({
+      dipendenteId: dipendente.id,
+      data: dataRomaOggi(),
+      supabaseClient: supabaseAdmin,
+    });
+    if (inFerieOggi) continue;
 
     const { data: subscriptions } = await supabaseAdmin
       .from("push_subscriptions")
