@@ -26,6 +26,7 @@ import { LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
+import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
@@ -146,6 +147,12 @@ export default function BackofficePage() {
                 descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
               />
               <ModuloCard
+                href="/backoffice/checklist-wallbox"
+                icon={<FileText className="h-5 w-5" />}
+                nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+              />
+              <ModuloCard
                 href="/backoffice/costi-macchinari"
                 icon={<Calculator className="h-5 w-5" />}
                 nome={MACCHINARI_TESTI.TITOLO}
@@ -220,6 +227,12 @@ export default function BackofficePage() {
                 icon={<ClipboardList className="h-5 w-5" />}
                 nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
                 descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
+              />
+              <ModuloCard
+                href="/backoffice/checklist-wallbox"
+                icon={<FileText className="h-5 w-5" />}
+                nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
               />
               <ModuloCard
                 href="/backoffice/commessa"
