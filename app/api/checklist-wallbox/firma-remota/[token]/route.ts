@@ -1,10 +1,77 @@
+import { Resend } from "resend";
+
 import { CHECKLIST_WALLBOX_LIMITI, CHECKLIST_WALLBOX_STATI } from "@/constants/checklistWallbox";
 import { HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
+import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
+import { generaPdfChecklistWallboxA2C } from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxA2C";
+import { generaPdfChecklistWallboxEdison } from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxEdison";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MITTENTE = "Cantivo <rapporti@cantivo.it>";
+
+// Best-effort: avvisa admin/responsabile che il cliente ha firmato da
+// remoto, con il PDF allegato. Non è l'invio al cliente (quello resta
+// un'azione separata dall'app) e un suo eventuale fallimento non deve
+// bloccare la firma appena avvenuta.
+async function avvisaAziendaFirmaCompletata(
+  checklistWallboxId: string,
+  aziendaId: string
+) {
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
+
+    const checklist = await loadChecklistWallbox(checklistWallboxId, supabaseAdmin);
+    if (!checklist) return;
+
+    const { data: dipendenti } = await supabaseAdmin
+      .from("dipendenti")
+      .select("email, ruolo, attivo")
+      .eq("azienda_id", aziendaId)
+      .eq("attivo", true);
+
+    const destinatari = (dipendenti || [])
+      .filter((d) => ["ADMIN", "SUPERADMIN"].includes(d.ruolo))
+      .map((d) => d.email)
+      .filter(Boolean);
+
+    if (destinatari.length === 0) return;
+
+    const pdfBytes =
+      checklist.formato_stampa === "A2C"
+        ? await generaPdfChecklistWallboxA2C(checklist)
+        : await generaPdfChecklistWallboxEdison(checklist);
+
+    const nomeCliente =
+      checklist.ragione_sociale.trim() ||
+      `${checklist.nome} ${checklist.cognome}`.trim();
+
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: MITTENTE,
+      to: destinatari,
+      subject: `Cliente ha firmato da remoto — checklist wallbox ${nomeCliente || checklist.comune}`,
+      text: [
+        `Il cliente ha firmato da remoto la checklist wallbox (${checklist.comune}).`,
+        "In allegato il documento con entrambe le firme.",
+        "",
+        "Ricorda che per inviarlo ufficialmente al cliente devi comunque usare 'Invia' dall'app.",
+      ].join("\n"),
+      attachments: [
+        {
+          filename: `checklist-wallbox-firmata.pdf`,
+          content: Buffer.from(pdfBytes),
+        },
+      ],
+    });
+  } catch (e) {
+    console.error("[checklist-wallbox/firma-remota] avviso azienda fallito", e);
+  }
+}
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
@@ -15,6 +82,7 @@ function jsonErrore(errore: string, status: number) {
 type TokenRow = {
   id: string;
   checklist_wallbox_id: string;
+  azienda_id: string;
   stato: string;
   expires_at: string;
 };
@@ -23,7 +91,7 @@ async function leggiToken(token: string): Promise<TokenRow | null> {
   if (!token) return null;
   const { data } = await supabaseAdmin
     .from("checklist_wallbox_firma_remota")
-    .select("id, checklist_wallbox_id, stato, expires_at")
+    .select("id, checklist_wallbox_id, azienda_id, stato, expires_at")
     .eq("id", token)
     .maybeSingle();
   return (data as TokenRow | null) || null;
@@ -141,6 +209,8 @@ export async function POST(
     .from("checklist_wallbox_firma_remota")
     .update({ stato: "firmato", firmato_at: adesso })
     .eq("id", row.id);
+
+  await avvisaAziendaFirmaCompletata(row.checklist_wallbox_id, row.azienda_id);
 
   return Response.json({ firmato: true }, { status: 200, headers: NO_STORE });
 }

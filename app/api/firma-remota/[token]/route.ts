@@ -1,11 +1,75 @@
+import { Resend } from "resend";
+
 import { RAPPORTI_INTERVENTO_STATI } from "@/constants/rapportiIntervento";
 import { HTTP_STATUS } from "@/constants/api";
 import { RAPPORTI_INTERVENTO_LIMITI } from "@/constants/rapportiIntervento";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
+import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
+import {
+  generaRapportoInterventoPdf,
+  getNomeFile,
+} from "@/services/rapportiIntervento/pdf/generaPdfRapporto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MITTENTE = "Cantivo <rapporti@cantivo.it>";
+
+// Best-effort: avvisa admin/responsabile che il cliente ha firmato da
+// remoto, con il PDF allegato. Non è l'invio al cliente (quello resta
+// un'azione separata dall'app) e un suo eventuale fallimento non deve
+// bloccare la firma appena avvenuta.
+async function avvisaAziendaFirmaCompletata(
+  rapportoInterventoId: string,
+  aziendaId: string
+) {
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
+
+    const rapporto = await loadRapportoIntervento(rapportoInterventoId, supabaseAdmin);
+    if (!rapporto) return;
+
+    const { data: dipendenti } = await supabaseAdmin
+      .from("dipendenti")
+      .select("email, ruolo, attivo")
+      .eq("azienda_id", aziendaId)
+      .eq("attivo", true);
+
+    const destinatari = (dipendenti || [])
+      .filter((d) => ["ADMIN", "SUPERADMIN"].includes(d.ruolo))
+      .map((d) => d.email)
+      .filter(Boolean);
+
+    if (destinatari.length === 0) return;
+
+    const pdfBytes = await generaRapportoInterventoPdf(rapporto, {
+      mostraFatturazione: true,
+    });
+
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: MITTENTE,
+      to: destinatari,
+      subject: `Cliente ha firmato da remoto — ${rapporto.cantiere_nome_snapshot}`,
+      text: [
+        `Il cliente ha firmato da remoto il rapporto di lavoro (${rapporto.cantiere_nome_snapshot}).`,
+        "In allegato il documento con entrambe le firme.",
+        "",
+        "Ricorda che per inviarlo ufficialmente al cliente devi comunque usare 'Invia' dall'app.",
+      ].join("\n"),
+      attachments: [
+        {
+          filename: getNomeFile(rapporto),
+          content: Buffer.from(pdfBytes),
+        },
+      ],
+    });
+  } catch (e) {
+    console.error("[firma-remota] avviso azienda fallito", e);
+  }
+}
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
@@ -16,6 +80,7 @@ function jsonErrore(errore: string, status: number) {
 type TokenRow = {
   id: string;
   rapporto_intervento_id: string;
+  azienda_id: string;
   stato: string;
   expires_at: string;
 };
@@ -24,7 +89,7 @@ async function leggiToken(token: string): Promise<TokenRow | null> {
   if (!token) return null;
   const { data } = await supabaseAdmin
     .from("rapporti_firma_remota")
-    .select("id, rapporto_intervento_id, stato, expires_at")
+    .select("id, rapporto_intervento_id, azienda_id, stato, expires_at")
     .eq("id", token)
     .maybeSingle();
   return (data as TokenRow | null) || null;
@@ -145,6 +210,8 @@ export async function POST(
     .from("rapporti_firma_remota")
     .update({ stato: "firmato", firmato_at: adesso })
     .eq("id", row.id);
+
+  await avvisaAziendaFirmaCompletata(row.rapporto_intervento_id, row.azienda_id);
 
   return Response.json({ firmato: true }, { status: 200, headers: NO_STORE });
 }
