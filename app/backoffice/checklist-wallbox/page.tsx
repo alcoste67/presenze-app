@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Home, Plus, Share2, Download, Send } from "lucide-react";
@@ -16,10 +17,7 @@ import { getMessaggioErrore } from "@/lib/errors";
 import { creaChecklistWallbox } from "@/services/checklistWallbox/creaChecklistWallbox";
 import { loadChecklistiWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import { inviaChecklistWallbox } from "@/services/checklistWallbox/inviaChecklistWallbox";
-import {
-  fetchChecklistWallboxPdf,
-  type FormatoChecklistWallbox,
-} from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
+import { fetchChecklistWallboxPdf } from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
 import type {
   ChecklistWallbox,
   ChecklistWallboxInput,
@@ -100,6 +98,7 @@ function statoIniziale(): ChecklistWallboxInput {
     materiali: [],
     luogo: "",
     data_sopralluogo: null,
+    formato_stampa: "EDISON",
   };
 }
 
@@ -151,6 +150,7 @@ function formattaDataOra(value: string) {
 
 export default function ChecklistWallboxPage() {
   const toast = useToast();
+  const router = useRouter();
   const invioDaQueryGestitoRef = useRef(false);
 
   const [checklists, setChecklists] = useState<ChecklistWallbox[]>([]);
@@ -162,12 +162,6 @@ export default function ChecklistWallboxPage() {
     Record<string, string>
   >({});
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
-  const [formatoPerChecklist, setFormatoPerChecklist] = useState<
-    Record<string, FormatoChecklistWallbox>
-  >({});
-
-  const getFormato = (checklistId: string): FormatoChecklistWallbox =>
-    formatoPerChecklist[checklistId] || "EDISON";
 
   const ricarica = async () => {
     try {
@@ -188,26 +182,28 @@ export default function ChecklistWallboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-
+  const validaForm = () => {
     if (!form.ragione_sociale.trim() && !form.nome.trim() && !form.cognome.trim()) {
       toast.error(
         CHECKLIST_WALLBOX_TESTI.ERRORI.RAGIONE_SOCIALE_O_NOME_OBBLIGATORIO
       );
-      return;
+      return false;
     }
 
     if (!form.comune.trim()) {
       toast.error(CHECKLIST_WALLBOX_TESTI.ERRORI.COMUNE_OBBLIGATORIO);
-      return;
+      return false;
     }
 
     if (!form.email_cliente.trim()) {
       toast.error(CHECKLIST_WALLBOX_TESTI.ERRORI.EMAIL_CLIENTE_OBBLIGATORIA);
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const creaDaForm = async () => {
     const materiali: MaterialeChecklistWallbox[] =
       CHECKLIST_WALLBOX_CATALOGO_MATERIALI.filter(
         (materiale) => materialiQuantita[materiale.descrizione]?.trim()
@@ -216,9 +212,16 @@ export default function ChecklistWallboxPage() {
         quantita: materialiQuantita[materiale.descrizione].trim(),
       }));
 
+    return creaChecklistWallbox({ ...form, materiali });
+  };
+
+  const handleSalvaBozza = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!validaForm()) return;
+
     try {
       setSalvataggio(true);
-      await creaChecklistWallbox({ ...form, materiali });
+      await creaDaForm();
       toast.success(CHECKLIST_WALLBOX_TESTI.MESSAGGI.CREATA);
       setForm(statoIniziale());
       setMaterialiQuantita({});
@@ -233,12 +236,29 @@ export default function ChecklistWallboxPage() {
     }
   };
 
+  const handleCreaEFirma = async () => {
+    if (!validaForm()) return;
+
+    try {
+      setSalvataggio(true);
+      const checklist = await creaDaForm();
+      router.push(
+        `${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/${checklist.id}/firma`
+      );
+    } catch (error: unknown) {
+      toast.error(
+        getMessaggioErrore(error, CHECKLIST_WALLBOX_TESTI.ERRORI.GENERICO)
+      );
+      setSalvataggio(false);
+    }
+  };
+
   const handleInvia = async (checklist: ChecklistWallbox) => {
     try {
       setAzioneInCorsoId(checklist.id);
       const esito = await inviaChecklistWallbox({
         checklistWallboxId: checklist.id,
-        formato: getFormato(checklist.id),
+        formato: checklist.formato_stampa,
       });
       toast.success(
         `${CHECKLIST_WALLBOX_TESTI.MESSAGGI.INVIATA} ${esito.destinatario}`
@@ -281,7 +301,7 @@ export default function ChecklistWallboxPage() {
       setAzioneInCorsoId(checklist.id);
       const { blob, nomeFile } = await fetchChecklistWallboxPdf(
         checklist.id,
-        getFormato(checklist.id)
+        checklist.formato_stampa
       );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -303,7 +323,7 @@ export default function ChecklistWallboxPage() {
       setAzioneInCorsoId(checklist.id);
       const { blob, nomeFile } = await fetchChecklistWallboxPdf(
         checklist.id,
-        getFormato(checklist.id)
+        checklist.formato_stampa
       );
       const file = new File([blob], nomeFile, { type: "application/pdf" });
       const nav = navigator as Navigator & {
@@ -375,7 +395,30 @@ export default function ChecklistWallboxPage() {
 
         {mostraForm && (
           <Card className="mt-5 p-5">
-            <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
+            <form onSubmit={(e) => void handleSalvaBozza(e)} className="flex flex-col gap-5">
+              <div>
+                <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+                  Formato PDF
+                </h2>
+                <div className="flex gap-1.5">
+                  {(["EDISON", "A2C"] as const).map((formato) => (
+                    <button
+                      key={formato}
+                      type="button"
+                      disabled={salvataggio}
+                      onClick={() => setForm({ ...form, formato_stampa: formato })}
+                      className={`h-9 rounded-md border px-4 text-sm font-medium transition-colors ${
+                        form.formato_stampa === formato
+                          ? "border-brand-500 bg-brand-500 text-white"
+                          : "border-border bg-bg-card text-text-primary hover:bg-bg-subtle"
+                      }`}
+                    >
+                      {formato === "EDISON" ? "Edison" : "A2C"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
                   {CHECKLIST_WALLBOX_TESTI.DATI_CLIENTE}
@@ -527,37 +570,35 @@ export default function ChecklistWallboxPage() {
                 />
               </div>
 
-              {form.opere_adeguamento_necessarie && (
-                <div>
-                  <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
-                    {CHECKLIST_WALLBOX_TESTI.MATERIALI_TITOLO}
-                  </h2>
-                  <div className="flex flex-col gap-2">
-                    {CHECKLIST_WALLBOX_CATALOGO_MATERIALI.map((materiale) => (
-                      <div
-                        key={materiale.descrizione}
-                        className="flex items-center justify-between gap-3"
-                      >
-                        <span className="text-sm text-text-primary">
-                          {materiale.descrizione}
-                        </span>
-                        <input
-                          value={materialiQuantita[materiale.descrizione] || ""}
-                          onChange={(e) =>
-                            setMaterialiQuantita({
-                              ...materialiQuantita,
-                              [materiale.descrizione]: e.target.value,
-                            })
-                          }
-                          disabled={salvataggio}
-                          placeholder={CHECKLIST_WALLBOX_TESTI.QUANTITA}
-                          className="h-9 w-24 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
-                        />
-                      </div>
-                    ))}
-                  </div>
+              <div>
+                <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+                  {CHECKLIST_WALLBOX_TESTI.MATERIALI_TITOLO}
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {CHECKLIST_WALLBOX_CATALOGO_MATERIALI.map((materiale) => (
+                    <div
+                      key={materiale.descrizione}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="text-sm text-text-primary">
+                        {materiale.descrizione}
+                      </span>
+                      <input
+                        value={materialiQuantita[materiale.descrizione] || ""}
+                        onChange={(e) =>
+                          setMaterialiQuantita({
+                            ...materialiQuantita,
+                            [materiale.descrizione]: e.target.value,
+                          })
+                        }
+                        disabled={salvataggio}
+                        placeholder={CHECKLIST_WALLBOX_TESTI.QUANTITA}
+                        className="h-9 w-24 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div>
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
@@ -583,20 +624,33 @@ export default function ChecklistWallboxPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button type="submit" loading={salvataggio} className="flex-1">
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  loading={salvataggio}
+                  className="flex-1"
+                >
                   {salvataggio
                     ? CHECKLIST_WALLBOX_TESTI.SALVATAGGIO
                     : CHECKLIST_WALLBOX_TESTI.SALVA}
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
-                  disabled={salvataggio}
-                  onClick={() => setMostraForm(false)}
+                  loading={salvataggio}
+                  className="flex-1"
+                  onClick={() => void handleCreaEFirma()}
                 >
-                  {CHECKLIST_WALLBOX_TESTI.ANNULLA}
+                  {CHECKLIST_WALLBOX_TESTI.VAI_ALLA_FIRMA}
                 </Button>
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={salvataggio}
+                onClick={() => setMostraForm(false)}
+              >
+                {CHECKLIST_WALLBOX_TESTI.ANNULLA}
+              </Button>
             </form>
           </Card>
         )}
@@ -631,9 +685,14 @@ export default function ChecklistWallboxPage() {
                       {formattaDataOra(checklist.created_at)}
                     </p>
                   </div>
-                  <Badge variant={BADGE_PER_STATO[checklist.stato]}>
-                    {LABEL_STATI_CHECKLIST_WALLBOX[checklist.stato]}
-                  </Badge>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge variant={BADGE_PER_STATO[checklist.stato]}>
+                      {LABEL_STATI_CHECKLIST_WALLBOX[checklist.stato]}
+                    </Badge>
+                    <Badge variant="muted" size="sm">
+                      {checklist.formato_stampa === "A2C" ? "A2C" : "Edison"}
+                    </Badge>
+                  </div>
                 </div>
 
                 {checklist.stato === CHECKLIST_WALLBOX_STATI.BOZZA && (
@@ -650,32 +709,7 @@ export default function ChecklistWallboxPage() {
 
                 {checklist.stato !== CHECKLIST_WALLBOX_STATI.BOZZA && (
                   <>
-                    <div className="mt-3 flex gap-1.5">
-                      {(["EDISON", "A2C"] as FormatoChecklistWallbox[]).map(
-                        (formato) => (
-                          <button
-                            key={formato}
-                            type="button"
-                            disabled={inCorso}
-                            onClick={() =>
-                              setFormatoPerChecklist({
-                                ...formatoPerChecklist,
-                                [checklist.id]: formato,
-                              })
-                            }
-                            className={`h-7 rounded-md border px-2.5 text-xs font-medium transition-colors ${
-                              getFormato(checklist.id) === formato
-                                ? "border-brand-500 bg-brand-500 text-white"
-                                : "border-border bg-bg-card text-text-primary hover:bg-bg-subtle"
-                            }`}
-                          >
-                            {formato === "EDISON" ? "Edison" : "A2C"}
-                          </button>
-                        )
-                      )}
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       {checklist.stato === CHECKLIST_WALLBOX_STATI.FIRMATO && (
                         <Button
                           size="sm"

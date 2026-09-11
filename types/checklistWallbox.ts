@@ -5,6 +5,8 @@ export type StatoChecklistWallbox =
 
 export type ModalitaPosaWallbox = "PARETE" | "TERRA";
 
+export type FormatoChecklistWallbox = "EDISON" | "A2C";
+
 export type MaterialeChecklistWallbox = {
   descrizione: string;
   quantita: string;
@@ -37,6 +39,7 @@ export type ChecklistWallbox = {
   materiali: MaterialeChecklistWallbox[];
   luogo: string;
   data_sopralluogo: string | null;
+  formato_stampa: FormatoChecklistWallbox;
   firma_tecnico_data_url: string | null;
   firma_tecnico_nome: string | null;
   firma_tecnico_at: string | null;
@@ -75,4 +78,5 @@ export type ChecklistWallboxInput = {
   materiali: MaterialeChecklistWallbox[];
   luogo: string;
   data_sopralluogo: string | null;
+  formato_stampa: FormatoChecklistWallbox;
 };

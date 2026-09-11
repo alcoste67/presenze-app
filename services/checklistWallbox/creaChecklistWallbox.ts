@@ -9,7 +9,7 @@ import type {
 type SupabaseClient = typeof supabase;
 
 export const SELECT_CHECKLIST_WALLBOX =
-  "id, azienda_id, ragione_sociale, piva, nome, cognome, via, comune, cap, provincia, telefono, email_cliente, posizionamento, modalita_posa, potenza_contatore_kw, quadro_conforme, impianto_a_norma, dichiarazione_conformita, autorizzazioni_necessarie, messa_a_terra, installazione_possibile, opere_adeguamento_necessarie, note, materiali, luogo, data_sopralluogo, firma_tecnico_data_url, firma_tecnico_nome, firma_tecnico_at, firma_cliente_data_url, firma_cliente_nome, firma_cliente_at, stato, created_by, inviato_il, created_at, updated_at";
+  "id, azienda_id, ragione_sociale, piva, nome, cognome, via, comune, cap, provincia, telefono, email_cliente, posizionamento, modalita_posa, potenza_contatore_kw, quadro_conforme, impianto_a_norma, dichiarazione_conformita, autorizzazioni_necessarie, messa_a_terra, installazione_possibile, opere_adeguamento_necessarie, note, materiali, luogo, data_sopralluogo, formato_stampa, firma_tecnico_data_url, firma_tecnico_nome, firma_tecnico_at, firma_cliente_data_url, firma_cliente_nome, firma_cliente_at, stato, created_by, inviato_il, created_at, updated_at";
 
 async function getCreatedBy(supabaseClient: SupabaseClient) {
   const {
@@ -67,6 +67,7 @@ export async function creaChecklistWallbox(
       materiali: input.materiali,
       luogo: input.luogo,
       data_sopralluogo: input.data_sopralluogo,
+      formato_stampa: input.formato_stampa,
       created_by: createdBy,
     })
     .select(SELECT_CHECKLIST_WALLBOX)

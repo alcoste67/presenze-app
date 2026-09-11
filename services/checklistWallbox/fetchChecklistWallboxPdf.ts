@@ -2,6 +2,9 @@ import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS } from "@/constants/api";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { supabase } from "@/lib/supabase";
+import type { FormatoChecklistWallbox } from "@/types/checklistWallbox";
+
+export type { FormatoChecklistWallbox };
 
 type ChecklistWallboxPdf = {
   blob: Blob;
@@ -25,8 +28,6 @@ function getNomeFilePdf(response: Response) {
   const match = /filename="([^"]+)"/.exec(contentDisposition);
   return match?.[1] || "checklist-wallbox.pdf";
 }
-
-export type FormatoChecklistWallbox = "EDISON" | "A2C";
 
 export async function fetchChecklistWallboxPdf(
   checklistWallboxId: string,

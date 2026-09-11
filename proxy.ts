@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
   "/privacy",
   "/termini",
   "/firma-remota",
+  "/checklist-wallbox/firma-remota",
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -69,6 +70,7 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/timbrature") &&
     !pathname.startsWith("/storico") &&
     !pathname.startsWith("/firma-remota") &&
+    !pathname.startsWith("/checklist-wallbox/firma-remota") &&
     !pathname.startsWith("/backoffice") &&
     !pathname.startsWith("/impostazioni") &&
     !pathname.startsWith("/superadmin") &&
