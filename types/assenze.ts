@@ -1,5 +1,9 @@
 export type TipoAssenza = "FERIE" | "PERMESSO";
-export type StatoRichiestaAssenza = "IN_ATTESA" | "APPROVATA" | "RIFIUTATA";
+export type StatoRichiestaAssenza =
+  | "IN_ATTESA"
+  | "APPROVATA"
+  | "RIFIUTATA"
+  | "ANNULLATA";
 
 export type RichiestaAssenza = {
   id: string;
@@ -14,6 +18,8 @@ export type RichiestaAssenza = {
   nota: string;
   approvataDaId: string | null;
   approvataIl: string | null;
+  annullataDaId: string | null;
+  annullataIl: string | null;
   createdAt: string;
 };
 

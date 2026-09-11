@@ -3,10 +3,14 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Home, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Home, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { getMessaggioErrore } from "@/lib/errors";
-import { ASSENZE_TESTI, LABEL_TIPO_ASSENZA } from "@/constants/assenze";
+import {
+  ASSENZE_TESTI,
+  LABEL_STATO_RICHIESTA_ASSENZA,
+  LABEL_TIPO_ASSENZA,
+} from "@/constants/assenze";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { APP_ROUTES } from "@/constants/routes";
 
@@ -145,20 +149,25 @@ export default function BackofficeCalendarioPage() {
 
   const [assenzeApprovate, setAssenzeApprovate] = useState<RichiestaAssenza[]>([]);
   const [richiesteInAttesa, setRichiesteInAttesa] = useState<RichiestaAssenza[]>([]);
+  const [mieRichieste, setMieRichieste] = useState<RichiestaAssenza[]>([]);
   const [puoApprovareAssenze, setPuoApprovareAssenze] = useState(false);
   const [azioneRichiestaId, setAzioneRichiestaId] = useState<string | null>(null);
 
   const caricaLista = async () => {
     try {
       setLoadingLista(true);
-      const [risposta, rispostaAssenze] = await Promise.all([
+      const [risposta, rispostaAssenze, rispostaMieRichieste] = await Promise.all([
         fetchPianificazioni({ dataInizio, dataFine }),
         fetchRichiesteAssenza({ dataInizio, dataFine, stato: "APPROVATA" }),
+        fetchRichiesteAssenza({ soloMie: true }),
       ]);
       setPianificazioni(risposta.pianificazioni);
       setPuoModificare(risposta.puoModificare);
       setAssenzeApprovate(rispostaAssenze.richieste);
       setPuoApprovareAssenze(rispostaAssenze.puoApprovare);
+      setMieRichieste(
+        rispostaMieRichieste.richieste.filter((r) => r.stato !== "ANNULLATA")
+      );
 
       if (rispostaAssenze.puoApprovare) {
         const rispostaInAttesa = await fetchRichiesteAssenza({ stato: "IN_ATTESA" });
@@ -184,13 +193,19 @@ export default function BackofficeCalendarioPage() {
     }
   };
 
-  const gestisciRichiesta = async (id: string, stato: "APPROVATA" | "RIFIUTATA") => {
+  const gestisciRichiesta = async (
+    id: string,
+    stato: "APPROVATA" | "RIFIUTATA" | "ANNULLATA"
+  ) => {
+    const messaggi = {
+      APPROVATA: ASSENZE_TESTI.MESSAGGI.APPROVATA,
+      RIFIUTATA: ASSENZE_TESTI.MESSAGGI.RIFIUTATA,
+      ANNULLATA: ASSENZE_TESTI.MESSAGGI.ANNULLATA,
+    };
     try {
       setAzioneRichiestaId(id);
       await aggiornaStatoRichiestaClient(id, stato);
-      toast.success(
-        stato === "APPROVATA" ? ASSENZE_TESTI.MESSAGGI.APPROVATA : ASSENZE_TESTI.MESSAGGI.RIFIUTATA
-      );
+      toast.success(messaggi[stato]);
       await caricaLista();
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, ASSENZE_TESTI.ERRORI.AGGIORNAMENTO));
@@ -488,6 +503,57 @@ export default function BackofficeCalendarioPage() {
           </Card>
         )}
 
+        {/* Le mie richieste ferie/permesso */}
+        <Card className="mt-4 p-5">
+          <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+            {ASSENZE_TESTI.LE_MIE_RICHIESTE}
+          </h2>
+          {mieRichieste.length === 0 ? (
+            <p className="text-sm text-text-muted">{ASSENZE_TESTI.NESSUNA_MIA_RICHIESTA}</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {mieRichieste.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary">
+                      {LABEL_TIPO_ASSENZA[r.tipo]}{" "}
+                      <Badge
+                        size="sm"
+                        variant={
+                          r.stato === "APPROVATA"
+                            ? "success"
+                            : r.stato === "RIFIUTATA"
+                              ? "error"
+                              : "warning"
+                        }
+                      >
+                        {LABEL_STATO_RICHIESTA_ASSENZA[r.stato]}
+                      </Badge>
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      {r.dataInizio === r.dataFine ? formattaGiorno(r.dataInizio) : `${formattaGiorno(r.dataInizio)} → ${formattaGiorno(r.dataFine)}`}
+                      {!r.giornataIntera && ` · ${r.ore}h`}
+                    </p>
+                  </div>
+                  {(r.stato === "IN_ATTESA" || r.stato === "APPROVATA") && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={azioneRichiestaId === r.id}
+                      onClick={() => void gestisciRichiesta(r.id, "ANNULLATA")}
+                    >
+                      {ASSENZE_TESTI.ANNULLA_RICHIESTA}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         {/* Richieste ferie/permesso in attesa (solo admin/superadmin) */}
         {puoApprovareAssenze && (
           <Card className="mt-4 p-5">
@@ -560,11 +626,27 @@ export default function BackofficeCalendarioPage() {
               </h2>
 
               {assenzeGiorno.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
                   {assenzeGiorno.map((a) => (
-                    <Badge key={`${a.id}-${giorno}`} variant="warning" size="sm">
-                      {formattaEtichettaAssenza(a)}
-                    </Badge>
+                    <span
+                      key={`${a.id}-${giorno}`}
+                      className="inline-flex items-center gap-1"
+                    >
+                      <Badge variant="warning" size="sm">
+                        {formattaEtichettaAssenza(a)}
+                      </Badge>
+                      {puoApprovareAssenze && (
+                        <button
+                          type="button"
+                          aria-label={ASSENZE_TESTI.ANNULLA_RICHIESTA}
+                          disabled={azioneRichiestaId === a.id}
+                          onClick={() => void gestisciRichiesta(a.id, "ANNULLATA")}
+                          className="text-text-muted transition-colors hover:text-error-500 disabled:opacity-40"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </span>
                   ))}
                 </div>
               )}

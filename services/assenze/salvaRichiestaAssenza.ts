@@ -46,7 +46,7 @@ export async function creaRichiestaAssenzaClient(
 
 export async function aggiornaStatoRichiestaClient(
   id: string,
-  stato: "APPROVATA" | "RIFIUTATA"
+  stato: "APPROVATA" | "RIFIUTATA" | "ANNULLATA"
 ): Promise<void> {
   const accessToken = await getAccessToken();
 

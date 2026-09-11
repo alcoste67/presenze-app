@@ -6,7 +6,7 @@ import type {
 } from "@/types/assenze";
 
 const SELECT_RICHIESTA =
-  "id, dipendente_id, tipo, data_inizio, data_fine, giornata_intera, ore, stato, nota, approvata_da, approvata_il, created_at";
+  "id, dipendente_id, tipo, data_inizio, data_fine, giornata_intera, ore, stato, nota, approvata_da, approvata_il, annullata_da, annullata_il, created_at";
 
 type RichiestaRow = {
   id: string;
@@ -20,6 +20,8 @@ type RichiestaRow = {
   nota: string;
   approvata_da: string | null;
   approvata_il: string | null;
+  annullata_da: string | null;
+  annullata_il: string | null;
   created_at: string;
 };
 
@@ -103,6 +105,8 @@ export async function loadRichiesteAssenza({
     nota: r.nota,
     approvataDaId: r.approvata_da,
     approvataIl: r.approvata_il,
+    annullataDaId: r.annullata_da,
+    annullataIl: r.annullata_il,
     createdAt: r.created_at,
   }));
 }

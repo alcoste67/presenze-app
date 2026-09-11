@@ -19,13 +19,18 @@ export const STATO_RICHIESTA_ASSENZA = {
   IN_ATTESA: "IN_ATTESA",
   APPROVATA: "APPROVATA",
   RIFIUTATA: "RIFIUTATA",
+  ANNULLATA: "ANNULLATA",
 } as const;
 
 export const LABEL_STATO_RICHIESTA_ASSENZA: Record<string, string> = {
   [STATO_RICHIESTA_ASSENZA.IN_ATTESA]: "In attesa",
   [STATO_RICHIESTA_ASSENZA.APPROVATA]: "Approvata",
   [STATO_RICHIESTA_ASSENZA.RIFIUTATA]: "Rifiutata",
+  [STATO_RICHIESTA_ASSENZA.ANNULLATA]: "Annullata",
 };
+
+/** Chi può annullare una richiesta oltre al dipendente stesso (proprietario). */
+export const RUOLI_ANNULLA_ASSENZE_ALTRUI = RUOLI_APPROVA_ASSENZE;
 
 export const ASSENZE_TESTI = {
   FERIE: "Ferie",
@@ -45,6 +50,12 @@ export const ASSENZE_TESTI = {
   NESSUNA_RICHIESTA_IN_ATTESA: "Nessuna richiesta in attesa",
   APPROVA: "Approva",
   RIFIUTA: "Rifiuta",
+  ANNULLA_RICHIESTA: "Annulla richiesta",
+  CONFERMA_ANNULLA_TITOLO: "Annullare la richiesta?",
+  CONFERMA_ANNULLA_MESSAGGIO:
+    "La richiesta non conterà più come ferie/permesso. Se era già approvata, sparirà dal calendario.",
+  LE_MIE_RICHIESTE: "Le mie richieste",
+  NESSUNA_MIA_RICHIESTA: "Nessuna richiesta ferie/permesso",
   ERRORI: {
     SESSIONE_MANCANTE: "Sessione utente non valida",
     RISPOSTA_NON_VALIDA: "Risposta richieste assenza non valida",
@@ -64,5 +75,6 @@ export const ASSENZE_TESTI = {
     INVIATA: "Richiesta inviata, in attesa di approvazione",
     APPROVATA: "Richiesta approvata",
     RIFIUTATA: "Richiesta rifiutata",
+    ANNULLATA: "Richiesta annullata",
   },
 } as const;
