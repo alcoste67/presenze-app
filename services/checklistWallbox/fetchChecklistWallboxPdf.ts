@@ -26,8 +26,11 @@ function getNomeFilePdf(response: Response) {
   return match?.[1] || "checklist-wallbox.pdf";
 }
 
+export type FormatoChecklistWallbox = "EDISON" | "A2C";
+
 export async function fetchChecklistWallboxPdf(
-  checklistWallboxId: string
+  checklistWallboxId: string,
+  formato: FormatoChecklistWallbox = "EDISON"
 ): Promise<ChecklistWallboxPdf> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -38,7 +41,7 @@ export async function fetchChecklistWallboxPdf(
   }
 
   const response = await fetch(
-    `/api/report/checklist-wallbox-pdf?checklistWallboxId=${encodeURIComponent(checklistWallboxId)}`,
+    `/api/report/checklist-wallbox-pdf?checklistWallboxId=${encodeURIComponent(checklistWallboxId)}&formato=${formato}`,
     {
       headers: {
         [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,

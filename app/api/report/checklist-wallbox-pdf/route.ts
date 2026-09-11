@@ -6,9 +6,13 @@ import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import {
-  generaPdfChecklistWallbox,
-  getNomeFileChecklistWallbox,
-} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallbox";
+  generaPdfChecklistWallboxA2C,
+  getNomeFileChecklistWallboxA2C,
+} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxA2C";
+import {
+  generaPdfChecklistWallboxEdison,
+  getNomeFileChecklistWallboxEdison,
+} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxEdison";
 
 export const runtime = "nodejs";
 
@@ -23,6 +27,8 @@ function jsonErrore(error: string, status: number) {
 export async function GET(request: NextRequest) {
   const checklistWallboxId =
     request.nextUrl.searchParams.get("checklistWallboxId") || "";
+  const formato =
+    request.nextUrl.searchParams.get("formato") === "A2C" ? "A2C" : "EDISON";
 
   try {
     if (!checklistWallboxId) {
@@ -78,8 +84,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const pdfBytes = await generaPdfChecklistWallbox(checklist);
-    const fileName = getNomeFileChecklistWallbox(checklist);
+    const pdfBytes =
+      formato === "A2C"
+        ? await generaPdfChecklistWallboxA2C(checklist)
+        : await generaPdfChecklistWallboxEdison(checklist);
+    const fileName =
+      formato === "A2C"
+        ? getNomeFileChecklistWallboxA2C(checklist)
+        : getNomeFileChecklistWallboxEdison(checklist);
     const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength);
     new Uint8Array(pdfBuffer).set(pdfBytes);
 

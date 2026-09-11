@@ -16,7 +16,10 @@ import { getMessaggioErrore } from "@/lib/errors";
 import { creaChecklistWallbox } from "@/services/checklistWallbox/creaChecklistWallbox";
 import { loadChecklistiWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import { inviaChecklistWallbox } from "@/services/checklistWallbox/inviaChecklistWallbox";
-import { fetchChecklistWallboxPdf } from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
+import {
+  fetchChecklistWallboxPdf,
+  type FormatoChecklistWallbox,
+} from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
 import type {
   ChecklistWallbox,
   ChecklistWallboxInput,
@@ -159,6 +162,12 @@ export default function ChecklistWallboxPage() {
     Record<string, string>
   >({});
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
+  const [formatoPerChecklist, setFormatoPerChecklist] = useState<
+    Record<string, FormatoChecklistWallbox>
+  >({});
+
+  const getFormato = (checklistId: string): FormatoChecklistWallbox =>
+    formatoPerChecklist[checklistId] || "EDISON";
 
   const ricarica = async () => {
     try {
@@ -229,6 +238,7 @@ export default function ChecklistWallboxPage() {
       setAzioneInCorsoId(checklist.id);
       const esito = await inviaChecklistWallbox({
         checklistWallboxId: checklist.id,
+        formato: getFormato(checklist.id),
       });
       toast.success(
         `${CHECKLIST_WALLBOX_TESTI.MESSAGGI.INVIATA} ${esito.destinatario}`
@@ -269,7 +279,10 @@ export default function ChecklistWallboxPage() {
   const handleDownload = async (checklist: ChecklistWallbox) => {
     try {
       setAzioneInCorsoId(checklist.id);
-      const { blob, nomeFile } = await fetchChecklistWallboxPdf(checklist.id);
+      const { blob, nomeFile } = await fetchChecklistWallboxPdf(
+        checklist.id,
+        getFormato(checklist.id)
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -288,7 +301,10 @@ export default function ChecklistWallboxPage() {
   const handleCondividiWhatsapp = async (checklist: ChecklistWallbox) => {
     try {
       setAzioneInCorsoId(checklist.id);
-      const { blob, nomeFile } = await fetchChecklistWallboxPdf(checklist.id);
+      const { blob, nomeFile } = await fetchChecklistWallboxPdf(
+        checklist.id,
+        getFormato(checklist.id)
+      );
       const file = new File([blob], nomeFile, { type: "application/pdf" });
       const nav = navigator as Navigator & {
         canShare?: (data: ShareData) => boolean;
@@ -620,8 +636,8 @@ export default function ChecklistWallboxPage() {
                   </Badge>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {checklist.stato === CHECKLIST_WALLBOX_STATI.BOZZA && (
+                {checklist.stato === CHECKLIST_WALLBOX_STATI.BOZZA && (
+                  <div className="mt-3">
                     <Link
                       href={`${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/${checklist.id}/firma`}
                     >
@@ -629,21 +645,48 @@ export default function ChecklistWallboxPage() {
                         {CHECKLIST_WALLBOX_TESTI.VAI_ALLA_FIRMA}
                       </Button>
                     </Link>
-                  )}
+                  </div>
+                )}
 
-                  {checklist.stato === CHECKLIST_WALLBOX_STATI.FIRMATO && (
-                    <Button
-                      size="sm"
-                      icon={<Send className="h-4 w-4" />}
-                      loading={inCorso}
-                      onClick={() => void handleInvia(checklist)}
-                    >
-                      {CHECKLIST_WALLBOX_TESTI.INVIA_ORA}
-                    </Button>
-                  )}
+                {checklist.stato !== CHECKLIST_WALLBOX_STATI.BOZZA && (
+                  <>
+                    <div className="mt-3 flex gap-1.5">
+                      {(["EDISON", "A2C"] as FormatoChecklistWallbox[]).map(
+                        (formato) => (
+                          <button
+                            key={formato}
+                            type="button"
+                            disabled={inCorso}
+                            onClick={() =>
+                              setFormatoPerChecklist({
+                                ...formatoPerChecklist,
+                                [checklist.id]: formato,
+                              })
+                            }
+                            className={`h-7 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                              getFormato(checklist.id) === formato
+                                ? "border-brand-500 bg-brand-500 text-white"
+                                : "border-border bg-bg-card text-text-primary hover:bg-bg-subtle"
+                            }`}
+                          >
+                            {formato === "EDISON" ? "Edison" : "A2C"}
+                          </button>
+                        )
+                      )}
+                    </div>
 
-                  {checklist.stato !== CHECKLIST_WALLBOX_STATI.BOZZA && (
-                    <>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {checklist.stato === CHECKLIST_WALLBOX_STATI.FIRMATO && (
+                        <Button
+                          size="sm"
+                          icon={<Send className="h-4 w-4" />}
+                          loading={inCorso}
+                          onClick={() => void handleInvia(checklist)}
+                        >
+                          {CHECKLIST_WALLBOX_TESTI.INVIA_ORA}
+                        </Button>
+                      )}
+
                       <Button
                         size="sm"
                         variant="secondary"
@@ -662,9 +705,9 @@ export default function ChecklistWallboxPage() {
                       >
                         {CHECKLIST_WALLBOX_TESTI.CONDIVIDI_WHATSAPP}
                       </Button>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </Card>
             );
           })}

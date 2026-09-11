@@ -1,7 +1,11 @@
-// Generatore PDF della checklist wallbox: condiviso tra il download e
-// l'invio email. Il PDF inviato e' archiviato e' la copia legale:
-// generato una volta, mai rigenerato (stesso principio di
-// generaPdfRapporto.ts).
+// Generatore PDF della checklist wallbox su carta intestata A2C (in
+// alternativa alla copia esatta del modulo Edison): condiviso tra il
+// download e l'invio email. Il PDF inviato e' archiviato e' la copia
+// legale: generato una volta, mai rigenerato (stesso principio di
+// generaPdfRapporto.ts, di cui riusa il logo).
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import {
   PDFDocument,
   PDFFont,
@@ -140,31 +144,51 @@ function slugPercorso(value: string) {
 /** Nome file "città-nomecliente": utile sia come allegato email sia come
  * suggerimento quando il tecnico salva il PDF su Files (la cartella con
  * lo stesso nome resta comunque da creare/scegliere a mano su iPhone). */
-export function getNomeFileChecklistWallbox(checklist: ChecklistWallbox) {
+export function getNomeFileChecklistWallboxA2C(checklist: ChecklistWallbox) {
   const cliente =
     checklist.ragione_sociale.trim() ||
     `${checklist.nome} ${checklist.cognome}`.trim() ||
     "cliente";
   const comune = checklist.comune.trim() || "citta";
 
-  return `${slugPercorso(comune)}-${slugPercorso(cliente)}.pdf`;
+  return `${slugPercorso(comune)}-${slugPercorso(cliente)}-a2c.pdf`;
 }
 
-function drawHeader(page: PDFPage, fonts: FontSet) {
-  page.drawRectangle({
-    x: MARGIN_X,
-    y: 776,
-    width: PAGE_WIDTH - MARGIN_X * 2,
-    height: 34,
-    color: COLORS.green,
-  });
+async function embedLogoA2C(pdfDoc: PDFDocument) {
+  const logoBytes = await readFile(
+    path.join(process.cwd(), "public/a2c-logo.png")
+  );
+  const logo = await pdfDoc.embedJpg(logoBytes);
+  const logoWidth = 92;
+  const logoHeight = (logo.height / logo.width) * logoWidth;
+
+  return {
+    draw: (page: PDFPage) => {
+      page.drawImage(logo, { x: MARGIN_X, y: 782, width: logoWidth, height: logoHeight });
+    },
+  };
+}
+
+function drawHeader(
+  page: PDFPage,
+  fonts: FontSet,
+  logo: { draw: (page: PDFPage) => void }
+) {
+  logo.draw(page);
 
   drawText(page, CHECKLIST_WALLBOX_TESTI.PDF.TITOLO, {
-    x: MARGIN_X + 14,
-    y: 788,
+    x: MARGIN_X + 110,
+    y: 796,
     size: 15,
     font: fonts.bold,
-    color: COLORS.white,
+    color: COLORS.text,
+  });
+
+  page.drawLine({
+    start: { x: MARGIN_X, y: 776 },
+    end: { x: PAGE_WIDTH - MARGIN_X, y: 776 },
+    thickness: 2,
+    color: COLORS.green,
   });
 }
 
@@ -350,7 +374,7 @@ async function embedFirma(pdfDoc: PDFDocument, dataUrl: string | null) {
     : pdfDoc.embedJpg(bytes);
 }
 
-export async function generaPdfChecklistWallbox(
+export async function generaPdfChecklistWallboxA2C(
   checklist: ChecklistWallbox
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
@@ -358,6 +382,7 @@ export async function generaPdfChecklistWallbox(
     regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
     bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
   };
+  const logo = await embedLogoA2C(pdfDoc);
 
   const firmaTecnicoImg = await embedFirma(
     pdfDoc,
@@ -370,7 +395,7 @@ export async function generaPdfChecklistWallbox(
 
   // ── Pagina 1: dati cliente, immobile, verifiche ──
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  drawHeader(page, fonts);
+  drawHeader(page, fonts, logo);
 
   const colWidth = (PAGE_WIDTH - MARGIN_X * 2 - 18) / 2;
   let y = 748;

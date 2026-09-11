@@ -10,9 +10,38 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import {
-  generaPdfChecklistWallbox,
-  getNomeFileChecklistWallbox,
-} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallbox";
+  generaPdfChecklistWallboxA2C,
+  getNomeFileChecklistWallboxA2C,
+} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxA2C";
+import {
+  generaPdfChecklistWallboxEdison,
+  getNomeFileChecklistWallboxEdison,
+} from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxEdison";
+import type { ChecklistWallbox } from "@/types/checklistWallbox";
+
+type FormatoChecklistWallbox = "EDISON" | "A2C";
+
+function normalizzaFormato(value: unknown): FormatoChecklistWallbox {
+  return value === "A2C" ? "A2C" : "EDISON";
+}
+
+async function generaPdfPerFormato(
+  checklist: ChecklistWallbox,
+  formato: FormatoChecklistWallbox
+) {
+  return formato === "A2C"
+    ? generaPdfChecklistWallboxA2C(checklist)
+    : generaPdfChecklistWallboxEdison(checklist);
+}
+
+function getNomeFilePerFormato(
+  checklist: ChecklistWallbox,
+  formato: FormatoChecklistWallbox
+) {
+  return formato === "A2C"
+    ? getNomeFileChecklistWallboxA2C(checklist)
+    : getNomeFileChecklistWallboxEdison(checklist);
+}
 
 export const runtime = "nodejs";
 
@@ -40,8 +69,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => null)) as {
       checklistWallboxId?: string;
+      formato?: string;
     } | null;
     checklistId = body?.checklistWallboxId || "";
+    const formato = normalizzaFormato(body?.formato);
 
     if (!checklistId) {
       return jsonErrore(
@@ -136,8 +167,8 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    // ── PDF: copia legale, generata una volta e archiviata ──
-    const storagePath = `${aziendaId}/${checklistId}.pdf`;
+    // ── PDF: copia legale per formato, generata una volta e archiviata ──
+    const storagePath = `${aziendaId}/${checklistId}-${formato.toLowerCase()}.pdf`;
     let pdfBytes: Uint8Array;
 
     const { data: pdfEsistente } = await supabaseAdmin.storage
@@ -147,7 +178,7 @@ export async function POST(request: NextRequest) {
     if (pdfEsistente) {
       pdfBytes = new Uint8Array(await pdfEsistente.arrayBuffer());
     } else {
-      pdfBytes = await generaPdfChecklistWallbox(checklist);
+      pdfBytes = await generaPdfPerFormato(checklist, formato);
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(BUCKET_CHECKLIST_WALLBOX_PDF)
@@ -201,7 +232,7 @@ export async function POST(request: NextRequest) {
       ].join("\n"),
       attachments: [
         {
-          filename: getNomeFileChecklistWallbox(checklist),
+          filename: getNomeFilePerFormato(checklist, formato),
           content: Buffer.from(pdfBytes),
         },
       ],
