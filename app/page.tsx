@@ -91,7 +91,7 @@ import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavo
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
 import { CorrezioneTimbraturaBanner } from "@/components/timbrature/CorrezioneTimbraturaBanner";
 import { CORREZIONI_TIMBRATURE } from "@/constants/correzioniTimbrature";
-import { dataRomaDi, dataRomaOggi, oraRomaAttuale } from "@/lib/timezoneRoma";
+import { dataRomaDi, dataRomaOggi, giornoLavorativoRoma, oraRomaAttuale } from "@/lib/timezoneRoma";
 import { notificaAdminSeAbilitato } from "@/services/timbrature/notificaAdminSeAbilitato";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Avatar } from "@/components/ui/Avatar";
@@ -406,7 +406,12 @@ export default function HomePage() {
 
   // Promemoria/correzione: entrata mancante dopo le 8, uscita mancante dopo
   // le 17 (guardrail rivalidati comunque lato server, vedi /api/timbrature/correzione)
+  // Niente promemoria sabato, domenica e festivi: nessuno lavora quei giorni.
   const promemoriaTimbraturaTipo = useMemo(() => {
+    if (!giornoLavorativoRoma()) {
+      return null;
+    }
+
     const oraRoma = oraRomaAttuale();
     const ultimaOggi = ultimaTimbratura
       ? dataRomaDi(ultimaTimbratura.created_at) === dataRomaOggi()

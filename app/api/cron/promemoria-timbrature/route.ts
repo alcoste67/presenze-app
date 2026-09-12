@@ -4,7 +4,7 @@ import { HTTP_STATUS } from "@/constants/api";
 import { CORREZIONI_TIMBRATURE_TESTI } from "@/constants/correzioniTimbrature";
 import { inviaPush } from "@/lib/webPush";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { dataRomaOggi, giornoFerialeRoma, minutiRomaAttuali } from "@/lib/timezoneRoma";
+import { dataRomaOggi, giornoLavorativoRoma, minutiRomaAttuali } from "@/lib/timezoneRoma";
 import { haAssenzaGiornataIntera } from "@/services/assenze/haAssenzaGiornataIntera";
 import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipendente";
 import { valutaPromemoriaPush, type TipoPromemoriaPush } from "@/services/timbrature/valutaPromemoriaPush";
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
     return jsonErrore("Non autorizzato", HTTP_STATUS.UNAUTHORIZED);
   }
 
-  if (!giornoFerialeRoma()) {
-    return Response.json({ ok: true, esito: "weekend" }, { headers: NO_STORE });
+  if (!giornoLavorativoRoma()) {
+    return Response.json({ ok: true, esito: "weekend-o-festivo" }, { headers: NO_STORE });
   }
 
   const minutiRoma = minutiRomaAttuali();
