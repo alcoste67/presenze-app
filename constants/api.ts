@@ -61,6 +61,10 @@ export const API_ROUTES = {
     "/api/pianificazioni",
   ASSENZE:
     "/api/assenze",
+  TIMBRATURE_CORREZIONE_ADMIN:
+    "/api/timbrature/correzione-admin",
+  TIMBRATURE_CORREZIONE_ADMIN_RISPONDI:
+    "/api/timbrature/correzione-admin/rispondi",
 } as const;
 
 export const API_HEADERS = {

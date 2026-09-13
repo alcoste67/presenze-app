@@ -2,12 +2,15 @@ import type { NextRequest } from "next/server";
 
 import { HTTP_STATUS } from "@/constants/api";
 import { CORREZIONI_TIMBRATURE_TESTI } from "@/constants/correzioniTimbrature";
+import { STATI } from "@/constants/stati";
 import { inviaPush } from "@/lib/webPush";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { dataRomaOggi, giornoLavorativoRoma, minutiRomaAttuali } from "@/lib/timezoneRoma";
 import { haAssenzaGiornataIntera } from "@/services/assenze/haAssenzaGiornataIntera";
 import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipendente";
 import { valutaPromemoriaPush, type TipoPromemoriaPush } from "@/services/timbrature/valutaPromemoriaPush";
+import { rilevaAnomaliaTurnoAperto } from "@/services/timbrature/rilevaAnomaliaTurnoAperto";
+import { notificaAnomaliaTurnoAperto } from "@/services/timbrature/notificaAnomaliaTurnoAperto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +19,12 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 function jsonErrore(errore: string, status: number) {
   return Response.json({ errore }, { status, headers: NO_STORE });
+}
+
+function baseUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  const host = request.headers.get("host");
+  return host ? `https://${host}` : "https://cantivo.it";
 }
 
 const TESTI_PER_TIPO: Record<TipoPromemoriaPush, { titolo: string; corpo: string }> = {
@@ -65,13 +74,13 @@ export async function GET(request: NextRequest) {
 
   let notificheInviate = 0;
   let subscriptionScadute = 0;
+  let anomalieRilevate = 0;
+  const urlSito = baseUrl(request);
 
   for (const dipendente of dipendenti || []) {
     if (!dipendente.auth_user_id) continue;
 
     const stato = await caricaStatoGiornata(supabaseAdmin, dipendente.auth_user_id);
-    const promemoria = valutaPromemoriaPush(minutiRoma, stato);
-    if (!promemoria) continue;
 
     const inFerieOggi = await haAssenzaGiornataIntera({
       dipendenteId: dipendente.id,
@@ -80,30 +89,51 @@ export async function GET(request: NextRequest) {
     });
     if (inFerieOggi) continue;
 
-    const { data: subscriptions } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("dipendente_id", dipendente.id);
+    const promemoria = valutaPromemoriaPush(minutiRoma, stato);
+    if (promemoria) {
+      const { data: subscriptions } = await supabaseAdmin
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .eq("dipendente_id", dipendente.id);
 
-    const testo = TESTI_PER_TIPO[promemoria];
+      const testo = TESTI_PER_TIPO[promemoria];
 
-    for (const subscription of subscriptions || []) {
-      const esito = await inviaPush(
-        { endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
-        { titolo: testo.titolo, corpo: testo.corpo, url: "/" }
+      for (const subscription of subscriptions || []) {
+        const esito = await inviaPush(
+          { endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
+          { titolo: testo.titolo, corpo: testo.corpo, url: "/" }
+        );
+
+        if (esito.ok) {
+          notificheInviate += 1;
+        } else if (esito.scaduta) {
+          subscriptionScadute += 1;
+          await supabaseAdmin.from("push_subscriptions").delete().eq("id", subscription.id);
+        }
+      }
+    }
+
+    // ── Turno aperto da troppe ore: indipendente dalle finestre sopra ──
+    if (stato.statoAttuale === STATI.DENTRO || stato.statoAttuale === STATI.IN_PAUSA) {
+      const anomalia = await rilevaAnomaliaTurnoAperto(
+        supabaseAdmin,
+        dipendente.id,
+        dipendente.auth_user_id
       );
-
-      if (esito.ok) {
-        notificheInviate += 1;
-      } else if (esito.scaduta) {
-        subscriptionScadute += 1;
-        await supabaseAdmin.from("push_subscriptions").delete().eq("id", subscription.id);
+      if (anomalia) {
+        anomalieRilevate += 1;
+        await notificaAnomaliaTurnoAperto(supabaseAdmin, {
+          dipendenteId: anomalia.dipendenteId,
+          aziendaId: anomalia.azienda_id,
+          oreNette: anomalia.oreNette,
+          baseUrl: urlSito,
+        });
       }
     }
   }
 
   return Response.json(
-    { ok: true, minutiRoma, notificheInviate, subscriptionScadute },
+    { ok: true, minutiRoma, notificheInviate, subscriptionScadute, anomalieRilevate },
     { headers: NO_STORE }
   );
 }
