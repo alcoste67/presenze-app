@@ -11,8 +11,13 @@ export type TipoPromemoria = "ENTRATA" | "USCITA";
  */
 export function valutaPromemoria(
   oraRoma: number,
-  stato: StatoGiornataDipendente
+  stato: StatoGiornataDipendente,
+  giornoLavorativo: boolean
 ): TipoPromemoria | null {
+  if (!giornoLavorativo) {
+    return null;
+  }
+
   if (oraRoma >= CORREZIONI_TIMBRATURE.SOGLIA_ORA_ENTRATA && !stato.haEntrataOggi) {
     return "ENTRATA";
   }

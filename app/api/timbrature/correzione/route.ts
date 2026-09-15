@@ -7,7 +7,7 @@ import { TIMBRATURE } from "@/constants/stati";
 import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
-import { dataRomaOggi, oraRomaAttuale, romaLocalToUtc } from "@/lib/timezoneRoma";
+import { dataRomaOggi, giornoLavorativoRoma, oraRomaAttuale, romaLocalToUtc } from "@/lib/timezoneRoma";
 import { haAssenzaGiornataIntera } from "@/services/assenze/haAssenzaGiornataIntera";
 import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipendente";
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   }
 
   const statoGiornata = await caricaStatoGiornata(supabaseAdmin, user.id);
-  const promemoriaAttivo = valutaPromemoria(oraRomaAttuale(), statoGiornata);
+  const promemoriaAttivo = valutaPromemoria(oraRomaAttuale(), statoGiornata, giornoLavorativoRoma());
   if (promemoriaAttivo !== tipo) {
     return jsonErrore(CORREZIONI_TIMBRATURE_TESTI.ERRORI.FUORI_FINESTRA, HTTP_STATUS.CONFLICT);
   }
