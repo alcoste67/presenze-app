@@ -31,12 +31,16 @@ export function ProtezioneBackoffice({
 
   useEffect(() => {
     let attivo = true;
-    const accessoOperativoRapporti =
-      pathname ===
-        APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO ||
-      pathname.startsWith(
-        `${APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}/`
-      );
+    // Pagine operative aperte a qualsiasi dipendente attivo (non solo
+    // admin/responsabile): stesso livello di accesso di rapporti-intervento.
+    const pagineOperativeQualsiasiDipendente = [
+      APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO,
+      APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX,
+      APP_ROUTES.BACKOFFICE_CALENDARIO,
+    ];
+    const accessoOperativoRapporti = pagineOperativeQualsiasiDipendente.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;
