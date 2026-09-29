@@ -14,7 +14,6 @@ import { API_HEADERS } from "@/constants/api";
 import { supabase } from "@/lib/supabase";
 import { getMessaggioErrore } from "@/lib/errors";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
-import { isSuperadmin } from "@/services/dipendenti/isSuperadmin";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,22 +114,25 @@ export default function SuperadminPage() {
         const user = await loadUtenteAuth();
         if (!user?.email) { router.replace(APP_ROUTES.HOME); return; }
 
-        const superadminOk = await isSuperadmin(user.email);
-        if (!superadminOk) { router.replace(APP_ROUTES.HOME); return; }
-
-        if (!attivo) return;
-        setAutorizzato(true);
-
+        // L'autorizzazione vera è questa chiamata: l'API controlla
+        // PLATFORM_ADMIN_EMAILS lato server, non un ruolo del dipendente.
         const token = await getAccessToken();
         const res = await fetch("/api/superadmin/aziende", {
           headers: {
             [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
           },
         });
+
+        if (res.status === 401 || res.status === 403) {
+          router.replace(APP_ROUTES.HOME);
+          return;
+        }
         if (!res.ok) throw new Error("Errore caricamento aziende");
 
         const data = (await res.json()) as Azienda[];
-        if (attivo) setAziende(data);
+        if (!attivo) return;
+        setAutorizzato(true);
+        setAziende(data);
       } catch (error: unknown) {
         if (attivo) toast.error(getMessaggioErrore(error, "Errore caricamento"));
       } finally {

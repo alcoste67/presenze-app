@@ -39,7 +39,7 @@ import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin
 import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
-import { isSuperadmin } from "@/services/dipendenti/isSuperadmin";
+import { checkPlatformAdmin } from "@/services/platformAdmin/checkPlatformAdmin";
 
 function ModuloCard({
   href,
@@ -69,7 +69,7 @@ function ModuloCard({
 }
 
 export default function BackofficePage() {
-  const [superadmin, setSuperadmin] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [loadingRuolo, setLoadingRuolo] = useState(true);
 
@@ -80,10 +80,10 @@ export default function BackofficePage() {
         if (!user?.email) return;
         const [adminOk, superadminOk] = await Promise.all([
           isAdmin(user.email),
-          isSuperadmin(user.email),
+          checkPlatformAdmin(),
         ]);
         setAdmin(adminOk);
-        setSuperadmin(superadminOk);
+        setPlatformAdmin(superadminOk);
       } catch {
         // silently ignore — user simply won't see the sections
       } finally {
@@ -295,8 +295,8 @@ export default function BackofficePage() {
             </div>
           </section>
 
-          {/* ── Sezione 4: Piattaforma (solo superadmin) ── */}
-          {superadmin && (
+          {/* ── Sezione 4: Piattaforma (solo titolare piattaforma) ── */}
+          {platformAdmin && (
             <section>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Piattaforma

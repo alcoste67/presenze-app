@@ -1,7 +1,7 @@
 import { API_HEADERS, HTTP_STATUS } from "@/constants/api";
 import { isRecord } from "@/lib/typeGuards";
+import { isPlatformAdminEmail } from "@/lib/platformAdmin";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isSuperadmin } from "@/services/dipendenti/isSuperadmin";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ async function verificaSuperadmin(
       risposta: jsonErrore(ERRORI_API.TOKEN_NON_VALIDO, HTTP_STATUS.UNAUTHORIZED),
     };
 
-  const superadminOk = await isSuperadmin(user.email, supabaseAdmin);
+  const superadminOk = isPlatformAdminEmail(user.email);
   if (!superadminOk)
     return {
       ok: false,
