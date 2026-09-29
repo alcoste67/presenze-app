@@ -302,24 +302,25 @@ export default function BackofficePage() {
               <CardControlloCostiAdmin />
             </div>
           </section>
-
-          {/* ── Sezione 4: Piattaforma (solo titolare piattaforma) ── */}
-          {platformAdmin && (
-            <section>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-                Piattaforma
-              </h2>
-              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                <ModuloCard
-                  href={APP_ROUTES.SUPERADMIN}
-                  icon={<ShieldAlert className="h-5 w-5" />}
-                  nome="Superadmin"
-                  descrizione="Gestione aziende e utenti della piattaforma"
-                />
-              </div>
-            </section>
-          )}
         </div>
+        )}
+
+        {/* ── Sezione Piattaforma (solo titolare piattaforma, indipendente
+             dal ruolo admin/responsabile nella singola azienda) ── */}
+        {platformAdmin && (
+          <section className="mt-8">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Piattaforma
+            </h2>
+            <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+              <ModuloCard
+                href={APP_ROUTES.SUPERADMIN}
+                icon={<ShieldAlert className="h-5 w-5" />}
+                nome="Superadmin"
+                descrizione="Gestione aziende e utenti della piattaforma"
+              />
+            </div>
+          </section>
         )}
       </main>
     </div>

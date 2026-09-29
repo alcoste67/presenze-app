@@ -20,6 +20,9 @@ const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 const SELECT_AZIENDA =
   "id, nome, email, stato_abbonamento, piano, trial_scadenza, attiva, created_at";
 
+const SELECT_AZIENDA_DETTAGLIO =
+  "id, nome, email, partita_iva, codice_fiscale, indirizzo, telefono, stato_abbonamento, piano, trial_scadenza, attiva, created_at";
+
 const STATI_ABBONAMENTO = new Set(["trial", "attivo", "sospeso", "scaduto"]);
 const PIANI = new Set(["base", "pro", "enterprise"]);
 
@@ -94,6 +97,104 @@ function leggiPatchPayload(body: unknown): Record<string, unknown> | null {
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const dynamic = "force-dynamic";
+
+const UN_MESE_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function contaUltimoMese(
+  tabella: string,
+  aziendaId: string,
+  dataInizio: string
+): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from(tabella)
+    .select("id", { count: "exact", head: true })
+    .eq("azienda_id", aziendaId)
+    .gte("created_at", dataInizio);
+
+  return count ?? 0;
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Response> {
+  try {
+    const auth = await verificaSuperadmin(request);
+    if (!auth.ok) return auth.risposta;
+
+    const { id } = await params;
+    if (!id?.trim())
+      return jsonErrore(ERRORI_API.PAYLOAD_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
+
+    const { data: azienda, error: aziendaError } = await supabaseAdmin
+      .from("aziende")
+      .select(SELECT_AZIENDA_DETTAGLIO)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (aziendaError) throw aziendaError;
+    if (!azienda)
+      return jsonErrore(ERRORI_API.AZIENDA_NON_TROVATA, HTTP_STATUS.NOT_FOUND);
+
+    const dataInizioMese = new Date(Date.now() - UN_MESE_MS).toISOString();
+
+    const [
+      { count: dipendentiTotali },
+      { count: dipendentiAttivi },
+      { count: cantieriAttivi },
+      { data: ultimaTimbraturaRiga },
+      rapportiInterventoMese,
+      checklistWallboxMese,
+      salFreezeMese,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("dipendenti")
+        .select("id", { count: "exact", head: true })
+        .eq("azienda_id", id),
+      supabaseAdmin
+        .from("dipendenti")
+        .select("id", { count: "exact", head: true })
+        .eq("azienda_id", id)
+        .eq("attivo", true),
+      supabaseAdmin
+        .from("cantieri")
+        .select("id", { count: "exact", head: true })
+        .eq("azienda_id", id)
+        .eq("attivo", true),
+      supabaseAdmin
+        .from("timbrature")
+        .select("created_at")
+        .eq("azienda_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      contaUltimoMese("rapporti_intervento", id, dataInizioMese),
+      contaUltimoMese("checklist_wallbox", id, dataInizioMese),
+      contaUltimoMese("sal_freeze_mensili", id, dataInizioMese),
+    ]);
+
+    return Response.json(
+      {
+        azienda,
+        utilizzo: {
+          dipendentiTotali: dipendentiTotali ?? 0,
+          dipendentiAttivi: dipendentiAttivi ?? 0,
+          cantieriAttivi: cantieriAttivi ?? 0,
+          ultimaTimbraturaAt: ultimaTimbraturaRiga?.created_at ?? null,
+          ultimoMese: {
+            rapportiIntervento: rapportiInterventoMese,
+            checklistWallbox: checklistWallboxMese,
+            salFreeze: salFreezeMese,
+          },
+        },
+      },
+      { headers: NO_STORE_HEADERS }
+    );
+  } catch (error: unknown) {
+    console.error("Errore GET superadmin azienda", error);
+    return jsonErrore(ERRORI_API.ERRORE_GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+}
 
 export async function PATCH(
   request: Request,

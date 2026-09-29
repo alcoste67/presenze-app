@@ -323,7 +323,12 @@ export default function SuperadminPage() {
                     >
                       {/* Azienda */}
                       <td className="px-4 py-3">
-                        <p className="font-medium text-text-primary">{az.nome}</p>
+                        <Link
+                          href={`/superadmin/aziende/${az.id}`}
+                          className="font-medium text-text-primary hover:text-brand-500 hover:underline transition-colors duration-150"
+                        >
+                          {az.nome}
+                        </Link>
                         {az.email && (
                           <p className="text-xs text-text-muted">{az.email}</p>
                         )}
