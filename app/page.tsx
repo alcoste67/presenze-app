@@ -86,6 +86,7 @@ import { SelectAttivita } from "@/components/attivita/SelectAttivita";
 import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
 import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
+import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
 import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavoriHome";
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
@@ -357,6 +358,7 @@ export default function HomePage() {
   const [inizializzato, setInizializzato] = useState(false);
 
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
+  const [wallboxVisibile, setWallboxVisibile] = useState(false);
   const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
     useState<TipoAssenza | null>(null);
   const [assenzaOggi, setAssenzaOggi] = useState<RichiestaAssenza | null>(null);
@@ -468,6 +470,20 @@ export default function HomePage() {
       }
     };
 
+    const refreshWallboxVisibile = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setWallboxVisibile(false);
+        return;
+      }
+
+      try {
+        setWallboxVisibile(await checkAccessoWallbox(currentUser.id));
+      } catch (error) {
+        console.error("Errore controllo accesso wallbox", error);
+        setWallboxVisibile(false);
+      }
+    };
+
     const refreshAssenzaOggi = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setAssenzaOggi(null);
@@ -511,6 +527,7 @@ export default function HomePage() {
       setDipendente(null);
       setMostraBackoffice(false);
       setAssenzaOggi(null);
+      setWallboxVisibile(false);
       await refreshUltimaTimbratura(null);
       setErroreAuth(AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO);
       await esciAuth();
@@ -538,6 +555,7 @@ export default function HomePage() {
           setDipendente(null);
           setMostraBackoffice(false);
           setAssenzaOggi(null);
+          setWallboxVisibile(false);
           setCantieri([]);
           setInvitiCollabInAttesa(0);
           setNovitaLavorazioniCantiereId(null);
@@ -564,6 +582,7 @@ export default function HomePage() {
           refreshMostraBackoffice(currentUser),
           refreshDipendente(currentUser),
           refreshAssenzaOggi(currentUser),
+          refreshWallboxVisibile(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
           // della PWA non deve sopravvivere a login/logout/switch account
@@ -1855,15 +1874,17 @@ export default function HomePage() {
               </Button>
             </Link>
 
-            <Link href={APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<FileText className="h-4 w-4" />}
-              >
-                {CHECKLIST_WALLBOX_TESTI.TITOLO}
-              </Button>
-            </Link>
+            {wallboxVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<FileText className="h-4 w-4" />}
+                >
+                  {CHECKLIST_WALLBOX_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
 
             <Link href={APP_ROUTES.BACKOFFICE_CALENDARIO}>
               <Button

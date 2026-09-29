@@ -4,6 +4,7 @@ import { HTTP_STATUS } from "@/constants/api";
 import { estraiBearerToken } from "@/lib/auth";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isAziendaAutorizzataWallbox } from "@/lib/wallboxAccess";
 import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import {
   generaPdfChecklistWallboxA2C,
@@ -66,6 +67,13 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (!dipendente) {
+      return jsonErrore(
+        CHECKLIST_WALLBOX_TESTI.ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    if (!isAziendaAutorizzataWallbox(dipendente.azienda_id as string)) {
       return jsonErrore(
         CHECKLIST_WALLBOX_TESTI.ERRORI.ACCESSO_NEGATO,
         HTTP_STATUS.FORBIDDEN

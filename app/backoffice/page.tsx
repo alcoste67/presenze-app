@@ -40,6 +40,7 @@ import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCo
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { checkPlatformAdmin } from "@/services/platformAdmin/checkPlatformAdmin";
+import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
 
 function ModuloCard({
   href,
@@ -71,6 +72,7 @@ function ModuloCard({
 export default function BackofficePage() {
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [wallboxVisibile, setWallboxVisibile] = useState(false);
   const [loadingRuolo, setLoadingRuolo] = useState(true);
 
   useEffect(() => {
@@ -78,12 +80,14 @@ export default function BackofficePage() {
       try {
         const user = await loadUtenteAuth();
         if (!user?.email) return;
-        const [adminOk, superadminOk] = await Promise.all([
+        const [adminOk, superadminOk, wallboxOk] = await Promise.all([
           isAdmin(user.email),
           checkPlatformAdmin(),
+          checkAccessoWallbox(user.id),
         ]);
         setAdmin(adminOk);
         setPlatformAdmin(superadminOk);
+        setWallboxVisibile(wallboxOk);
       } catch {
         // silently ignore — user simply won't see the sections
       } finally {
@@ -146,12 +150,14 @@ export default function BackofficePage() {
                 nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
                 descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
               />
-              <ModuloCard
-                href="/backoffice/checklist-wallbox"
-                icon={<FileText className="h-5 w-5" />}
-                nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
-                descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
-              />
+              {wallboxVisibile && (
+                <ModuloCard
+                  href="/backoffice/checklist-wallbox"
+                  icon={<FileText className="h-5 w-5" />}
+                  nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                  descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
               <ModuloCard
                 href="/backoffice/costi-macchinari"
                 icon={<Calculator className="h-5 w-5" />}
@@ -228,12 +234,14 @@ export default function BackofficePage() {
                 nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
                 descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
               />
-              <ModuloCard
-                href="/backoffice/checklist-wallbox"
-                icon={<FileText className="h-5 w-5" />}
-                nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
-                descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
-              />
+              {wallboxVisibile && (
+                <ModuloCard
+                  href="/backoffice/checklist-wallbox"
+                  icon={<FileText className="h-5 w-5" />}
+                  nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                  descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
               <ModuloCard
                 href="/backoffice/commessa"
                 icon={<BarChart3 className="h-5 w-5" />}

@@ -4,6 +4,7 @@ import { HTTP_STATUS } from "@/constants/api";
 import { CHECKLIST_WALLBOX_LIMITI, CHECKLIST_WALLBOX_STATI } from "@/constants/checklistWallbox";
 import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isAziendaAutorizzataWallbox } from "@/lib/wallboxAccess";
 import { isRecord } from "@/lib/typeGuards";
 
 export const runtime = "nodejs";
@@ -50,6 +51,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const aziendaId = dipendente.azienda_id as string;
+
+  if (!isAziendaAutorizzataWallbox(aziendaId)) {
+    return jsonErrore("Accesso non autorizzato", HTTP_STATUS.FORBIDDEN);
+  }
 
   let body: unknown;
   try {

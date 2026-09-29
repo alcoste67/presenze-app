@@ -8,6 +8,7 @@ import {
   CHECKLIST_WALLBOX_TESTI,
 } from "@/constants/checklistWallbox";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isAziendaAutorizzataWallbox } from "@/lib/wallboxAccess";
 import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import {
   generaPdfChecklistWallboxA2C,
@@ -117,6 +118,13 @@ export async function POST(request: NextRequest) {
     }
 
     const aziendaId = mittenteDipendente.azienda_id as string;
+
+    if (!isAziendaAutorizzataWallbox(aziendaId)) {
+      return jsonErrore(
+        CHECKLIST_WALLBOX_TESTI.ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
 
     // ── Checklist: deve esistere, essere FIRMATA e della stessa azienda ──
     const checklist = await loadChecklistWallbox(checklistId, supabaseAdmin);

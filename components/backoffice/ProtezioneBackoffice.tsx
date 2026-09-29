@@ -15,6 +15,7 @@ import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
 import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
+import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
 
 type Props = {
   children: ReactNode;
@@ -35,12 +36,18 @@ export function ProtezioneBackoffice({
     // admin/responsabile): stesso livello di accesso di rapporti-intervento.
     const pagineOperativeQualsiasiDipendente = [
       APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO,
-      APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX,
       APP_ROUTES.BACKOFFICE_CALENDARIO,
     ];
     const accessoOperativoRapporti = pagineOperativeQualsiasiDipendente.some(
       (route) => pathname === route || pathname.startsWith(`${route}/`)
     );
+    // Checklist wallbox: oggi attiva solo per aziende abilitate (vedi
+    // lib/wallboxAccess.ts), a prescindere dal ruolo — va controllata PRIMA
+    // del bypass admin qui sotto, altrimenti qualsiasi admin di qualsiasi
+    // azienda vi accederebbe comunque.
+    const accessoWallbox =
+      pathname === APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX ||
+      pathname.startsWith(`${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/`);
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;
@@ -68,6 +75,24 @@ export function ProtezioneBackoffice({
 
         if (!user?.email) {
           router.replace(APP_ROUTES.HOME);
+
+          return;
+        }
+
+        if (accessoWallbox) {
+          const wallboxAbilitata = await checkAccessoWallbox(user.id);
+
+          if (!attivo) {
+            return;
+          }
+
+          if (!wallboxAbilitata) {
+            router.replace(APP_ROUTES.HOME);
+
+            return;
+          }
+
+          setAutorizzato(true);
 
           return;
         }
