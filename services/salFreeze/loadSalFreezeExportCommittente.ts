@@ -79,7 +79,7 @@ export function isSalFreezeExportError(
 }
 
 const SELECT_SAL_FREEZE_MENSILE =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
+  "id, azienda_id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
 const SELECT_SAL_FREEZE_LAVORAZIONI =
   "id, freeze_id, lavorazione_id, lavorazione_nome_snapshot, percentuale_precedente, percentuale_attuale, delta_percentuale, ore_uomo_minuti, ordine, created_at, unita_misura_snapshot, quantita_snapshot, prezzo_unitario_snapshot, importo_totale, importo_maturato, importo_periodo";
 const SELECT_SAL_FREEZE_FOTO =
@@ -190,10 +190,12 @@ function throwExportStepError(
 
 export async function loadSalFreezeExportCommittente({
   freezeId,
+  aziendaId,
   includeFoto = true,
   supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
+  aziendaId: string;
   includeFoto?: boolean;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeExportCommittente | null> {
@@ -216,7 +218,7 @@ export async function loadSalFreezeExportCommittente({
     | SalFreezeMensile
     | null;
 
-  if (!freeze) {
+  if (!freeze || freeze.azienda_id !== aziendaId) {
     return null;
   }
 

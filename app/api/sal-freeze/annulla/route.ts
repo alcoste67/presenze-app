@@ -177,6 +177,22 @@ export async function POST(
     );
   }
 
+  const { data: mittenteDipendente } = await supabaseAdmin
+    .from("dipendenti")
+    .select("azienda_id")
+    .eq("auth_user_id", user.id)
+    .eq("attivo", true)
+    .maybeSingle();
+
+  if (!mittenteDipendente) {
+    return jsonErrore(
+      ERRORI_API.ACCESSO_NEGATO,
+      HTTP_STATUS.FORBIDDEN
+    );
+  }
+
+  const aziendaId = mittenteDipendente.azienda_id as string;
+
   const freezeId = await leggiFreezeId(request);
 
   if (!freezeId) {
@@ -191,6 +207,7 @@ export async function POST(
       freezeId,
       userEmail: user.email,
       userId: user.id,
+      aziendaId,
       supabaseClient: supabaseAdmin,
     });
 

@@ -120,6 +120,19 @@ export async function POST(request: NextRequest) {
     return jsonErrore(CORREZIONI_TIMBRATURE_TESTI.ERRORI.GENERICO, HTTP_STATUS.BAD_REQUEST);
   }
 
+  // ── Tenant: il cantiere dichiarato deve appartenere all'azienda del dipendente ──
+  if (tipo === TIMBRATURE.ENTRATA && cantiereId) {
+    const { data: cantiereRiga } = await supabaseAdmin
+      .from("cantieri")
+      .select("azienda_id")
+      .eq("id", cantiereId)
+      .maybeSingle();
+
+    if (!cantiereRiga || cantiereRiga.azienda_id !== dipendente.azienda_id) {
+      return jsonErrore(CORREZIONI_TIMBRATURE_TESTI.ERRORI.GENERICO, HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
   const { data: nuovaTimbratura, error: erroreInsert } = await supabaseAdmin
     .from("timbrature")
     .insert({

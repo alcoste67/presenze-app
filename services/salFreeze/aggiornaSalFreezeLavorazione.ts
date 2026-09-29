@@ -33,6 +33,7 @@ export async function aggiornaSalFreezeLavorazione({
   importoMaturato,
   importoPeriodo,
   userEmail,
+  aziendaId,
   supabaseClient = supabaseAdmin,
 }: {
   rigaId: string;
@@ -40,6 +41,7 @@ export async function aggiornaSalFreezeLavorazione({
   importoMaturato?: number | null;
   importoPeriodo?: number | null;
   userEmail: string;
+  aziendaId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeLavorazione> {
   if (!rigaId) {
@@ -66,12 +68,16 @@ export async function aggiornaSalFreezeLavorazione({
     throwSalFreezeError("FREEZE_NON_TROVATO", "Riga SAL periodo non trovata");
   }
 
-  // Controllo stato bozza (oltre al lock DB) per messaggio chiaro
+  // Controllo stato bozza + tenant (oltre al lock DB) per messaggio chiaro
   const { data: header } = await supabaseClient
     .from("sal_freeze_mensili")
-    .select("stato, annullato_at")
+    .select("stato, annullato_at, azienda_id")
     .eq("id", riga.freeze_id)
     .maybeSingle();
+
+  if (!header || header.azienda_id !== aziendaId) {
+    throwSalFreezeError("FREEZE_NON_TROVATO", "Riga SAL periodo non trovata");
+  }
 
   if (header?.annullato_at) {
     throwSalFreezeError("FREEZE_GIA_ANNULLATO", "SAL periodo annullato");

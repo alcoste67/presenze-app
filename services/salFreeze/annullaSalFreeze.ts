@@ -12,6 +12,7 @@ type SupabaseClient = typeof supabaseAdmin;
 type FreezeAnnullabileRow = Pick<
   SalFreezeMensile,
   | "id"
+  | "azienda_id"
   | "cantiere_id"
   | "period_start"
   | "period_end"
@@ -24,7 +25,7 @@ type FreezeAnnullabileRow = Pick<
 >;
 
 const SELECT_FREEZE =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
+  "id, azienda_id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by";
 
 function throwSalFreezeError(
   code: keyof typeof SAL_FREEZE_ERRORI,
@@ -40,11 +41,13 @@ export async function annullaSalFreeze({
   freezeId,
   userEmail,
   userId,
+  aziendaId,
   supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
   userEmail: string;
   userId: string;
+  aziendaId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<FreezeAnnullabileRow> {
   if (!freezeId) {
@@ -80,7 +83,7 @@ export async function annullaSalFreeze({
     );
   }
 
-  if (!freeze) {
+  if (!freeze || freeze.azienda_id !== aziendaId) {
     throwSalFreezeError(
       "FREEZE_NON_TROVATO",
       "Freeze SAL non trovato"
@@ -104,6 +107,7 @@ export async function annullaSalFreeze({
         annullato_by: userId,
       })
       .eq("id", freezeId)
+      .eq("azienda_id", aziendaId)
       .is("annullato_at", null)
       .select(SELECT_FREEZE)
       .single();

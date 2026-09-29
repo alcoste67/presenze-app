@@ -37,10 +37,12 @@ function normalizzaTesto(value: string) {
 export async function rigeneraSalFreeze({
   freezeId,
   userEmail,
+  aziendaId: aziendaChiamante,
   supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
   userEmail: string;
+  aziendaId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeMensile> {
   if (!freezeId) {
@@ -63,7 +65,7 @@ export async function rigeneraSalFreeze({
     throwErroreSupabase("Lettura SAL periodo da rigenerare", freezeError);
   }
 
-  if (!freeze) {
+  if (!freeze || freeze.azienda_id !== aziendaChiamante) {
     throwSalFreezeError("FREEZE_NON_TROVATO", "SAL periodo non trovato");
   }
 
@@ -206,6 +208,7 @@ export async function rigeneraSalFreeze({
     .from("sal_freeze_mensili")
     .update({ freeze_at: new Date().toISOString() })
     .eq("id", freezeId)
+    .eq("azienda_id", aziendaChiamante)
     .eq("stato", "bozza")
     .is("annullato_at", null)
     .select(

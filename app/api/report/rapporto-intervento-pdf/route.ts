@@ -97,6 +97,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { data: mittenteDipendente } = await supabaseAdmin
+      .from("dipendenti")
+      .select("azienda_id")
+      .eq("auth_user_id", user.id)
+      .eq("attivo", true)
+      .maybeSingle();
+
+    if (!mittenteDipendente) {
+      return jsonErrore(
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    const aziendaId = mittenteDipendente.azienda_id as string;
+
+    // ── Tenant: il rapporto deve appartenere all'azienda del chiamante ──
+    const { data: rapportoRiga } = await supabaseAdmin
+      .from("rapporti_intervento")
+      .select("azienda_id")
+      .eq("id", rapportoInterventoId)
+      .maybeSingle();
+
+    if (!rapportoRiga || rapportoRiga.azienda_id !== aziendaId) {
+      return jsonErrore(
+        RAPPORTI_INTERVENTO_TESTI.ERRORI
+          .RAPPORTO_NON_TROVATO,
+        HTTP_STATUS.NOT_FOUND
+      );
+    }
+
     const rapporto =
       await loadRapportoIntervento(
         rapportoInterventoId,

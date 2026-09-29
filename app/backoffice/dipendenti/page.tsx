@@ -612,11 +612,17 @@ export default function BackofficeDipendentiPage() {
                 }
                 disabled={salvataggio}
               >
-                {Object.values(RUOLI_DIPENDENTE).map((ruolo) => (
-                  <option key={ruolo} value={ruolo}>
-                    {LABEL_RUOLI_DIPENDENTE[ruolo]}
-                  </option>
-                ))}
+                {Object.values(RUOLI_DIPENDENTE)
+                  .filter(
+                    (ruolo) =>
+                      ruolo !== RUOLI_DIPENDENTE.SUPERADMIN ||
+                      form.ruolo === RUOLI_DIPENDENTE.SUPERADMIN
+                  )
+                  .map((ruolo) => (
+                    <option key={ruolo} value={ruolo}>
+                      {LABEL_RUOLI_DIPENDENTE[ruolo]}
+                    </option>
+                  ))}
               </Select>
 
               <Select

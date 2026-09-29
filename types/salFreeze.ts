@@ -2,6 +2,7 @@ export type StatoSalFreeze = "bozza" | "definitivo";
 
 export type SalFreezeMensile = {
   id: string;
+  azienda_id: string;
   cantiere_id: string;
   period_start: string;
   period_end: string;

@@ -1174,6 +1174,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { data: mittenteDipendente } = await supabaseAdmin
+      .from("dipendenti")
+      .select("azienda_id")
+      .eq("auth_user_id", user.id)
+      .eq("attivo", true)
+      .maybeSingle();
+
+    if (!mittenteDipendente) {
+      return jsonErrore(
+        COMMESSA_TESTI.ERRORI.ACCESSO_NEGATO,
+        HTTP_STATUS.FORBIDDEN
+      );
+    }
+
+    // ── Tenant: il cantiere deve appartenere all'azienda del chiamante ──
+    const { data: cantiereRiga } = await supabaseAdmin
+      .from("cantieri")
+      .select("azienda_id")
+      .eq("id", cantiereId)
+      .maybeSingle();
+
+    if (!cantiereRiga || cantiereRiga.azienda_id !== mittenteDipendente.azienda_id) {
+      return jsonErrore(
+        COMMESSA_TESTI.ERRORI.CANTIERE_NON_TROVATO,
+        HTTP_STATUS.NOT_FOUND
+      );
+    }
+
     const [cantiere, dashboard] = await Promise.all([
       loadCantiereBackoffice(cantiereId, supabaseAdmin),
       loadDashboardCommessa({

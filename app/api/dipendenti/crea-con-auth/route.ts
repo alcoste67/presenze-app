@@ -44,8 +44,12 @@ const AUTH_USER_ESISTENTE_CODES = [
   "conflict",
 ] as const;
 
-const RUOLI_CONSENTITI: readonly RuoloDipendente[] =
-  Object.values(RUOLI_DIPENDENTE);
+// SUPERADMIN è escluso: è un ruolo residuo dal vecchio schema di accesso a
+// /superadmin (ora sganciato via PLATFORM_ADMIN_EMAILS, vedi lib/platformAdmin.ts).
+// Un ADMIN di tenant non deve poter assegnarlo più a nessuno.
+const RUOLI_CONSENTITI: readonly RuoloDipendente[] = Object.values(
+  RUOLI_DIPENDENTE
+).filter((ruolo) => ruolo !== RUOLI_DIPENDENTE.SUPERADMIN);
 const TIPI_CONTEGGIO_ORE_CONSENTITI: readonly TipoConteggioOre[] =
   Object.values(TIPO_CONTEGGIO_ORE);
 

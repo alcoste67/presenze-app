@@ -459,6 +459,7 @@ async function buildSheetsForCantieri({
       const freezeExport =
         await loadSalFreezeExportCommittente({
           freezeId,
+          aziendaId,
           includeFoto: false,
         });
 

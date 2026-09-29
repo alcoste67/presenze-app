@@ -127,6 +127,19 @@ export async function POST(request: Request): Promise<Response> {
     return jsonErrore(ERRORI_API.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN);
   }
 
+  const { data: mittenteDipendente } = await supabaseAdmin
+    .from("dipendenti")
+    .select("azienda_id")
+    .eq("auth_user_id", user.id)
+    .eq("attivo", true)
+    .maybeSingle();
+
+  if (!mittenteDipendente) {
+    return jsonErrore(ERRORI_API.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN);
+  }
+
+  const aziendaId = mittenteDipendente.azienda_id as string;
+
   const freezeId = await leggiFreezeId(request);
 
   if (!freezeId) {
@@ -137,6 +150,7 @@ export async function POST(request: Request): Promise<Response> {
     const freeze = await rigeneraSalFreeze({
       freezeId,
       userEmail: user.email,
+      aziendaId,
       supabaseClient: supabaseAdmin,
     });
 

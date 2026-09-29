@@ -869,6 +869,34 @@ export async function createSalFreeze({
     );
   }
 
+  // ── Tenant: il cantiere deve appartenere all'azienda del chiamante ──
+  const { data: cantiereRiga, error: cantiereRigaError } =
+    await runSalFreezeStep(
+      "admin_check",
+      "cantiere tenant check",
+      async () =>
+        supabaseClient
+          .from("cantieri")
+          .select("azienda_id")
+          .eq("id", cantiereId)
+          .maybeSingle()
+    );
+
+  if (cantiereRigaError) {
+    throwErroreSupabase(
+      "Lettura cantiere per freeze SAL",
+      cantiereRigaError
+    );
+  }
+
+  if (!cantiereRiga || cantiereRiga.azienda_id !== aziendaId) {
+    throwSalFreezeError(
+      SAL_FREEZE_ERRORI.ACCESSO_NEGATO,
+      "Accesso non autorizzato",
+      "admin_check"
+    );
+  }
+
   const { data: freezeEsistente, error: freezeEsistenteError } =
     await runSalFreezeStep(
       "existing_freeze_check",

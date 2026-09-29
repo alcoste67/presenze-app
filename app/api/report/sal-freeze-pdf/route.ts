@@ -616,6 +616,23 @@ export async function GET(
     );
   }
 
+  const { data: mittenteDipendente } = await supabaseAdmin
+    .from("dipendenti")
+    .select("azienda_id")
+    .eq("auth_user_id", user.id)
+    .eq("attivo", true)
+    .maybeSingle();
+
+  if (!mittenteDipendente) {
+    return jsonErrore(
+      "admin_check",
+      SAL_FREEZE_TESTI.ERRORI.ACCESSO_NEGATO,
+      HTTP_STATUS.FORBIDDEN
+    );
+  }
+
+  const aziendaId = mittenteDipendente.azienda_id as string;
+
   const freezeId = getQueryValue(
     request,
     SAL_FREEZE_QUERY.FREEZE_ID
@@ -635,6 +652,7 @@ export async function GET(
     const freezeExport =
       await loadSalFreezeExportCommittente({
         freezeId,
+        aziendaId,
       });
 
     if (!freezeExport) {

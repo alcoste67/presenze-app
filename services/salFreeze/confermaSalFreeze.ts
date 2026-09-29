@@ -10,7 +10,7 @@ import type { SalFreezeMensile } from "@/types/salFreeze";
 type SupabaseClient = typeof supabaseAdmin;
 
 const SELECT_FREEZE =
-  "id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
+  "id, azienda_id, cantiere_id, period_start, period_end, freeze_at, created_by, note, metadata, annullato_at, annullato_by, stato, confermato_at, confermato_by";
 
 function throwSalFreezeError(
   code: keyof typeof SAL_FREEZE_ERRORI,
@@ -25,11 +25,13 @@ export async function confermaSalFreeze({
   freezeId,
   userEmail,
   userId,
+  aziendaId,
   supabaseClient = supabaseAdmin,
 }: {
   freezeId: string;
   userEmail: string;
   userId: string;
+  aziendaId: string;
   supabaseClient?: SupabaseClient;
 }): Promise<SalFreezeMensile> {
   if (!freezeId) {
@@ -52,7 +54,7 @@ export async function confermaSalFreeze({
     throwErroreSupabase("Lettura SAL periodo da confermare", freezeError);
   }
 
-  if (!freeze) {
+  if (!freeze || freeze.azienda_id !== aziendaId) {
     throwSalFreezeError("FREEZE_NON_TROVATO", "SAL periodo non trovato");
   }
 
@@ -75,6 +77,7 @@ export async function confermaSalFreeze({
       confermato_by: userId,
     })
     .eq("id", freezeId)
+    .eq("azienda_id", aziendaId)
     .eq("stato", "bozza")
     .is("annullato_at", null)
     .select(SELECT_FREEZE)
