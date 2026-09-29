@@ -67,6 +67,8 @@ export const API_ROUTES = {
     "/api/timbrature/correzione-admin/rispondi",
   PLATFORM_ADMIN_CHECK:
     "/api/platform-admin/check",
+  MODULI_ABILITATI:
+    "/api/moduli-abilitati",
 } as const;
 
 export const API_HEADERS = {

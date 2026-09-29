@@ -27,6 +27,7 @@ import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
@@ -41,6 +42,7 @@ import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { checkPlatformAdmin } from "@/services/platformAdmin/checkPlatformAdmin";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
 
 function ModuloCard({
   href,
@@ -73,6 +75,9 @@ export default function BackofficePage() {
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [wallboxVisibile, setWallboxVisibile] = useState(false);
+  const [moduli, setModuli] = useState<Set<string>>(
+    new Set(Object.values(MODULI_BACKOFFICE))
+  );
   const [loadingRuolo, setLoadingRuolo] = useState(true);
 
   useEffect(() => {
@@ -80,14 +85,16 @@ export default function BackofficePage() {
       try {
         const user = await loadUtenteAuth();
         if (!user?.email) return;
-        const [adminOk, superadminOk, wallboxOk] = await Promise.all([
+        const [adminOk, superadminOk, wallboxOk, moduliAbilitati] = await Promise.all([
           isAdmin(user.email),
           checkPlatformAdmin(),
           checkAccessoWallbox(user.id),
+          fetchModuliAbilitati(),
         ]);
         setAdmin(adminOk);
         setPlatformAdmin(superadminOk);
         setWallboxVisibile(wallboxOk);
+        setModuli(moduliAbilitati);
       } catch {
         // silently ignore — user simply won't see the sections
       } finally {
@@ -144,12 +151,14 @@ export default function BackofficePage() {
               Operatività
             </h2>
             <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              <ModuloCard
-                href="/backoffice/rapporti-intervento"
-                icon={<ClipboardList className="h-5 w-5" />}
-                nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
-                descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
-              />
+              {moduli.has(MODULI_BACKOFFICE.RAPPORTI_INTERVENTO) && (
+                <ModuloCard
+                  href="/backoffice/rapporti-intervento"
+                  icon={<ClipboardList className="h-5 w-5" />}
+                  nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
+                  descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
               {wallboxVisibile && (
                 <ModuloCard
                   href="/backoffice/checklist-wallbox"
@@ -158,18 +167,22 @@ export default function BackofficePage() {
                   descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
                 />
               )}
-              <ModuloCard
-                href="/backoffice/costi-macchinari"
-                icon={<Calculator className="h-5 w-5" />}
-                nome={MACCHINARI_TESTI.TITOLO}
-                descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href={APP_ROUTES.BACKOFFICE_CALENDARIO}
-                icon={<CalendarDays className="h-5 w-5" />}
-                nome={PIANIFICAZIONI_TESTI.TITOLO}
-                descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
-              />
+              {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (
+                <ModuloCard
+                  href="/backoffice/costi-macchinari"
+                  icon={<Calculator className="h-5 w-5" />}
+                  nome={MACCHINARI_TESTI.TITOLO}
+                  descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CALENDARIO) && (
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_CALENDARIO}
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  nome={PIANIFICAZIONI_TESTI.TITOLO}
+                  descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
             </div>
           </section>
         )}
@@ -182,31 +195,39 @@ export default function BackofficePage() {
               Anagrafiche
             </h2>
             <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              <ModuloCard
-                href="/backoffice/dipendenti"
-                icon={<Users className="h-5 w-5" />}
-                nome="Dipendenti"
-                descrizione="Gestione anagrafica dipendenti"
-              />
-              <ModuloCard
-                href="/backoffice/cantieri"
-                icon={<MapPin className="h-5 w-5" />}
-                nome="Cantieri"
-                descrizione="Gestione anagrafica cantieri"
-              />
-              <ModuloCard
-                href="/backoffice/clienti"
-                icon={<Contact className="h-5 w-5" />}
-                nome="Clienti"
-                descrizione="Anagrafica clienti e committenti"
-              />
-              <ModuloCard
-                href="/backoffice/collaborazioni"
-                icon={<Handshake className="h-5 w-5" />}
-                nome="Collaborazioni"
-                descrizione="Cantieri condivisi con altre aziende"
-              />
-              <CardMacchinariAdmin />
+              {moduli.has(MODULI_BACKOFFICE.DIPENDENTI) && (
+                <ModuloCard
+                  href="/backoffice/dipendenti"
+                  icon={<Users className="h-5 w-5" />}
+                  nome="Dipendenti"
+                  descrizione="Gestione anagrafica dipendenti"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CANTIERI) && (
+                <ModuloCard
+                  href="/backoffice/cantieri"
+                  icon={<MapPin className="h-5 w-5" />}
+                  nome="Cantieri"
+                  descrizione="Gestione anagrafica cantieri"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CLIENTI) && (
+                <ModuloCard
+                  href="/backoffice/clienti"
+                  icon={<Contact className="h-5 w-5" />}
+                  nome="Clienti"
+                  descrizione="Anagrafica clienti e committenti"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.COLLABORAZIONI) && (
+                <ModuloCard
+                  href="/backoffice/collaborazioni"
+                  icon={<Handshake className="h-5 w-5" />}
+                  nome="Collaborazioni"
+                  descrizione="Cantieri condivisi con altre aziende"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.MACCHINARI) && <CardMacchinariAdmin />}
             </div>
           </section>
 
@@ -216,24 +237,30 @@ export default function BackofficePage() {
               Operatività
             </h2>
             <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              <ModuloCard
-                href="/backoffice/lavorazioni"
-                icon={<ListCheck className="h-5 w-5" />}
-                nome={LAVORAZIONI_TESTI.TITOLO}
-                descrizione={LAVORAZIONI_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href="/backoffice/categorie"
-                icon={<Tags className="h-5 w-5" />}
-                nome="Categorie lavorazioni"
-                descrizione="Macro-aree personalizzabili per etichettare e filtrare le lavorazioni"
-              />
-              <ModuloCard
-                href="/backoffice/rapporti-intervento"
-                icon={<ClipboardList className="h-5 w-5" />}
-                nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
-                descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
-              />
+              {moduli.has(MODULI_BACKOFFICE.LAVORAZIONI) && (
+                <ModuloCard
+                  href="/backoffice/lavorazioni"
+                  icon={<ListCheck className="h-5 w-5" />}
+                  nome={LAVORAZIONI_TESTI.TITOLO}
+                  descrizione={LAVORAZIONI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CATEGORIE) && (
+                <ModuloCard
+                  href="/backoffice/categorie"
+                  icon={<Tags className="h-5 w-5" />}
+                  nome="Categorie lavorazioni"
+                  descrizione="Macro-aree personalizzabili per etichettare e filtrare le lavorazioni"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.RAPPORTI_INTERVENTO) && (
+                <ModuloCard
+                  href="/backoffice/rapporti-intervento"
+                  icon={<ClipboardList className="h-5 w-5" />}
+                  nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
+                  descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
               {wallboxVisibile && (
                 <ModuloCard
                   href="/backoffice/checklist-wallbox"
@@ -242,18 +269,22 @@ export default function BackofficePage() {
                   descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
                 />
               )}
-              <ModuloCard
-                href="/backoffice/commessa"
-                icon={<BarChart3 className="h-5 w-5" />}
-                nome={COMMESSA_TESTI.TITOLO}
-                descrizione={COMMESSA_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href={APP_ROUTES.BACKOFFICE_CALENDARIO}
-                icon={<CalendarDays className="h-5 w-5" />}
-                nome={PIANIFICAZIONI_TESTI.TITOLO}
-                descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
-              />
+              {moduli.has(MODULI_BACKOFFICE.COMMESSA) && (
+                <ModuloCard
+                  href="/backoffice/commessa"
+                  icon={<BarChart3 className="h-5 w-5" />}
+                  nome={COMMESSA_TESTI.TITOLO}
+                  descrizione={COMMESSA_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CALENDARIO) && (
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_CALENDARIO}
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  nome={PIANIFICAZIONI_TESTI.TITOLO}
+                  descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
             </div>
           </section>
 
@@ -263,43 +294,55 @@ export default function BackofficePage() {
               Contabilità e report
             </h2>
             <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              <ModuloCard
-                href="/backoffice/sal"
-                icon={<FileText className="h-5 w-5" />}
-                nome="SAL corrente"
-                descrizione="Avanzamento lavorazioni in tempo reale"
-              />
-              <ModuloCard
-                href="/backoffice/sal-freeze"
-                icon={<CalendarRange className="h-5 w-5" />}
-                nome={SAL_FREEZE_TESTI.TITOLO}
-                descrizione="Consolidato periodico per export contabile multi-cantiere"
-              />
-              <ModuloCard
-                href="/backoffice/produttivita"
-                icon={<BarChart2 className="h-5 w-5" />}
-                nome={PRODUTTIVITA_TESTI.TITOLO}
-                descrizione={PRODUTTIVITA_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href="/backoffice/presenze"
-                icon={<CalendarDays className="h-5 w-5" />}
-                nome={REPORT_PRESENZE_TESTI.TITOLO}
-                descrizione={REPORT_PRESENZE_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href="/backoffice/libro-presenze"
-                icon={<BookOpen className="h-5 w-5" />}
-                nome={REPORT_LIBRO_PRESENZE_TESTI.TITOLO}
-                descrizione={REPORT_LIBRO_PRESENZE_TESTI.CARD_DESCRIZIONE}
-              />
-              <ModuloCard
-                href="/backoffice/costi-macchinari"
-                icon={<Calculator className="h-5 w-5" />}
-                nome={MACCHINARI_TESTI.TITOLO}
-                descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
-              />
-              <CardControlloCostiAdmin />
+              {moduli.has(MODULI_BACKOFFICE.SAL) && (
+                <ModuloCard
+                  href="/backoffice/sal"
+                  icon={<FileText className="h-5 w-5" />}
+                  nome="SAL corrente"
+                  descrizione="Avanzamento lavorazioni in tempo reale"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.SAL_FREEZE) && (
+                <ModuloCard
+                  href="/backoffice/sal-freeze"
+                  icon={<CalendarRange className="h-5 w-5" />}
+                  nome={SAL_FREEZE_TESTI.TITOLO}
+                  descrizione="Consolidato periodico per export contabile multi-cantiere"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.PRODUTTIVITA) && (
+                <ModuloCard
+                  href="/backoffice/produttivita"
+                  icon={<BarChart2 className="h-5 w-5" />}
+                  nome={PRODUTTIVITA_TESTI.TITOLO}
+                  descrizione={PRODUTTIVITA_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.PRESENZE) && (
+                <ModuloCard
+                  href="/backoffice/presenze"
+                  icon={<CalendarDays className="h-5 w-5" />}
+                  nome={REPORT_PRESENZE_TESTI.TITOLO}
+                  descrizione={REPORT_PRESENZE_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.LIBRO_PRESENZE) && (
+                <ModuloCard
+                  href="/backoffice/libro-presenze"
+                  icon={<BookOpen className="h-5 w-5" />}
+                  nome={REPORT_LIBRO_PRESENZE_TESTI.TITOLO}
+                  descrizione={REPORT_LIBRO_PRESENZE_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (
+                <ModuloCard
+                  href="/backoffice/costi-macchinari"
+                  icon={<Calculator className="h-5 w-5" />}
+                  nome={MACCHINARI_TESTI.TITOLO}
+                  descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.CONTROLLO_COSTI) && <CardControlloCostiAdmin />}
             </div>
           </section>
         </div>

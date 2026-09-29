@@ -272,6 +272,12 @@ export default function SuperadminPage() {
           >
             Back-office
           </Link>
+          <Link
+            href="/superadmin/moduli"
+            className="text-sm text-text-muted hover:text-text-primary transition-colors duration-150"
+          >
+            Moduli
+          </Link>
         </div>
 
         <div className="mt-2 flex items-center justify-between gap-4">
