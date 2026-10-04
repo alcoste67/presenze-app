@@ -9,6 +9,7 @@ import {
   Calculator,
   CalendarDays,
   CalendarRange,
+  ClipboardCheck,
   ClipboardList,
   Contact,
   Handshake,
@@ -27,6 +28,7 @@ import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
@@ -167,6 +169,14 @@ export default function BackofficePage() {
                   descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
                 />
               )}
+              {wallboxVisibile && (
+                <ModuloCard
+                  href="/backoffice/ordini-lavoro"
+                  icon={<ClipboardCheck className="h-5 w-5" />}
+                  nome={ORDINI_LAVORO_TESTI.TITOLO}
+                  descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
               {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (
                 <ModuloCard
                   href="/backoffice/costi-macchinari"
@@ -267,6 +277,14 @@ export default function BackofficePage() {
                   icon={<FileText className="h-5 w-5" />}
                   nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
                   descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {wallboxVisibile && (
+                <ModuloCard
+                  href="/backoffice/ordini-lavoro"
+                  icon={<ClipboardCheck className="h-5 w-5" />}
+                  nome={ORDINI_LAVORO_TESTI.TITOLO}
+                  descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.COMMESSA) && (

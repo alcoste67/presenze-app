@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Building2,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   History,
@@ -35,6 +36,7 @@ import {
 } from "@/constants/auth";
 import { ASSENZE_TESTI } from "@/constants/assenze";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
@@ -1882,6 +1884,18 @@ export default function HomePage() {
                   icon={<FileText className="h-4 w-4" />}
                 >
                   {CHECKLIST_WALLBOX_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
+
+            {wallboxVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_ORDINI_LAVORO}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<ClipboardCheck className="h-4 w-4" />}
+                >
+                  {ORDINI_LAVORO_TESTI.TITOLO}
                 </Button>
               </Link>
             )}
