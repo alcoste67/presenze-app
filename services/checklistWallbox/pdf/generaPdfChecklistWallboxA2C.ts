@@ -18,6 +18,7 @@ import {
 
 import {
   CHECKLIST_WALLBOX_PDF,
+  CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI,
   CHECKLIST_WALLBOX_TESTI,
 } from "@/constants/checklistWallbox";
 import type { ChecklistWallbox } from "@/types/checklistWallbox";
@@ -145,10 +146,7 @@ function slugPercorso(value: string) {
  * suggerimento quando il tecnico salva il PDF su Files (la cartella con
  * lo stesso nome resta comunque da creare/scegliere a mano su iPhone). */
 export function getNomeFileChecklistWallboxA2C(checklist: ChecklistWallbox) {
-  const cliente =
-    checklist.ragione_sociale.trim() ||
-    `${checklist.nome} ${checklist.cognome}`.trim() ||
-    "cliente";
+  const cliente = `${checklist.nome} ${checklist.cognome}`.trim() || "cliente";
   const comune = checklist.comune.trim() || "citta";
 
   return `${slugPercorso(comune)}-${slugPercorso(cliente)}-a2c.pdf`;
@@ -392,6 +390,10 @@ export async function generaPdfChecklistWallboxA2C(
     pdfDoc,
     checklist.firma_cliente_data_url
   );
+  const planimetriaImg = await embedFirma(
+    pdfDoc,
+    checklist.planimetria_data_url
+  );
 
   // ── Pagina 1: dati cliente, immobile, verifiche ──
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -412,8 +414,8 @@ export async function generaPdfChecklistWallboxA2C(
   drawCampo({
     page,
     fonts,
-    label: CHECKLIST_WALLBOX_TESTI.PIVA,
-    value: checklist.piva,
+    label: CHECKLIST_WALLBOX_TESTI.CODICE_DITTA,
+    value: checklist.codice_ditta,
     x: MARGIN_X + colWidth + 18,
     y,
     width: colWidth,
@@ -464,7 +466,12 @@ export async function generaPdfChecklistWallboxA2C(
     page,
     fonts,
     label: CHECKLIST_WALLBOX_TESTI.POSIZIONAMENTO,
-    value: checklist.posizionamento,
+    value:
+      checklist.posizionamento_tipo === "ALTRO"
+        ? checklist.posizionamento
+        : CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI.find(
+            (opzione) => opzione.valore === checklist.posizionamento_tipo
+          )?.label || "-",
     x: MARGIN_X,
     y,
     width: colWidth,
@@ -480,17 +487,6 @@ export async function generaPdfChecklistWallboxA2C(
           ? CHECKLIST_WALLBOX_TESTI.MODALITA_POSA_TERRA
           : "-",
     x: MARGIN_X + colWidth + 18,
-    y,
-    width: colWidth,
-  });
-
-  y -= 40;
-  drawCampo({
-    page,
-    fonts,
-    label: CHECKLIST_WALLBOX_TESTI.POTENZA_CONTATORE,
-    value: checklist.potenza_contatore_kw,
-    x: MARGIN_X,
     y,
     width: colWidth,
   });
@@ -514,11 +510,10 @@ export async function generaPdfChecklistWallboxA2C(
   y -= 22;
 
   const domande: [string, boolean | null][] = [
-    [CHECKLIST_WALLBOX_TESTI.QUADRO_CONFORME, checklist.quadro_conforme],
-    [CHECKLIST_WALLBOX_TESTI.IMPIANTO_A_NORMA, checklist.impianto_a_norma],
+    [CHECKLIST_WALLBOX_TESTI.STABILE_CPI, checklist.stabile_cpi],
     [
-      CHECKLIST_WALLBOX_TESTI.DICHIARAZIONE_CONFORMITA,
-      checklist.dichiarazione_conformita,
+      CHECKLIST_WALLBOX_TESTI.OBBLIGO_PROGETTO_ELETTRICO,
+      checklist.obbligo_progetto_elettrico,
     ],
     [
       CHECKLIST_WALLBOX_TESTI.AUTORIZZAZIONI_NECESSARIE,
@@ -529,17 +524,54 @@ export async function generaPdfChecklistWallboxA2C(
       CHECKLIST_WALLBOX_TESTI.INSTALLAZIONE_POSSIBILE,
       checklist.installazione_possibile,
     ],
-    [
-      CHECKLIST_WALLBOX_TESTI.OPERE_ADEGUAMENTO_NECESSARIE,
-      checklist.opere_adeguamento_necessarie,
-    ],
   ];
 
   domande.forEach(([domanda, risposta]) => {
     y = drawDomanda({ page, fonts, domanda, risposta, y });
   });
 
+  if (checklist.misura_terra_ohm) {
+    drawText(page, `${CHECKLIST_WALLBOX_TESTI.MISURA_TERRA_OHM}: ${checklist.misura_terra_ohm} Ohm`, {
+      x: MARGIN_X,
+      y,
+      size: 9,
+      font: fonts.regular,
+      color: COLORS.text,
+    });
+    y -= 18;
+  }
+
   y -= 10;
+  drawText(page, CHECKLIST_WALLBOX_TESTI.DESCRIZIONE_PERCORSO_CAVI, {
+    x: MARGIN_X,
+    y,
+    size: 10,
+    font: fonts.bold,
+    color: COLORS.muted,
+  });
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - 60,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: 44,
+    color: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+  });
+  drawWrappedText({
+    page,
+    text: checklist.descrizione_percorso_cavi || "",
+    x: MARGIN_X + 12,
+    y: y - 18,
+    maxWidth: PAGE_WIDTH - MARGIN_X * 2 - 24,
+    size: 9,
+    font: fonts.regular,
+    color: COLORS.text,
+    maxLines: 3,
+    lineHeight: 11,
+  });
+  y -= 70;
+
   drawText(page, CHECKLIST_WALLBOX_TESTI.NOTE, {
     x: MARGIN_X,
     y,
@@ -569,9 +601,56 @@ export async function generaPdfChecklistWallboxA2C(
     lineHeight: 11,
   });
 
-  // ── Pagina 2: materiali + firme ──
+  // ── Pagina 2: planimetria sintetica ──
   page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let tableY = PAGE_HEIGHT - 70;
+
+  drawText(page, CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO, {
+    x: MARGIN_X,
+    y: tableY,
+    size: 12,
+    font: fonts.bold,
+    color: COLORS.text,
+  });
+  tableY -= 20;
+
+  const planimetriaBoxHeight = 260;
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: tableY - planimetriaBoxHeight,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: planimetriaBoxHeight,
+    color: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+  });
+  if (planimetriaImg) {
+    const maxWidth = PAGE_WIDTH - MARGIN_X * 2 - 20;
+    const maxHeight = planimetriaBoxHeight - 20;
+    const scale = Math.min(
+      maxWidth / planimetriaImg.width,
+      maxHeight / planimetriaImg.height
+    );
+    const width = planimetriaImg.width * scale;
+    const height = planimetriaImg.height * scale;
+    page.drawImage(planimetriaImg, {
+      x: MARGIN_X + (PAGE_WIDTH - MARGIN_X * 2 - width) / 2,
+      y: tableY - planimetriaBoxHeight + (planimetriaBoxHeight - height) / 2,
+      width,
+      height,
+    });
+  } else {
+    drawText(page, CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_AVVISO, {
+      x: MARGIN_X + 12,
+      y: tableY - planimetriaBoxHeight / 2,
+      size: 9,
+      font: fonts.regular,
+      color: COLORS.muted,
+    });
+  }
+  // ── Pagina 3: materiali + firme ──
+  page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  tableY = PAGE_HEIGHT - 70;
 
   drawText(page, CHECKLIST_WALLBOX_TESTI.MATERIALI_TITOLO, {
     x: MARGIN_X,
@@ -606,7 +685,23 @@ export async function generaPdfChecklistWallboxA2C(
   tableY -= 20;
 
   const rowHeight = 22;
-  const materialiConQuantita = checklist.materiali.filter(
+  const materialiAggiuntivi: typeof checklist.materiali = [];
+  if (checklist.cavo_altro_descrizione.trim() && checklist.cavo_altro_quantita.trim()) {
+    materialiAggiuntivi.push({
+      descrizione: `${CHECKLIST_WALLBOX_TESTI.CAVO_ALTRO} ${checklist.cavo_altro_descrizione}`,
+      quantita: checklist.cavo_altro_quantita,
+    });
+  }
+  if (
+    checklist.interruttore_altro_descrizione.trim() &&
+    checklist.interruttore_altro_quantita.trim()
+  ) {
+    materialiAggiuntivi.push({
+      descrizione: `${CHECKLIST_WALLBOX_TESTI.INTERRUTTORE_ALTRO} ${checklist.interruttore_altro_descrizione}`,
+      quantita: checklist.interruttore_altro_quantita,
+    });
+  }
+  const materialiConQuantita = [...checklist.materiali, ...materialiAggiuntivi, ...checklist.materiali_altro].filter(
     (m) => m.descrizione.trim() && m.quantita.trim()
   );
 

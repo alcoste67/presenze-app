@@ -9,6 +9,7 @@ import { Home, Plus, Share2, Download, Send } from "lucide-react";
 import { APP_ROUTES } from "@/constants/routes";
 import {
   CHECKLIST_WALLBOX_CATALOGO_MATERIALI,
+  CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI,
   CHECKLIST_WALLBOX_STATI,
   CHECKLIST_WALLBOX_TESTI,
   LABEL_STATI_CHECKLIST_WALLBOX,
@@ -31,6 +32,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
+
+const MATERIALI_ALTRO_RIGHE = 3;
 
 const BADGE_PER_STATO: Record<string, BadgeProps["variant"]> = {
   [CHECKLIST_WALLBOX_STATI.BOZZA]: "muted",
@@ -41,21 +45,18 @@ const BADGE_PER_STATO: Record<string, BadgeProps["variant"]> = {
 const DOMANDE_FORM: {
   chiave: keyof Pick<
     ChecklistWallboxInput,
-    | "quadro_conforme"
-    | "impianto_a_norma"
-    | "dichiarazione_conformita"
+    | "stabile_cpi"
+    | "obbligo_progetto_elettrico"
     | "autorizzazioni_necessarie"
     | "messa_a_terra"
     | "installazione_possibile"
-    | "opere_adeguamento_necessarie"
   >;
   label: string;
 }[] = [
-  { chiave: "quadro_conforme", label: CHECKLIST_WALLBOX_TESTI.QUADRO_CONFORME },
-  { chiave: "impianto_a_norma", label: CHECKLIST_WALLBOX_TESTI.IMPIANTO_A_NORMA },
+  { chiave: "stabile_cpi", label: CHECKLIST_WALLBOX_TESTI.STABILE_CPI },
   {
-    chiave: "dichiarazione_conformita",
-    label: CHECKLIST_WALLBOX_TESTI.DICHIARAZIONE_CONFORMITA,
+    chiave: "obbligo_progetto_elettrico",
+    label: CHECKLIST_WALLBOX_TESTI.OBBLIGO_PROGETTO_ELETTRICO,
   },
   {
     chiave: "autorizzazioni_necessarie",
@@ -66,16 +67,13 @@ const DOMANDE_FORM: {
     chiave: "installazione_possibile",
     label: CHECKLIST_WALLBOX_TESTI.INSTALLAZIONE_POSSIBILE,
   },
-  {
-    chiave: "opere_adeguamento_necessarie",
-    label: CHECKLIST_WALLBOX_TESTI.OPERE_ADEGUAMENTO_NECESSARIE,
-  },
 ];
 
 function statoIniziale(): ChecklistWallboxInput {
   return {
     ragione_sociale: "",
     piva: "",
+    codice_ditta: "",
     nome: "",
     cognome: "",
     via: "",
@@ -85,21 +83,35 @@ function statoIniziale(): ChecklistWallboxInput {
     telefono: "",
     email_cliente: "",
     posizionamento: "",
+    posizionamento_tipo: null,
     modalita_posa: null,
     potenza_contatore_kw: "",
-    quadro_conforme: null,
-    impianto_a_norma: null,
-    dichiarazione_conformita: null,
+    stabile_cpi: null,
+    obbligo_progetto_elettrico: null,
     autorizzazioni_necessarie: null,
     messa_a_terra: null,
+    misura_terra_ohm: "",
     installazione_possibile: null,
-    opere_adeguamento_necessarie: null,
+    descrizione_percorso_cavi: "",
     note: "",
     materiali: [],
+    cavo_altro_descrizione: "",
+    cavo_altro_quantita: "",
+    interruttore_altro_descrizione: "",
+    interruttore_altro_quantita: "",
+    materiali_altro: [],
+    planimetria_data_url: null,
     luogo: "",
     data_sopralluogo: null,
     formato_stampa: "EDISON",
   };
+}
+
+function materialiAltroIniziale(): MaterialeChecklistWallbox[] {
+  return Array.from({ length: MATERIALI_ALTRO_RIGHE }, () => ({
+    descrizione: "",
+    quantita: "",
+  }));
 }
 
 function SiNoToggle({
@@ -161,6 +173,9 @@ export default function ChecklistWallboxPage() {
   const [materialiQuantita, setMaterialiQuantita] = useState<
     Record<string, string>
   >({});
+  const [materialiAltro, setMaterialiAltro] = useState<
+    MaterialeChecklistWallbox[]
+  >(materialiAltroIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
 
   const ricarica = async () => {
@@ -183,7 +198,7 @@ export default function ChecklistWallboxPage() {
   }, []);
 
   const validaForm = () => {
-    if (!form.ragione_sociale.trim() && !form.nome.trim() && !form.cognome.trim()) {
+    if (!form.nome.trim() && !form.cognome.trim()) {
       toast.error(
         CHECKLIST_WALLBOX_TESTI.ERRORI.RAGIONE_SOCIALE_O_NOME_OBBLIGATORIO
       );
@@ -211,8 +226,11 @@ export default function ChecklistWallboxPage() {
         descrizione: materiale.descrizione,
         quantita: materialiQuantita[materiale.descrizione].trim(),
       }));
+    const materiali_altro = materialiAltro.filter(
+      (materiale) => materiale.descrizione.trim() && materiale.quantita.trim()
+    );
 
-    return creaChecklistWallbox({ ...form, materiali });
+    return creaChecklistWallbox({ ...form, materiali, materiali_altro });
   };
 
   const handleSalvaBozza = async (event: FormEvent) => {
@@ -225,6 +243,7 @@ export default function ChecklistWallboxPage() {
       toast.success(CHECKLIST_WALLBOX_TESTI.MESSAGGI.CREATA);
       setForm(statoIniziale());
       setMaterialiQuantita({});
+      setMaterialiAltro(materialiAltroIniziale());
       setMostraForm(false);
       await ricarica();
     } catch (error: unknown) {
@@ -439,6 +458,14 @@ export default function ChecklistWallboxPage() {
                     disabled={salvataggio}
                   />
                   <Input
+                    label={CHECKLIST_WALLBOX_TESTI.CODICE_DITTA}
+                    value={form.codice_ditta}
+                    onChange={(e) =>
+                      setForm({ ...form, codice_ditta: e.target.value })
+                    }
+                    disabled={salvataggio}
+                  />
+                  <Input
                     label={CHECKLIST_WALLBOX_TESTI.NOME}
                     value={form.nome}
                     onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -500,23 +527,36 @@ export default function ChecklistWallboxPage() {
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
                   {CHECKLIST_WALLBOX_TESTI.POSIZIONAMENTO}
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input
-                    placeholder={CHECKLIST_WALLBOX_TESTI.POSIZIONAMENTO_PLACEHOLDER}
-                    value={form.posizionamento}
-                    onChange={(e) =>
-                      setForm({ ...form, posizionamento: e.target.value })
-                    }
-                    disabled={salvataggio}
-                  />
-                  <Input
-                    label={CHECKLIST_WALLBOX_TESTI.POTENZA_CONTATORE}
-                    value={form.potenza_contatore_kw}
-                    onChange={(e) =>
-                      setForm({ ...form, potenza_contatore_kw: e.target.value })
-                    }
-                    disabled={salvataggio}
-                  />
+                <div className="flex flex-col gap-2">
+                  {CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI.map((opzione) => (
+                    <label
+                      key={opzione.valore}
+                      className="flex items-center gap-1.5 text-sm text-text-primary"
+                    >
+                      <input
+                        type="radio"
+                        name="posizionamento_tipo"
+                        checked={form.posizionamento_tipo === opzione.valore}
+                        onChange={() =>
+                          setForm({ ...form, posizionamento_tipo: opzione.valore })
+                        }
+                        disabled={salvataggio}
+                      />
+                      {opzione.label}
+                    </label>
+                  ))}
+                  {form.posizionamento_tipo === "ALTRO" && (
+                    <Input
+                      placeholder={
+                        CHECKLIST_WALLBOX_TESTI.POSIZIONAMENTO_ALTRO_PLACEHOLDER
+                      }
+                      value={form.posizionamento}
+                      onChange={(e) =>
+                        setForm({ ...form, posizionamento: e.target.value })
+                      }
+                      disabled={salvataggio}
+                    />
+                  )}
                 </div>
                 <div className="mt-3 flex items-center gap-4">
                   <span className="text-sm font-medium text-text-primary">
@@ -545,16 +585,51 @@ export default function ChecklistWallboxPage() {
                 </h2>
                 <div className="flex flex-col gap-3">
                   {DOMANDE_FORM.map(({ chiave, label }) => (
-                    <div key={chiave} className="flex items-center justify-between gap-3">
-                      <span className="text-sm text-text-primary">{label}</span>
-                      <SiNoToggle
-                        value={form[chiave]}
-                        onChange={(value) => setForm({ ...form, [chiave]: value })}
-                        disabled={salvataggio}
-                      />
+                    <div key={chiave}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-primary">{label}</span>
+                        <SiNoToggle
+                          value={form[chiave]}
+                          onChange={(value) => setForm({ ...form, [chiave]: value })}
+                          disabled={salvataggio}
+                        />
+                      </div>
+                      {chiave === "messa_a_terra" && form.messa_a_terra === true && (
+                        <div className="mt-2">
+                          <Input
+                            label={CHECKLIST_WALLBOX_TESTI.MISURA_TERRA_OHM}
+                            value={form.misura_terra_ohm}
+                            onChange={(e) =>
+                              setForm({ ...form, misura_terra_ohm: e.target.value })
+                            }
+                            disabled={salvataggio}
+                          />
+                        </div>
+                      )}
+                      {chiave === "installazione_possibile" &&
+                        form.installazione_possibile === false && (
+                          <p className="mt-1 text-xs text-text-muted">
+                            {CHECKLIST_WALLBOX_TESTI.INSTALLAZIONE_NON_POSSIBILE_AVVISO}
+                          </p>
+                        )}
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-text-primary">
+                  {CHECKLIST_WALLBOX_TESTI.DESCRIZIONE_PERCORSO_CAVI}
+                </label>
+                <textarea
+                  value={form.descrizione_percorso_cavi}
+                  onChange={(e) =>
+                    setForm({ ...form, descrizione_percorso_cavi: e.target.value })
+                  }
+                  disabled={salvataggio}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-border bg-bg-card p-3 text-sm text-text-primary outline-none focus:border-brand-500"
+                />
               </div>
 
               <div>
@@ -597,7 +672,114 @@ export default function ChecklistWallboxPage() {
                       />
                     </div>
                   ))}
+
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm text-text-primary">
+                      {CHECKLIST_WALLBOX_TESTI.CAVO_ALTRO}
+                    </span>
+                    <input
+                      value={form.cavo_altro_descrizione}
+                      onChange={(e) =>
+                        setForm({ ...form, cavo_altro_descrizione: e.target.value })
+                      }
+                      disabled={salvataggio}
+                      placeholder={CHECKLIST_WALLBOX_TESTI.DESCRIZIONE_PLACEHOLDER}
+                      className="h-9 w-32 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                    <input
+                      value={form.cavo_altro_quantita}
+                      onChange={(e) =>
+                        setForm({ ...form, cavo_altro_quantita: e.target.value })
+                      }
+                      disabled={salvataggio}
+                      placeholder={CHECKLIST_WALLBOX_TESTI.QUANTITA}
+                      className="h-9 w-24 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm text-text-primary">
+                      {CHECKLIST_WALLBOX_TESTI.INTERRUTTORE_ALTRO}
+                    </span>
+                    <input
+                      value={form.interruttore_altro_descrizione}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          interruttore_altro_descrizione: e.target.value,
+                        })
+                      }
+                      disabled={salvataggio}
+                      placeholder={CHECKLIST_WALLBOX_TESTI.DESCRIZIONE_PLACEHOLDER}
+                      className="h-9 w-32 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                    <input
+                      value={form.interruttore_altro_quantita}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          interruttore_altro_quantita: e.target.value,
+                        })
+                      }
+                      disabled={salvataggio}
+                      placeholder={CHECKLIST_WALLBOX_TESTI.QUANTITA}
+                      className="h-9 w-24 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    />
+                  </div>
                 </div>
+
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-text-primary mb-2">
+                    {CHECKLIST_WALLBOX_TESTI.MATERIALI_ALTRO_TITOLO}
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {materialiAltro.map((materiale, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          value={materiale.descrizione}
+                          onChange={(e) => {
+                            const copia = [...materialiAltro];
+                            copia[index] = { ...copia[index], descrizione: e.target.value };
+                            setMaterialiAltro(copia);
+                          }}
+                          disabled={salvataggio}
+                          placeholder={
+                            CHECKLIST_WALLBOX_TESTI.MATERIALI_ALTRO_DESCRIZIONE_PLACEHOLDER
+                          }
+                          className="h-9 flex-1 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                        />
+                        <input
+                          value={materiale.quantita}
+                          onChange={(e) => {
+                            const copia = [...materialiAltro];
+                            copia[index] = { ...copia[index], quantita: e.target.value };
+                            setMaterialiAltro(copia);
+                          }}
+                          disabled={salvataggio}
+                          placeholder={CHECKLIST_WALLBOX_TESTI.QUANTITA}
+                          className="h-9 w-24 shrink-0 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+                  {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO}
+                </h2>
+                <FirmaCanvas
+                  label={CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_AVVISO}
+                  clearLabel={CHECKLIST_WALLBOX_TESTI.CANCELLA_FIRMA}
+                  value={form.planimetria_data_url}
+                  onChange={(value) =>
+                    setForm({ ...form, planimetria_data_url: value })
+                  }
+                  disabled={salvataggio}
+                  width={720}
+                  height={390}
+                />
               </div>
 
               <div>
@@ -670,9 +852,7 @@ export default function ChecklistWallboxPage() {
 
           {checklists.map((checklist) => {
             const nomeCliente =
-              checklist.ragione_sociale.trim() ||
-              `${checklist.nome} ${checklist.cognome}`.trim() ||
-              "-";
+              `${checklist.nome} ${checklist.cognome}`.trim() || "-";
             const inCorso = azioneInCorsoId === checklist.id;
 
             return (

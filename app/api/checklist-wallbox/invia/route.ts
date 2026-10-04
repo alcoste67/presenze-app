@@ -221,9 +221,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resend = new Resend(apiKey);
-    const nomeCliente =
-      checklist.ragione_sociale.trim() ||
-      `${checklist.nome} ${checklist.cognome}`.trim();
+    const nomeCliente = `${checklist.nome} ${checklist.cognome}`.trim();
     const oggetto = `Checklist installazione wallbox — ${nomeCliente || checklist.comune}`;
 
     const { data: invio, error: erroreInvio } = await resend.emails.send({
