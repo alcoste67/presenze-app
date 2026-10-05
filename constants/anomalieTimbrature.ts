@@ -1,5 +1,11 @@
 export const ANOMALIE_TIMBRATURE = {
   SOGLIA_ORE_TURNO_APERTO: 10,
+  // Orario (minuti dalla mezzanotte, ora Italia) del promemoria giornaliero
+  // cumulativo per le proposte di correzione turno aperto ancora IN_ATTESA.
+  SOGLIA_MINUTI_PROMEMORIA_PROPOSTE: 9 * 60,
+  // Orario del promemoria giornaliero per le giornate senza timbrature
+  // ancora da classificare (Ferie/Permesso/Altro).
+  SOGLIA_MINUTI_PROMEMORIA_GIORNATE_VUOTE: 9 * 60 + 30,
 } as const;
 
 export const ANOMALIE_TIMBRATURE_TESTI = {
@@ -7,6 +13,14 @@ export const ANOMALIE_TIMBRATURE_TESTI = {
     TITOLO: "Turno ancora aperto",
     CORPO:
       "Sono passate più di 10 ore dalla tua entrata: hai dimenticato di timbrare l'uscita?",
+  },
+  PROMEMORIA_PROPOSTE: {
+    TITOLO_SINGOLARE: "Conferma l'orario di uscita",
+    TITOLO_PLURALE: "Hai delle uscite da confermare",
+    CORPO_SINGOLARE:
+      "Il tuo responsabile ha proposto un orario di uscita per un turno ancora aperto: confermalo o segnala se non è corretto.",
+    CORPO_PLURALE_PREFIX: "Il tuo responsabile ha proposto l'orario di uscita per",
+    CORPO_PLURALE_SUFFIX: "turni ancora aperti: confermali o segnala se non sono corretti.",
   },
   PAGINA_CORREZIONE: {
     TITOLO: "Correggi turno aperto",

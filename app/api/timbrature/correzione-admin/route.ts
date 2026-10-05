@@ -121,6 +121,47 @@ export async function GET(request: NextRequest): Promise<Response> {
   );
 }
 
+export async function DELETE(request: NextRequest): Promise<Response> {
+  const richiedente = await autenticaAdmin(request);
+  if (!richiedente) {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.NON_AUTORIZZATO, HTTP_STATUS.FORBIDDEN);
+  }
+
+  const dipendenteId = request.nextUrl.searchParams.get("dipendenteId");
+  if (!dipendenteId) {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.DIPENDENTE_NON_TROVATO, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  const { data: target } = await supabaseAdmin
+    .from("dipendenti")
+    .select("id, azienda_id")
+    .eq("id", dipendenteId)
+    .maybeSingle();
+
+  if (!target || target.azienda_id !== richiedente.azienda_id) {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.DIPENDENTE_NON_TROVATO, HTTP_STATUS.NOT_FOUND);
+  }
+
+  const { data: annullata, error } = await supabaseAdmin
+    .from("timbrature_proposte_correzione")
+    .update({ stato: "ANNULLATA", risposto_il: new Date().toISOString() })
+    .eq("dipendente_id", target.id)
+    .eq("stato", "IN_ATTESA")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("Errore annullamento proposta correzione", error);
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  }
+
+  if (!annullata) {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.PROPOSTA_NON_TROVATA, HTTP_STATUS.NOT_FOUND);
+  }
+
+  return Response.json({ ok: true }, { headers: NO_STORE });
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
   const richiedente = await autenticaAdmin(request);
   if (!richiedente) {

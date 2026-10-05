@@ -61,6 +61,8 @@ export const API_ROUTES = {
     "/api/pianificazioni",
   ASSENZE:
     "/api/assenze",
+  ASSENZE_COMPILA_GIORNATA:
+    "/api/assenze/compila-giornata",
   TIMBRATURE_CORREZIONE_ADMIN:
     "/api/timbrature/correzione-admin",
   TIMBRATURE_CORREZIONE_ADMIN_RISPONDI:

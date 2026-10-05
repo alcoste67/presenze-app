@@ -11,6 +11,15 @@ import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipenden
 import { valutaPromemoriaPush, type TipoPromemoriaPush } from "@/services/timbrature/valutaPromemoriaPush";
 import { rilevaAnomaliaTurnoAperto } from "@/services/timbrature/rilevaAnomaliaTurnoAperto";
 import { notificaAnomaliaTurnoAperto } from "@/services/timbrature/notificaAnomaliaTurnoAperto";
+import {
+  inFinestraPromemoriaProposte,
+  inviaPromemoriaProposteInAttesa,
+} from "@/services/timbrature/promemoriaProposteCorrezione";
+import {
+  inFinestraPromemoriaGiornateVuote,
+  trovaGiornateVuoteDaClassificare,
+} from "@/services/timbrature/rilevaGiornateVuote";
+import { notificaGiornateVuoteDaClassificare } from "@/services/timbrature/notificaGiornateVuote";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +86,21 @@ export async function GET(request: NextRequest) {
   let anomalieRilevate = 0;
   const urlSito = baseUrl(request);
 
+  let promemoriaProposteInviati = 0;
+  if (inFinestraPromemoriaProposte(minutiRoma)) {
+    promemoriaProposteInviati = await inviaPromemoriaProposteInAttesa(supabaseAdmin, urlSito);
+  }
+
+  let promemoriaGiornateVuoteInviati = 0;
+  if (inFinestraPromemoriaGiornateVuote(minutiRoma)) {
+    const giornateVuote = await trovaGiornateVuoteDaClassificare(supabaseAdmin);
+    promemoriaGiornateVuoteInviati = await notificaGiornateVuoteDaClassificare(
+      supabaseAdmin,
+      giornateVuote,
+      urlSito
+    );
+  }
+
   for (const dipendente of dipendenti || []) {
     if (!dipendente.auth_user_id) continue;
 
@@ -133,7 +157,15 @@ export async function GET(request: NextRequest) {
   }
 
   return Response.json(
-    { ok: true, minutiRoma, notificheInviate, subscriptionScadute, anomalieRilevate },
+    {
+      ok: true,
+      minutiRoma,
+      notificheInviate,
+      subscriptionScadute,
+      anomalieRilevate,
+      promemoriaProposteInviati,
+      promemoriaGiornateVuoteInviati,
+    },
     { headers: NO_STORE }
   );
 }
