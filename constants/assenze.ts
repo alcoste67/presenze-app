@@ -8,11 +8,13 @@ export const RUOLI_APPROVA_ASSENZE = [
 export const TIPO_ASSENZA = {
   FERIE: "FERIE",
   PERMESSO: "PERMESSO",
+  ALTRO: "ALTRO",
 } as const;
 
 export const LABEL_TIPO_ASSENZA: Record<string, string> = {
   [TIPO_ASSENZA.FERIE]: "Ferie",
   [TIPO_ASSENZA.PERMESSO]: "Permesso",
+  [TIPO_ASSENZA.ALTRO]: "Altro",
 };
 
 export const STATO_RICHIESTA_ASSENZA = {
@@ -66,6 +68,7 @@ export const ASSENZE_TESTI = {
     INTERVALLO_NON_VALIDO: "Data fine precedente alla data inizio",
     ORE_OBBLIGATORIE: "Indica il numero di ore",
     PARZIALE_UN_GIORNO: "Il permesso parziale può riguardare solo un giorno",
+    NOTA_OBBLIGATORIA_ALTRO: "Indica il motivo per 'Altro'",
     TOKEN_MANCANTE: "Token autenticazione mancante",
     TOKEN_NON_VALIDO: "Token autenticazione non valido",
     ACCESSO_NEGATO: "Accesso non autorizzato",

@@ -1,4 +1,8 @@
 export type TipoAssenza = "FERIE" | "PERMESSO";
+// "ALTRO" esiste solo per le giornate compilate dall'admin (vedi
+// services/assenze/compilaGiornataVuota.ts): il dipendente non può mai
+// richiederlo da sé, per questo RichiestaAssenzaInput resta su TipoAssenza.
+export type TipoAssenzaEsteso = TipoAssenza | "ALTRO";
 export type StatoRichiestaAssenza =
   | "IN_ATTESA"
   | "APPROVATA"
@@ -9,7 +13,7 @@ export type RichiestaAssenza = {
   id: string;
   dipendenteId: string;
   dipendenteNome: string;
-  tipo: TipoAssenza;
+  tipo: TipoAssenzaEsteso;
   dataInizio: string;
   dataFine: string;
   giornataIntera: boolean;
