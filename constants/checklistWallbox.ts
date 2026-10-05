@@ -134,6 +134,9 @@ export const CHECKLIST_WALLBOX_TESTI = {
   CHECKLIST_NON_FIRMABILE:
     "La checklist non è in bozza e non può essere firmata",
   SALVA: "Salva bozza",
+  SALVA_MODIFICHE: "Salva modifiche",
+  MODIFICA: "Modifica",
+  MODIFICA_TITOLO: "Modifica checklist",
   SALVATAGGIO: "Salvataggio...",
   ANNULLA: "Annulla",
   CARICAMENTO: "Caricamento...",
@@ -183,6 +186,7 @@ export const CHECKLIST_WALLBOX_TESTI = {
   },
   MESSAGGI: {
     CREATA: "Checklist creata",
+    MODIFICATA: "Checklist modificata",
     FIRMATA: "Checklist firmata",
     INVIATA: "Checklist inviata a",
   },

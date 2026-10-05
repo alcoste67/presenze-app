@@ -16,6 +16,7 @@ import {
 } from "@/constants/checklistWallbox";
 import { getMessaggioErrore } from "@/lib/errors";
 import { creaChecklistWallbox } from "@/services/checklistWallbox/creaChecklistWallbox";
+import { aggiornaChecklistWallbox } from "@/services/checklistWallbox/aggiornaChecklistWallbox";
 import { loadChecklistiWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
 import { inviaChecklistWallbox } from "@/services/checklistWallbox/inviaChecklistWallbox";
 import { fetchChecklistWallboxPdf } from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
@@ -177,6 +178,7 @@ export default function ChecklistWallboxPage() {
     MaterialeChecklistWallbox[]
   >(materialiAltroIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
+  const [checklistInModificaId, setChecklistInModificaId] = useState<string | null>(null);
 
   const ricarica = async () => {
     try {
@@ -218,7 +220,7 @@ export default function ChecklistWallboxPage() {
     return true;
   };
 
-  const creaDaForm = async () => {
+  const salvaDaForm = async () => {
     const materiali: MaterialeChecklistWallbox[] =
       CHECKLIST_WALLBOX_CATALOGO_MATERIALI.filter(
         (materiale) => materialiQuantita[materiale.descrizione]?.trim()
@@ -229,8 +231,61 @@ export default function ChecklistWallboxPage() {
     const materiali_altro = materialiAltro.filter(
       (materiale) => materiale.descrizione.trim() && materiale.quantita.trim()
     );
+    const payload = { ...form, materiali, materiali_altro };
 
-    return creaChecklistWallbox({ ...form, materiali, materiali_altro });
+    return checklistInModificaId
+      ? aggiornaChecklistWallbox(checklistInModificaId, payload)
+      : creaChecklistWallbox(payload);
+  };
+
+  const caricaChecklistInForm = (checklist: ChecklistWallbox) => {
+    setChecklistInModificaId(checklist.id);
+    setForm({
+      ragione_sociale: checklist.ragione_sociale,
+      piva: checklist.piva,
+      codice_ditta: checklist.codice_ditta,
+      nome: checklist.nome,
+      cognome: checklist.cognome,
+      via: checklist.via,
+      comune: checklist.comune,
+      cap: checklist.cap,
+      provincia: checklist.provincia,
+      telefono: checklist.telefono,
+      email_cliente: checklist.email_cliente,
+      posizionamento: checklist.posizionamento,
+      posizionamento_tipo: checklist.posizionamento_tipo,
+      modalita_posa: checklist.modalita_posa,
+      potenza_contatore_kw: checklist.potenza_contatore_kw,
+      stabile_cpi: checklist.stabile_cpi,
+      obbligo_progetto_elettrico: checklist.obbligo_progetto_elettrico,
+      autorizzazioni_necessarie: checklist.autorizzazioni_necessarie,
+      messa_a_terra: checklist.messa_a_terra,
+      misura_terra_ohm: checklist.misura_terra_ohm,
+      installazione_possibile: checklist.installazione_possibile,
+      descrizione_percorso_cavi: checklist.descrizione_percorso_cavi,
+      note: checklist.note,
+      materiali: checklist.materiali,
+      cavo_altro_descrizione: checklist.cavo_altro_descrizione,
+      cavo_altro_quantita: checklist.cavo_altro_quantita,
+      interruttore_altro_descrizione: checklist.interruttore_altro_descrizione,
+      interruttore_altro_quantita: checklist.interruttore_altro_quantita,
+      materiali_altro: checklist.materiali_altro,
+      planimetria_data_url: checklist.planimetria_data_url,
+      luogo: checklist.luogo,
+      data_sopralluogo: checklist.data_sopralluogo,
+      formato_stampa: checklist.formato_stampa,
+    });
+    setMaterialiQuantita(
+      Object.fromEntries(
+        checklist.materiali.map((m) => [m.descrizione, m.quantita])
+      )
+    );
+    const altro = [...checklist.materiali_altro];
+    while (altro.length < MATERIALI_ALTRO_RIGHE) {
+      altro.push({ descrizione: "", quantita: "" });
+    }
+    setMaterialiAltro(altro.slice(0, MATERIALI_ALTRO_RIGHE));
+    setMostraForm(true);
   };
 
   const handleSalvaBozza = async (event: FormEvent) => {
@@ -239,11 +294,17 @@ export default function ChecklistWallboxPage() {
 
     try {
       setSalvataggio(true);
-      await creaDaForm();
-      toast.success(CHECKLIST_WALLBOX_TESTI.MESSAGGI.CREATA);
+      const modificando = Boolean(checklistInModificaId);
+      await salvaDaForm();
+      toast.success(
+        modificando
+          ? CHECKLIST_WALLBOX_TESTI.MESSAGGI.MODIFICATA
+          : CHECKLIST_WALLBOX_TESTI.MESSAGGI.CREATA
+      );
       setForm(statoIniziale());
       setMaterialiQuantita({});
       setMaterialiAltro(materialiAltroIniziale());
+      setChecklistInModificaId(null);
       setMostraForm(false);
       await ricarica();
     } catch (error: unknown) {
@@ -255,12 +316,12 @@ export default function ChecklistWallboxPage() {
     }
   };
 
-  const handleCreaEFirma = async () => {
+  const handleSalvaEFirma = async () => {
     if (!validaForm()) return;
 
     try {
       setSalvataggio(true);
-      const checklist = await creaDaForm();
+      const checklist = await salvaDaForm();
       router.push(
         `${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/${checklist.id}/firma`
       );
@@ -406,7 +467,18 @@ export default function ChecklistWallboxPage() {
           <Button
             size="sm"
             icon={<Plus className="h-4 w-4" />}
-            onClick={() => setMostraForm((v) => !v)}
+            onClick={() =>
+              setMostraForm((v) => {
+                const next = !v;
+                if (next) {
+                  setChecklistInModificaId(null);
+                  setForm(statoIniziale());
+                  setMaterialiQuantita({});
+                  setMaterialiAltro(materialiAltroIniziale());
+                }
+                return next;
+              })
+            }
           >
             {CHECKLIST_WALLBOX_TESTI.NUOVO}
           </Button>
@@ -415,6 +487,11 @@ export default function ChecklistWallboxPage() {
         {mostraForm && (
           <Card className="mt-5 p-5">
             <form onSubmit={(e) => void handleSalvaBozza(e)} className="flex flex-col gap-5">
+              {checklistInModificaId && (
+                <p className="text-sm font-medium text-brand-500">
+                  {CHECKLIST_WALLBOX_TESTI.MODIFICA_TITOLO}
+                </p>
+              )}
               <div>
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
                   Formato PDF
@@ -814,13 +891,15 @@ export default function ChecklistWallboxPage() {
                 >
                   {salvataggio
                     ? CHECKLIST_WALLBOX_TESTI.SALVATAGGIO
-                    : CHECKLIST_WALLBOX_TESTI.SALVA}
+                    : checklistInModificaId
+                      ? CHECKLIST_WALLBOX_TESTI.SALVA_MODIFICHE
+                      : CHECKLIST_WALLBOX_TESTI.SALVA}
                 </Button>
                 <Button
                   type="button"
                   loading={salvataggio}
                   className="flex-1"
-                  onClick={() => void handleCreaEFirma()}
+                  onClick={() => void handleSalvaEFirma()}
                 >
                   {CHECKLIST_WALLBOX_TESTI.VAI_ALLA_FIRMA}
                 </Button>
@@ -829,7 +908,10 @@ export default function ChecklistWallboxPage() {
                 type="button"
                 variant="ghost"
                 disabled={salvataggio}
-                onClick={() => setMostraForm(false)}
+                onClick={() => {
+                  setMostraForm(false);
+                  setChecklistInModificaId(null);
+                }}
               >
                 {CHECKLIST_WALLBOX_TESTI.ANNULLA}
               </Button>
@@ -876,7 +958,14 @@ export default function ChecklistWallboxPage() {
                 </div>
 
                 {checklist.stato === CHECKLIST_WALLBOX_STATI.BOZZA && (
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => caricaChecklistInForm(checklist)}
+                    >
+                      {CHECKLIST_WALLBOX_TESTI.MODIFICA}
+                    </Button>
                     <Link
                       href={`${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/${checklist.id}/firma`}
                     >

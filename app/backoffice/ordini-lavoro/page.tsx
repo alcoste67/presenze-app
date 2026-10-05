@@ -15,6 +15,7 @@ import {
 } from "@/constants/ordiniLavoro";
 import { getMessaggioErrore } from "@/lib/errors";
 import { creaOrdineLavoroEdison } from "@/services/ordiniLavoro/creaOrdineLavoroEdison";
+import { aggiornaOrdineLavoroEdison } from "@/services/ordiniLavoro/aggiornaOrdineLavoroEdison";
 import { loadOrdiniLavoro } from "@/services/ordiniLavoro/loadOrdiniLavoro";
 import { inviaOrdineLavoroEdison } from "@/services/ordiniLavoro/inviaOrdineLavoroEdison";
 import { fetchOrdineLavoroPdf } from "@/services/ordiniLavoro/fetchOrdineLavoroPdf";
@@ -147,6 +148,7 @@ export default function OrdiniLavoroPage() {
   const [form, setForm] = useState<OrdineLavoroEdisonInput>(statoIniziale());
   const [elenco, setElenco] = useState<VoceElencoOrdineLavoro[]>(elencoIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
+  const [ordineInModificaId, setOrdineInModificaId] = useState<string | null>(null);
 
   const ricarica = async () => {
     try {
@@ -203,11 +205,63 @@ export default function OrdiniLavoroPage() {
     return true;
   };
 
-  const creaDaForm = async () => {
+  const salvaDaForm = async () => {
     const elenco_interventi = elenco.filter(
       (voce) => voce.descrizione.trim() && voce.importo.trim()
     );
-    return creaOrdineLavoroEdison({ ...form, elenco_interventi });
+    const payload = { ...form, elenco_interventi };
+
+    return ordineInModificaId
+      ? aggiornaOrdineLavoroEdison(ordineInModificaId, payload)
+      : creaOrdineLavoroEdison(payload);
+  };
+
+  const caricaOrdineInForm = (ordine: OrdineLavoroEdison) => {
+    setOrdineInModificaId(ordine.id);
+    setForm({
+      checklist_wallbox_id: ordine.checklist_wallbox_id,
+      intervento_numero: ordine.intervento_numero,
+      data: ordine.data,
+      ora_dalle: ordine.ora_dalle,
+      ora_alle: ordine.ora_alle,
+      tecnico_societa: ordine.tecnico_societa,
+      tecnico_nome: ordine.tecnico_nome,
+      cliente_nome_cognome: ordine.cliente_nome_cognome,
+      cliente_indirizzo: ordine.cliente_indirizzo,
+      cliente_civico: ordine.cliente_civico,
+      cliente_comune: ordine.cliente_comune,
+      cliente_cap: ordine.cliente_cap,
+      cliente_provincia: ordine.cliente_provincia,
+      cliente_telefono: ordine.cliente_telefono,
+      cliente_email: ordine.cliente_email,
+      tipologia_24_7: ordine.tipologia_24_7,
+      tipologia_caldaia: ordine.tipologia_caldaia,
+      tipologia_scaldabagno: ordine.tipologia_scaldabagno,
+      tipologia_climatizzatore: ordine.tipologia_climatizzatore,
+      tipologia_elettrodomestico: ordine.tipologia_elettrodomestico,
+      tipologia_varie: ordine.tipologia_varie,
+      dettaglio_manodopera_compresa: ordine.dettaglio_manodopera_compresa,
+      dettaglio_manodopera_a_pagamento: ordine.dettaglio_manodopera_a_pagamento,
+      dettaglio_ore_manodopera_extra: ordine.dettaglio_ore_manodopera_extra,
+      dettaglio_pezzi_ricambio: ordine.dettaglio_pezzi_ricambio,
+      dettaglio_preventivo: ordine.dettaglio_preventivo,
+      dettaglio_riparazione: ordine.dettaglio_riparazione,
+      dettaglio_manutenzione: ordine.dettaglio_manutenzione,
+      dettaglio_impianti: ordine.dettaglio_impianti,
+      dettaglio_intervento_eseguito: ordine.dettaglio_intervento_eseguito,
+      elenco_interventi: ordine.elenco_interventi,
+      prescrizione_sicurezza: ordine.prescrizione_sicurezza,
+      prescrizione_motivo: ordine.prescrizione_motivo,
+      osservazioni: ordine.osservazioni,
+      modalita_pagamento: ordine.modalita_pagamento,
+      luogo: ordine.luogo,
+    });
+    const righe = [...ordine.elenco_interventi];
+    while (righe.length < ORDINI_LAVORO_LIMITI.ELENCO_INTERVENTI_MAX_RIGHE) {
+      righe.push({ descrizione: "", importo: "" });
+    }
+    setElenco(righe.slice(0, ORDINI_LAVORO_LIMITI.ELENCO_INTERVENTI_MAX_RIGHE));
+    setMostraForm(true);
   };
 
   const handleSalvaBozza = async (event: FormEvent) => {
@@ -216,10 +270,16 @@ export default function OrdiniLavoroPage() {
 
     try {
       setSalvataggio(true);
-      await creaDaForm();
-      toast.success(ORDINI_LAVORO_TESTI.MESSAGGI.CREATO);
+      const modificando = Boolean(ordineInModificaId);
+      await salvaDaForm();
+      toast.success(
+        modificando
+          ? ORDINI_LAVORO_TESTI.MESSAGGI.MODIFICATO
+          : ORDINI_LAVORO_TESTI.MESSAGGI.CREATO
+      );
       setForm(statoIniziale());
       setElenco(elencoIniziale());
+      setOrdineInModificaId(null);
       setMostraForm(false);
       await ricarica();
     } catch (error: unknown) {
@@ -229,12 +289,12 @@ export default function OrdiniLavoroPage() {
     }
   };
 
-  const handleCreaEFirma = async () => {
+  const handleSalvaEFirma = async () => {
     if (!validaForm()) return;
 
     try {
       setSalvataggio(true);
-      const ordine = await creaDaForm();
+      const ordine = await salvaDaForm();
       router.push(`${APP_ROUTES.BACKOFFICE_ORDINI_LAVORO}/${ordine.id}/firma`);
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, ORDINI_LAVORO_TESTI.ERRORI.GENERICO));
@@ -351,7 +411,21 @@ export default function OrdiniLavoroPage() {
           <h1 className="font-heading text-2xl font-medium text-text-primary">
             {ORDINI_LAVORO_TESTI.TITOLO}
           </h1>
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setMostraForm((v) => !v)}>
+          <Button
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() =>
+              setMostraForm((v) => {
+                const next = !v;
+                if (next) {
+                  setOrdineInModificaId(null);
+                  setForm(statoIniziale());
+                  setElenco(elencoIniziale());
+                }
+                return next;
+              })
+            }
+          >
             {ORDINI_LAVORO_TESTI.NUOVO}
           </Button>
         </div>
@@ -359,6 +433,11 @@ export default function OrdiniLavoroPage() {
         {mostraForm && (
           <Card className="mt-5 p-5">
             <form onSubmit={(e) => void handleSalvaBozza(e)} className="flex flex-col gap-5">
+              {ordineInModificaId && (
+                <p className="text-sm font-medium text-brand-500">
+                  {ORDINI_LAVORO_TESTI.MODIFICA_TITOLO}
+                </p>
+              )}
               <div>
                 <label className="text-sm font-medium text-text-primary">
                   {ORDINI_LAVORO_TESTI.RECUPERA_DA_CHECKLIST}
@@ -699,13 +778,17 @@ export default function OrdiniLavoroPage() {
 
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button type="submit" variant="secondary" loading={salvataggio} className="flex-1">
-                  {salvataggio ? ORDINI_LAVORO_TESTI.SALVATAGGIO : ORDINI_LAVORO_TESTI.SALVA}
+                  {salvataggio
+                    ? ORDINI_LAVORO_TESTI.SALVATAGGIO
+                    : ordineInModificaId
+                      ? ORDINI_LAVORO_TESTI.SALVA_MODIFICHE
+                      : ORDINI_LAVORO_TESTI.SALVA}
                 </Button>
                 <Button
                   type="button"
                   loading={salvataggio}
                   className="flex-1"
-                  onClick={() => void handleCreaEFirma()}
+                  onClick={() => void handleSalvaEFirma()}
                 >
                   {ORDINI_LAVORO_TESTI.VAI_ALLA_FIRMA}
                 </Button>
@@ -714,7 +797,10 @@ export default function OrdiniLavoroPage() {
                 type="button"
                 variant="ghost"
                 disabled={salvataggio}
-                onClick={() => setMostraForm(false)}
+                onClick={() => {
+                  setMostraForm(false);
+                  setOrdineInModificaId(null);
+                }}
               >
                 {ORDINI_LAVORO_TESTI.ANNULLA}
               </Button>
@@ -749,7 +835,14 @@ export default function OrdiniLavoroPage() {
                 </div>
 
                 {ordine.stato === ORDINI_LAVORO_STATI.BOZZA && (
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => caricaOrdineInForm(ordine)}
+                    >
+                      {ORDINI_LAVORO_TESTI.MODIFICA}
+                    </Button>
                     <Link href={`${APP_ROUTES.BACKOFFICE_ORDINI_LAVORO}/${ordine.id}/firma`}>
                       <Button size="sm">{ORDINI_LAVORO_TESTI.VAI_ALLA_FIRMA}</Button>
                     </Link>

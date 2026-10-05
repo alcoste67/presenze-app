@@ -103,6 +103,9 @@ export const ORDINI_LAVORO_TESTI = {
   FIRMA_CONFERMATA: "Ordine di lavoro firmato",
   VAI_ALLA_FIRMA: "Firma",
   SALVA: "Salva bozza",
+  SALVA_MODIFICHE: "Salva modifiche",
+  MODIFICA: "Modifica",
+  MODIFICA_TITOLO: "Modifica ordine di lavoro",
   SALVATAGGIO: "Salvataggio...",
   ANNULLA: "Annulla",
   CARICAMENTO: "Caricamento...",
@@ -137,6 +140,7 @@ export const ORDINI_LAVORO_TESTI = {
   },
   MESSAGGI: {
     CREATO: "Ordine di lavoro creato",
+    MODIFICATO: "Ordine di lavoro modificato",
     FIRMATO: "Ordine di lavoro firmato",
     INVIATO: "Ordine di lavoro inviato a",
   },
