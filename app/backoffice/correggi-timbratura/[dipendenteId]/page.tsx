@@ -268,25 +268,31 @@ export default function CorreggiTimbraturaPage() {
             ) : (
               <Card className="p-5">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="Data"
-                    type="date"
-                    value={dataGiornataVuota}
-                    onChange={(e) => setDataGiornataVuota(e.target.value)}
-                    disabled={invioGiornataVuotaInCorso}
-                  />
-                  <Select
-                    label="Tipo"
-                    value={tipoGiornataVuota}
-                    onChange={(e) => setTipoGiornataVuota(e.target.value as TipoAssenzaEsteso)}
-                    disabled={invioGiornataVuotaInCorso}
-                  >
-                    {TIPI_GIORNATA_VUOTA.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {LABEL_TIPO_ASSENZA[tipo]}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="min-w-0">
+                    <Input
+                      label="Data"
+                      type="date"
+                      className="w-full min-w-0"
+                      value={dataGiornataVuota}
+                      onChange={(e) => setDataGiornataVuota(e.target.value)}
+                      disabled={invioGiornataVuotaInCorso}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <Select
+                      label="Tipo"
+                      className="w-full min-w-0"
+                      value={tipoGiornataVuota}
+                      onChange={(e) => setTipoGiornataVuota(e.target.value as TipoAssenzaEsteso)}
+                      disabled={invioGiornataVuotaInCorso}
+                    >
+                      {TIPI_GIORNATA_VUOTA.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {LABEL_TIPO_ASSENZA[tipo]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
                 </div>
                 {tipoGiornataVuota === TIPO_ASSENZA.ALTRO && (
                   <label className="mt-3 flex flex-col gap-1">

@@ -15,6 +15,11 @@ import {
   inFinestraPromemoriaProposte,
   inviaPromemoriaProposteInAttesa,
 } from "@/services/timbrature/promemoriaProposteCorrezione";
+import {
+  inFinestraPromemoriaGiornateVuote,
+  trovaGiornateVuoteDaClassificare,
+} from "@/services/timbrature/rilevaGiornateVuote";
+import { notificaGiornateVuoteDaClassificare } from "@/services/timbrature/notificaGiornateVuote";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,6 +91,16 @@ export async function GET(request: NextRequest) {
     promemoriaProposteInviati = await inviaPromemoriaProposteInAttesa(supabaseAdmin, urlSito);
   }
 
+  let promemoriaGiornateVuoteInviati = 0;
+  if (inFinestraPromemoriaGiornateVuote(minutiRoma)) {
+    const giornateVuote = await trovaGiornateVuoteDaClassificare(supabaseAdmin);
+    promemoriaGiornateVuoteInviati = await notificaGiornateVuoteDaClassificare(
+      supabaseAdmin,
+      giornateVuote,
+      urlSito
+    );
+  }
+
   for (const dipendente of dipendenti || []) {
     if (!dipendente.auth_user_id) continue;
 
@@ -149,6 +164,7 @@ export async function GET(request: NextRequest) {
       subscriptionScadute,
       anomalieRilevate,
       promemoriaProposteInviati,
+      promemoriaGiornateVuoteInviati,
     },
     { headers: NO_STORE }
   );

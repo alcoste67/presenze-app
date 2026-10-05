@@ -3,6 +3,9 @@ export const ANOMALIE_TIMBRATURE = {
   // Orario (minuti dalla mezzanotte, ora Italia) del promemoria giornaliero
   // cumulativo per le proposte di correzione turno aperto ancora IN_ATTESA.
   SOGLIA_MINUTI_PROMEMORIA_PROPOSTE: 9 * 60,
+  // Orario del promemoria giornaliero per le giornate senza timbrature
+  // ancora da classificare (Ferie/Permesso/Altro).
+  SOGLIA_MINUTI_PROMEMORIA_GIORNATE_VUOTE: 9 * 60 + 30,
 } as const;
 
 export const ANOMALIE_TIMBRATURE_TESTI = {
