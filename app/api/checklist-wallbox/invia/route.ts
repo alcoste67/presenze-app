@@ -18,7 +18,59 @@ import {
   generaPdfChecklistWallboxEdison,
   getNomeFileChecklistWallboxEdison,
 } from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxEdison";
+import { ORDINI_LAVORO_STATI } from "@/constants/ordiniLavoro";
+import { loadOrdineLavoro } from "@/services/ordiniLavoro/loadOrdiniLavoro";
+import {
+  generaPdfOrdineLavoroEdison,
+  getNomeFileOrdineLavoroEdison,
+} from "@/services/ordiniLavoro/pdf/generaPdfOrdineLavoroEdison";
 import type { ChecklistWallbox } from "@/types/checklistWallbox";
+
+const BUCKET_ORDINI_LAVORO_PDF = "ordini-lavoro-edison-pdf";
+
+/** Ordine di lavoro collegato a questa checklist, firmato (o già
+ * inviato): se esiste, va allegato insieme al PDF della checklist
+ * quando il formato è EDISON. */
+async function trovaOrdineLavoroCollegato(checklistId: string, aziendaId: string) {
+  const { data } = await supabaseAdmin
+    .from("ordini_lavoro_edison")
+    .select("id, stato")
+    .eq("checklist_wallbox_id", checklistId)
+    .eq("azienda_id", aziendaId)
+    .in("stato", [ORDINI_LAVORO_STATI.FIRMATO, ORDINI_LAVORO_STATI.INVIATO])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.id ? (data.id as string) : null;
+}
+
+async function recuperaPdfOrdineLavoro(ordineLavoroId: string, aziendaId: string) {
+  const ordine = await loadOrdineLavoro(ordineLavoroId, supabaseAdmin);
+  if (!ordine || ordine.azienda_id !== aziendaId) return null;
+
+  const storagePath = `${aziendaId}/${ordineLavoroId}.pdf`;
+  const { data: pdfEsistente } = await supabaseAdmin.storage
+    .from(BUCKET_ORDINI_LAVORO_PDF)
+    .download(storagePath);
+
+  if (pdfEsistente) {
+    return {
+      bytes: new Uint8Array(await pdfEsistente.arrayBuffer()),
+      nomeFile: getNomeFileOrdineLavoroEdison(ordine),
+    };
+  }
+
+  const pdfBytes = await generaPdfOrdineLavoroEdison(ordine);
+  await supabaseAdmin.storage
+    .from(BUCKET_ORDINI_LAVORO_PDF)
+    .upload(storagePath, Buffer.from(pdfBytes), {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  return { bytes: pdfBytes, nomeFile: getNomeFileOrdineLavoroEdison(ordine) };
+}
 
 type FormatoChecklistWallbox = "EDISON" | "A2C";
 
@@ -211,6 +263,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Ordine di lavoro collegato (se EDISON e firmato): allegato insieme ──
+    const attachments: { filename: string; content: Buffer }[] = [
+      {
+        filename: getNomeFilePerFormato(checklist, formato),
+        content: Buffer.from(pdfBytes),
+      },
+    ];
+
+    if (formato === "EDISON") {
+      const ordineLavoroId = await trovaOrdineLavoroCollegato(checklistId, aziendaId);
+      if (ordineLavoroId) {
+        const ordinePdf = await recuperaPdfOrdineLavoro(ordineLavoroId, aziendaId);
+        if (ordinePdf && ordinePdf.bytes.byteLength <= PESO_MAX_ALLEGATO_BYTES) {
+          attachments.push({
+            filename: ordinePdf.nomeFile,
+            content: Buffer.from(ordinePdf.bytes),
+          });
+        }
+      }
+    }
+
     // ── Invio Resend ──
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
@@ -221,9 +294,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resend = new Resend(apiKey);
-    const nomeCliente =
-      checklist.ragione_sociale.trim() ||
-      `${checklist.nome} ${checklist.cognome}`.trim();
+    const nomeCliente = `${checklist.nome} ${checklist.cognome}`.trim();
     const oggetto = `Checklist installazione wallbox — ${nomeCliente || checklist.comune}`;
 
     const { data: invio, error: erroreInvio } = await resend.emails.send({
@@ -238,12 +309,7 @@ export async function POST(request: NextRequest) {
         "",
         "Email generata automaticamente da Cantivo (cantivo.it).",
       ].join("\n"),
-      attachments: [
-        {
-          filename: getNomeFilePerFormato(checklist, formato),
-          content: Buffer.from(pdfBytes),
-        },
-      ],
+      attachments,
     });
 
     // ── Log invio (sempre, anche in errore) ──

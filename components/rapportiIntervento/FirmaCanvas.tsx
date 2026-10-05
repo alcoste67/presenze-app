@@ -13,10 +13,12 @@ type Props = {
   value: string | null;
   onChange: (value: string | null) => void;
   disabled?: boolean;
+  width?: number;
+  height?: number;
 };
 
-const CANVAS_WIDTH = 560;
-const CANVAS_HEIGHT = 180;
+const CANVAS_WIDTH_DEFAULT = 560;
+const CANVAS_HEIGHT_DEFAULT = 180;
 const LINE_WIDTH = 2.4;
 
 function preparaCanvas(
@@ -38,7 +40,9 @@ function preparaCanvas(
 }
 
 function resetCanvas(
-  canvas: HTMLCanvasElement
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number
 ) {
   const context = preparaCanvas(canvas);
 
@@ -46,30 +50,24 @@ function resetCanvas(
     return;
   }
 
-  context.clearRect(
-    0,
-    0,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT
-  );
-  context.fillRect(
-    0,
-    0,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT
-  );
+  context.clearRect(0, 0, width, height);
+  context.fillRect(0, 0, width, height);
 }
 
 function getPoint({
   canvas,
   event,
+  width,
+  height,
 }: {
   canvas: HTMLCanvasElement;
   event: PointerEvent<HTMLCanvasElement>;
+  width: number;
+  height: number;
 }) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = CANVAS_WIDTH / rect.width;
-  const scaleY = CANVAS_HEIGHT / rect.height;
+  const scaleX = width / rect.width;
+  const scaleY = height / rect.height;
 
   return {
     x: (event.clientX - rect.left) * scaleX,
@@ -83,6 +81,8 @@ export function FirmaCanvas({
   value,
   onChange,
   disabled = false,
+  width = CANVAS_WIDTH_DEFAULT,
+  height = CANVAS_HEIGHT_DEFAULT,
 }: Props) {
   const canvasRef =
     useRef<HTMLCanvasElement | null>(null);
@@ -101,7 +101,7 @@ export function FirmaCanvas({
       return;
     }
 
-    resetCanvas(canvas);
+    resetCanvas(canvas, width, height);
 
     if (!value) {
       return;
@@ -121,13 +121,7 @@ export function FirmaCanvas({
         return;
       }
 
-      context.drawImage(
-        image,
-        0,
-        0,
-        CANVAS_WIDTH,
-        CANVAS_HEIGHT
-      );
+      context.drawImage(image, 0, 0, width, height);
     };
 
     image.src = value;
@@ -136,7 +130,7 @@ export function FirmaCanvas({
       annullato = true;
       image.onload = null;
     };
-  }, [value]);
+  }, [value, width, height]);
 
   const esportaFirma = () => {
     const canvas = canvasRef.current;
@@ -174,6 +168,8 @@ export function FirmaCanvas({
     const point = getPoint({
       canvas,
       event,
+      width,
+      height,
     });
 
     context.beginPath();
@@ -209,6 +205,8 @@ export function FirmaCanvas({
     const point = getPoint({
       canvas,
       event,
+      width,
+      height,
     });
 
     context.beginPath();
@@ -234,7 +232,7 @@ export function FirmaCanvas({
     const canvas = canvasRef.current;
 
     if (canvas) {
-      resetCanvas(canvas);
+      resetCanvas(canvas, width, height);
     }
 
     hasDrawnRef.current = false;
@@ -261,14 +259,15 @@ export function FirmaCanvas({
 
       <canvas
         ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={width}
+        height={height}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
         onPointerLeave={handlePointerEnd}
-        className="h-[180px] w-full touch-none rounded-md border border-border bg-bg-card shadow-inner"
+        style={{ aspectRatio: `${width} / ${height}` }}
+        className="w-full touch-none rounded-md border border-border bg-bg-card shadow-inner"
       />
     </div>
   );

@@ -91,9 +91,7 @@ export async function POST(request: Request): Promise<Response> {
   // ── Checklist: deve esistere, essere della stessa azienda e in BOZZA ──
   const { data: checklist, error: checklistError } = await supabaseAdmin
     .from("checklist_wallbox")
-    .select(
-      "id, azienda_id, stato, ragione_sociale, nome, cognome, comune, email_cliente"
-    )
+    .select("id, azienda_id, stato, nome, cognome, comune, email_cliente")
     .eq("id", checklistId)
     .maybeSingle();
 
@@ -157,9 +155,7 @@ export async function POST(request: Request): Promise<Response> {
   const link = `${baseUrl(request)}/checklist-wallbox/firma-remota/${creato.id}`;
 
   const destinatario = email || checklist.email_cliente || null;
-  const nomeCliente =
-    checklist.ragione_sociale?.trim() ||
-    `${checklist.nome} ${checklist.cognome}`.trim();
+  const nomeCliente = `${checklist.nome} ${checklist.cognome}`.trim();
 
   // Email (best-effort): non blocca se manca il destinatario o Resend fallisce
   let emailInviata = false;

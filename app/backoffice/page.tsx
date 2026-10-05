@@ -9,6 +9,7 @@ import {
   Calculator,
   CalendarDays,
   CalendarRange,
+  ClipboardCheck,
   ClipboardList,
   Contact,
   Handshake,
@@ -27,6 +28,7 @@ import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
@@ -146,45 +148,61 @@ export default function BackofficePage() {
 
         {/* ── Vista responsabile: solo moduli operativi ── */}
         {!loadingRuolo && !admin && (
-          <section>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-              Operatività
-            </h2>
-            <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              {moduli.has(MODULI_BACKOFFICE.RAPPORTI_INTERVENTO) && (
-                <ModuloCard
-                  href="/backoffice/rapporti-intervento"
-                  icon={<ClipboardList className="h-5 w-5" />}
-                  nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
-                  descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
-                />
-              )}
-              {wallboxVisibile && (
-                <ModuloCard
-                  href="/backoffice/checklist-wallbox"
-                  icon={<FileText className="h-5 w-5" />}
-                  nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
-                  descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
-                />
-              )}
-              {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (
-                <ModuloCard
-                  href="/backoffice/costi-macchinari"
-                  icon={<Calculator className="h-5 w-5" />}
-                  nome={MACCHINARI_TESTI.TITOLO}
-                  descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
-                />
-              )}
-              {moduli.has(MODULI_BACKOFFICE.CALENDARIO) && (
-                <ModuloCard
-                  href={APP_ROUTES.BACKOFFICE_CALENDARIO}
-                  icon={<CalendarDays className="h-5 w-5" />}
-                  nome={PIANIFICAZIONI_TESTI.TITOLO}
-                  descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
-                />
-              )}
-            </div>
-          </section>
+          <div className="flex flex-col gap-8">
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Operatività
+              </h2>
+              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                {moduli.has(MODULI_BACKOFFICE.RAPPORTI_INTERVENTO) && (
+                  <ModuloCard
+                    href="/backoffice/rapporti-intervento"
+                    icon={<ClipboardList className="h-5 w-5" />}
+                    nome={RAPPORTI_INTERVENTO_TESTI.TITOLO}
+                    descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
+                  />
+                )}
+                {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (
+                  <ModuloCard
+                    href="/backoffice/costi-macchinari"
+                    icon={<Calculator className="h-5 w-5" />}
+                    nome={MACCHINARI_TESTI.TITOLO}
+                    descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
+                  />
+                )}
+                {moduli.has(MODULI_BACKOFFICE.CALENDARIO) && (
+                  <ModuloCard
+                    href={APP_ROUTES.BACKOFFICE_CALENDARIO}
+                    icon={<CalendarDays className="h-5 w-5" />}
+                    nome={PIANIFICAZIONI_TESTI.TITOLO}
+                    descrizione={PIANIFICAZIONI_TESTI.CARD_DESCRIZIONE}
+                  />
+                )}
+              </div>
+            </section>
+
+            {wallboxVisibile && (
+              <section>
+                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Edison
+                </h2>
+                <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                  <ModuloCard
+                    href="/backoffice/checklist-wallbox"
+                    icon={<FileText className="h-5 w-5" />}
+                    nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                    descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+                  />
+                  <ModuloCard
+                    href="/backoffice/ordini-lavoro"
+                    icon={<ClipboardCheck className="h-5 w-5" />}
+                    nome={ORDINI_LAVORO_TESTI.TITOLO}
+                    descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
+                  />
+                </div>
+              </section>
+            )}
+          </div>
         )}
 
         {admin && (
@@ -261,14 +279,6 @@ export default function BackofficePage() {
                   descrizione={RAPPORTI_INTERVENTO_TESTI.CARD_DESCRIZIONE}
                 />
               )}
-              {wallboxVisibile && (
-                <ModuloCard
-                  href="/backoffice/checklist-wallbox"
-                  icon={<FileText className="h-5 w-5" />}
-                  nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
-                  descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
-                />
-              )}
               {moduli.has(MODULI_BACKOFFICE.COMMESSA) && (
                 <ModuloCard
                   href="/backoffice/commessa"
@@ -287,6 +297,29 @@ export default function BackofficePage() {
               )}
             </div>
           </section>
+
+          {/* ── Sezione Edison ── */}
+          {wallboxVisibile && (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Edison
+              </h2>
+              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                <ModuloCard
+                  href="/backoffice/checklist-wallbox"
+                  icon={<FileText className="h-5 w-5" />}
+                  nome={CHECKLIST_WALLBOX_TESTI.TITOLO}
+                  descrizione={CHECKLIST_WALLBOX_TESTI.CARD_DESCRIZIONE}
+                />
+                <ModuloCard
+                  href="/backoffice/ordini-lavoro"
+                  icon={<ClipboardCheck className="h-5 w-5" />}
+                  nome={ORDINI_LAVORO_TESTI.TITOLO}
+                  descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
+                />
+              </div>
+            </section>
+          )}
 
           {/* ── Sezione 3: Contabilità e report ── */}
           <section>

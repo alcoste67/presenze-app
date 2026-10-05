@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 
-import { CHECKLIST_WALLBOX_LIMITI, CHECKLIST_WALLBOX_STATI } from "@/constants/checklistWallbox";
+import {
+  CHECKLIST_WALLBOX_LIMITI,
+  CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI,
+  CHECKLIST_WALLBOX_STATI,
+} from "@/constants/checklistWallbox";
 import { HTTP_STATUS } from "@/constants/api";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
@@ -46,9 +50,7 @@ async function avvisaAziendaFirmaCompletata(
         ? await generaPdfChecklistWallboxA2C(checklist)
         : await generaPdfChecklistWallboxEdison(checklist);
 
-    const nomeCliente =
-      checklist.ragione_sociale.trim() ||
-      `${checklist.nome} ${checklist.cognome}`.trim();
+    const nomeCliente = `${checklist.nome} ${checklist.cognome}`.trim();
 
     const resend = new Resend(apiKey);
     await resend.emails.send({
@@ -119,7 +121,7 @@ export async function GET(
   const { data: checklist } = await supabaseAdmin
     .from("checklist_wallbox")
     .select(
-      "id, ragione_sociale, nome, cognome, comune, via, posizionamento, installazione_possibile, note, firma_tecnico_nome, stato"
+      "id, nome, cognome, comune, via, posizionamento, posizionamento_tipo, installazione_possibile, note, firma_tecnico_nome, stato"
     )
     .eq("id", row.checklist_wallbox_id)
     .maybeSingle();
@@ -130,12 +132,15 @@ export async function GET(
 
   return Response.json(
     {
-      cliente:
-        checklist.ragione_sociale?.trim() ||
-        `${checklist.nome} ${checklist.cognome}`.trim(),
+      cliente: `${checklist.nome} ${checklist.cognome}`.trim(),
       comune: checklist.comune,
       indirizzo: checklist.via,
-      posizionamento: checklist.posizionamento,
+      posizionamento:
+        checklist.posizionamento_tipo === "ALTRO"
+          ? checklist.posizionamento
+          : CHECKLIST_WALLBOX_POSIZIONAMENTO_OPZIONI.find(
+              (opzione) => opzione.valore === checklist.posizionamento_tipo
+            )?.label || "",
       installazione_possibile: checklist.installazione_possibile,
       note: checklist.note,
       tecnico: checklist.firma_tecnico_nome,

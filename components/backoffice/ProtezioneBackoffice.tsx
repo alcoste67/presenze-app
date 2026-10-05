@@ -41,13 +41,17 @@ export function ProtezioneBackoffice({
     const accessoOperativoRapporti = pagineOperativeQualsiasiDipendente.some(
       (route) => pathname === route || pathname.startsWith(`${route}/`)
     );
-    // Checklist wallbox: oggi attiva solo per aziende abilitate (vedi
-    // lib/wallboxAccess.ts), a prescindere dal ruolo — va controllata PRIMA
-    // del bypass admin qui sotto, altrimenti qualsiasi admin di qualsiasi
-    // azienda vi accederebbe comunque.
-    const accessoWallbox =
-      pathname === APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX ||
-      pathname.startsWith(`${APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}/`);
+    // Checklist wallbox e ordini di lavoro: oggi attivi solo per aziende
+    // abilitate (vedi lib/wallboxAccess.ts), a prescindere dal ruolo — va
+    // controllata PRIMA del bypass admin qui sotto, altrimenti qualsiasi
+    // admin di qualsiasi azienda vi accederebbe comunque.
+    const pagineWallbox = [
+      APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX,
+      APP_ROUTES.BACKOFFICE_ORDINI_LAVORO,
+    ];
+    const accessoWallbox = pagineWallbox.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;

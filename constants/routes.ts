@@ -7,6 +7,8 @@ export const APP_ROUTES = {
     "/backoffice/rapporti-intervento",
   BACKOFFICE_CHECKLIST_WALLBOX:
     "/backoffice/checklist-wallbox",
+  BACKOFFICE_ORDINI_LAVORO:
+    "/backoffice/ordini-lavoro",
   BACKOFFICE_COSTI_MACCHINARI:
     "/backoffice/costi-macchinari",
   BACKOFFICE_SAL_FREEZE:

@@ -234,12 +234,10 @@ export default function FirmaChecklistWallboxPage() {
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div>
                   <dt className="text-xs text-text-muted">
-                    {CHECKLIST_WALLBOX_TESTI.RAGIONE_SOCIALE}
+                    {CHECKLIST_WALLBOX_TESTI.CLIENTE}
                   </dt>
                   <dd className="font-medium text-text-primary">
-                    {checklist.ragione_sociale ||
-                      `${checklist.nome} ${checklist.cognome}`.trim() ||
-                      "-"}
+                    {`${checklist.nome} ${checklist.cognome}`.trim() || "-"}
                   </dd>
                 </div>
                 <div>

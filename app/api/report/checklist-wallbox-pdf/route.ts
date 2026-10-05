@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
+import { PDFDocument } from "pdf-lib";
 
 import { HTTP_STATUS } from "@/constants/api";
 import { estraiBearerToken } from "@/lib/auth";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { ORDINI_LAVORO_STATI } from "@/constants/ordiniLavoro";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAziendaAutorizzataWallbox } from "@/lib/wallboxAccess";
 import { loadChecklistWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
@@ -14,8 +16,46 @@ import {
   generaPdfChecklistWallboxEdison,
   getNomeFileChecklistWallboxEdison,
 } from "@/services/checklistWallbox/pdf/generaPdfChecklistWallboxEdison";
+import { loadOrdineLavoro } from "@/services/ordiniLavoro/loadOrdiniLavoro";
+import { generaPdfOrdineLavoroEdison } from "@/services/ordiniLavoro/pdf/generaPdfOrdineLavoroEdison";
 
 export const runtime = "nodejs";
+
+/** Se la checklist (EDISON) ha un ordine di lavoro collegato e firmato,
+ * ne appende le pagine al PDF scaricato, così il download resta un
+ * unico file (stesso principio dell'allegato email in invia/route.ts). */
+async function aggiungiOrdineLavoroCollegato(
+  pdfBytes: Uint8Array,
+  checklistWallboxId: string,
+  aziendaId: string,
+  formato: string
+) {
+  if (formato !== "EDISON") return pdfBytes;
+
+  const { data: ordineRow } = await supabaseAdmin
+    .from("ordini_lavoro_edison")
+    .select("id")
+    .eq("checklist_wallbox_id", checklistWallboxId)
+    .eq("azienda_id", aziendaId)
+    .in("stato", [ORDINI_LAVORO_STATI.FIRMATO, ORDINI_LAVORO_STATI.INVIATO])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!ordineRow?.id) return pdfBytes;
+
+  const ordine = await loadOrdineLavoro(ordineRow.id as string, supabaseAdmin);
+  if (!ordine) return pdfBytes;
+
+  const ordinePdfBytes = await generaPdfOrdineLavoroEdison(ordine);
+
+  const docFinale = await PDFDocument.load(pdfBytes);
+  const docOrdine = await PDFDocument.load(ordinePdfBytes);
+  const pagineOrdine = await docFinale.copyPages(docOrdine, docOrdine.getPageIndices());
+  pagineOrdine.forEach((pagina) => docFinale.addPage(pagina));
+
+  return docFinale.save();
+}
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
@@ -92,10 +132,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const pdfBytes =
+    const pdfBytesChecklist =
       formato === "A2C"
         ? await generaPdfChecklistWallboxA2C(checklist)
         : await generaPdfChecklistWallboxEdison(checklist);
+    const pdfBytes = await aggiungiOrdineLavoroCollegato(
+      pdfBytesChecklist,
+      checklistWallboxId,
+      dipendente.azienda_id as string,
+      formato
+    );
     const fileName =
       formato === "A2C"
         ? getNomeFileChecklistWallboxA2C(checklist)
