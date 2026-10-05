@@ -15,6 +15,7 @@ import { getMessaggioErrore } from "@/lib/errors";
 import { loadDipendenteByUserId } from "@/services/dipendenti/loadDipendenteByUserId";
 import { caricaTurnoAperto } from "@/services/timbrature/caricaTurnoAperto";
 import { proponiCorrezioneAdmin } from "@/services/timbrature/proponiCorrezioneAdmin";
+import { annullaPropostaCorrezioneAdmin } from "@/services/timbrature/annullaPropostaCorrezioneAdmin";
 import { compilaGiornataVuotaClient } from "@/services/assenze/fetchCompilaGiornataVuota";
 import type { TurnoApertoInfo } from "@/types/anomalieTimbrature";
 import type { TipoAssenzaEsteso } from "@/types/assenze";
@@ -68,6 +69,7 @@ export default function CorreggiTimbraturaPage() {
   const [oraUscita, setOraUscita] = useState("");
   const [invioInCorso, setInvioInCorso] = useState(false);
   const [propostaInviata, setPropostaInviata] = useState(false);
+  const [annullamentoInCorso, setAnnullamentoInCorso] = useState(false);
 
   const [dataGiornataVuota, setDataGiornataVuota] = useState(dataRomaOggi());
   const [tipoGiornataVuota, setTipoGiornataVuota] = useState<TipoAssenzaEsteso>(
@@ -138,6 +140,20 @@ export default function CorreggiTimbraturaPage() {
       toast.error(getMessaggioErrore(error, ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO));
     } finally {
       setInvioInCorso(false);
+    }
+  };
+
+  const handleAnnullaProposta = async () => {
+    try {
+      setAnnullamentoInCorso(true);
+      await annullaPropostaCorrezioneAdmin(dipendenteId);
+      setTurno((precedente) => (precedente ? { ...precedente, propostaInAttesa: null } : precedente));
+      setPropostaInviata(false);
+      toast.success("Proposta annullata");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO));
+    } finally {
+      setAnnullamentoInCorso(false);
     }
   };
 
@@ -220,6 +236,17 @@ export default function CorreggiTimbraturaPage() {
                   {TESTI.GIA_IN_ATTESA_PREFIX} {formattaDataOra(turno.propostaInAttesa.creatoIl)}, per le{" "}
                   {formattaDataOra(turno.propostaInAttesa.orarioProposto)}.
                 </p>
+                <p className="mt-2 text-xs text-text-muted">
+                  Se il dipendente non risponde, puoi annullarla e inviarne una nuova.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="mt-3 w-full"
+                  loading={annullamentoInCorso}
+                  onClick={() => void handleAnnullaProposta()}
+                >
+                  Annulla proposta
+                </Button>
               </Card>
             ) : propostaInviata ? (
               <Card className="p-5">
@@ -267,8 +294,8 @@ export default function CorreggiTimbraturaPage() {
               </Card>
             ) : (
               <Card className="p-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
+                <div className="flex gap-3">
+                  <div className="min-w-0 flex-1">
                     <Input
                       label="Data"
                       type="date"
@@ -278,7 +305,7 @@ export default function CorreggiTimbraturaPage() {
                       disabled={invioGiornataVuotaInCorso}
                     />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Select
                       label="Tipo"
                       className="w-full min-w-0"
