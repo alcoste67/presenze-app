@@ -11,6 +11,11 @@ export type TurnoApertoInfo = {
   } | null;
 };
 
+export type DatiCorrezioneTimbratura = {
+  dipendenteNome: string;
+  turnoAperto: TurnoApertoInfo | null;
+};
+
 export type PropostaCorrezioneInfo = {
   id: string;
   stato: StatoPropostaCorrezione;

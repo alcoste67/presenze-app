@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ANOMALIE_TIMBRATURE } from "@/constants/anomalieTimbrature";
+import { TIPO_CONTEGGIO_ORE } from "@/constants/tipoConteggioOre";
 import { dataRomaDi, dataRomaOggi, giornoLavorativoRoma, romaLocalToUtc } from "@/lib/timezoneRoma";
 
 const FINESTRA_GIORNI = 30;
@@ -17,6 +18,7 @@ type DipendenteRiga = {
   azienda_id: string;
   auth_user_id: string;
   created_at: string;
+  tipo_conteggio_ore: string;
 };
 
 function sottraiGiorni(dataYYYYMMDD: string, giorni: number): string {
@@ -46,8 +48,12 @@ export type GiornataVuotaDipendente = {
 /**
  * Giorni lavorativi recenti (fino a 30) senza nessuna timbratura e senza
  * una richiesta ferie/permesso/altro che li copra, per ogni dipendente
- * attivo. Si accumulano finché non vengono classificati (dall'admin o da
- * una richiesta del dipendente stesso): nessuno sblocco automatico.
+ * attivo A TEMPO PIENO (REALE o forfait 8h). I part-time (forfait 4h)
+ * sono esclusi: non è detto lavorino tutti i giorni feriali, quindi un
+ * giorno vuoto per loro non è un'anomalia — non abbiamo un calendario
+ * per-dipendente dei giorni effettivamente lavorati per fare di meglio.
+ * Si accumulano finché non vengono classificati (dall'admin o da una
+ * richiesta del dipendente stesso): nessuno sblocco automatico.
  */
 export async function trovaGiornateVuoteDaClassificare(
   supabaseAdmin: SupabaseClient
@@ -56,9 +62,10 @@ export async function trovaGiornateVuoteDaClassificare(
 
   const { data: dipendenti, error } = await supabaseAdmin
     .from("dipendenti")
-    .select("id, azienda_id, auth_user_id, created_at")
+    .select("id, azienda_id, auth_user_id, created_at, tipo_conteggio_ore")
     .eq("attivo", true)
-    .not("auth_user_id", "is", null);
+    .not("auth_user_id", "is", null)
+    .neq("tipo_conteggio_ore", TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_4H);
 
   if (error) {
     console.error("Errore caricamento dipendenti per giornate vuote", error);

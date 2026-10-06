@@ -90,9 +90,11 @@ export async function GET(request: NextRequest): Promise<Response> {
     return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.DIPENDENTE_NON_TROVATO, HTTP_STATUS.NOT_FOUND);
   }
 
+  const dipendenteNome = `${target.nome} ${target.cognome}`.trim();
+
   const turno = await caricaTurnoApertoTarget(target.auth_user_id);
   if (!turno) {
-    return Response.json({ turnoAperto: null }, { headers: NO_STORE });
+    return Response.json({ dipendenteNome, turnoAperto: null }, { headers: NO_STORE });
   }
 
   const { data: proposta } = await supabaseAdmin
@@ -104,8 +106,9 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   return Response.json(
     {
+      dipendenteNome,
       turnoAperto: {
-        dipendenteNome: `${target.nome} ${target.cognome}`.trim(),
+        dipendenteNome,
         apertoDalle: turno.apertoDalle.toISOString(),
         oreNette: turno.oreNette,
         propostaInAttesa: proposta

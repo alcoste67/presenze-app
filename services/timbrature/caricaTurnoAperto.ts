@@ -3,9 +3,11 @@ import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { ANOMALIE_TIMBRATURE_TESTI } from "@/constants/anomalieTimbrature";
 import { getMessaggioErroreApi } from "@/lib/errors";
 import { isRecord } from "@/lib/typeGuards";
-import type { TurnoApertoInfo } from "@/types/anomalieTimbrature";
+import type { DatiCorrezioneTimbratura } from "@/types/anomalieTimbrature";
 
-export async function caricaTurnoAperto(dipendenteId: string): Promise<TurnoApertoInfo | null> {
+export async function caricaTurnoAperto(
+  dipendenteId: string
+): Promise<DatiCorrezioneTimbratura> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
 
@@ -27,5 +29,9 @@ export async function caricaTurnoAperto(dipendenteId: string): Promise<TurnoAper
     throw new Error(getMessaggioErroreApi(payload, ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO));
   }
 
-  return isRecord(payload) ? (payload.turnoAperto as TurnoApertoInfo | null) : null;
+  if (!isRecord(payload)) {
+    return { dipendenteNome: "", turnoAperto: null };
+  }
+
+  return payload as unknown as DatiCorrezioneTimbratura;
 }

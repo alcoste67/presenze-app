@@ -65,6 +65,7 @@ export default function CorreggiTimbraturaPage() {
   const [loading, setLoading] = useState(true);
   const [autorizzato, setAutorizzato] = useState(false);
   const [turno, setTurno] = useState<TurnoApertoInfo | null>(null);
+  const [dipendenteNome, setDipendenteNome] = useState("");
   const [dataUscita, setDataUscita] = useState("");
   const [oraUscita, setOraUscita] = useState("");
   const [invioInCorso, setInvioInCorso] = useState(false);
@@ -106,9 +107,10 @@ export default function CorreggiTimbraturaPage() {
         const dati = await caricaTurnoAperto(dipendenteId);
         if (!attivo) return;
 
-        setTurno(dati);
-        if (dati) {
-          setDataUscita(dataRomaDi(dati.apertoDalle));
+        setDipendenteNome(dati.dipendenteNome);
+        setTurno(dati.turnoAperto);
+        if (dati.turnoAperto) {
+          setDataUscita(dataRomaDi(dati.turnoAperto.apertoDalle));
           setOraUscita(oraRomaDi(new Date().toISOString()));
         }
       } catch (error: unknown) {
@@ -208,6 +210,9 @@ export default function CorreggiTimbraturaPage() {
         </nav>
 
         <h1 className="font-heading text-2xl font-medium text-text-primary">{TESTI.TITOLO}</h1>
+        {!loading && dipendenteNome && (
+          <p className="mt-1 text-sm text-text-muted">{dipendenteNome}</p>
+        )}
 
         {loading && <p className="mt-6 text-sm text-text-muted">{TESTI.CARICAMENTO}</p>}
 
@@ -281,11 +286,12 @@ export default function CorreggiTimbraturaPage() {
         {!loading && (
           <div className="mt-8 flex flex-col gap-3">
             <h2 className="font-heading text-lg font-medium text-text-primary">
-              Giornata senza timbrature
+              Giornata senza timbrature{dipendenteNome ? ` — ${dipendenteNome}` : ""}
             </h2>
             <p className="text-xs text-text-muted">
-              Se un giorno lavorativo risulta senza nessuna timbratura, classificalo come
-              ferie, permesso o altro: la giornata verrà registrata come già approvata.
+              Se un giorno lavorativo di {dipendenteNome || "questo dipendente"} risulta senza
+              nessuna timbratura, classificalo come ferie, permesso o altro: la giornata verrà
+              registrata come già approvata.
             </p>
 
             {giornataVuotaCompilata ? (
