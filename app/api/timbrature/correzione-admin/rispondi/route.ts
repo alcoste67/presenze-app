@@ -224,6 +224,15 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
     .eq("id", proposta.id);
 
+  // Confermandone una, le altre proposte ancora in attesa per lo stesso
+  // turno non hanno più senso: il turno si chiude una volta sola.
+  await supabaseAdmin
+    .from("timbrature_proposte_correzione")
+    .update({ stato: "ANNULLATA", risposto_il: new Date().toISOString() })
+    .eq("dipendente_id", proposta.dipendente_id)
+    .eq("stato", "IN_ATTESA")
+    .neq("id", proposta.id);
+
   if (proposta.avviso_anomalia_id) {
     await supabaseAdmin
       .from("timbrature_avvisi_anomalia")

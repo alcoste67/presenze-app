@@ -3,7 +3,7 @@ import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { ANOMALIE_TIMBRATURE_TESTI } from "@/constants/anomalieTimbrature";
 import { getMessaggioErroreApi } from "@/lib/errors";
 
-export async function annullaPropostaCorrezioneAdmin(dipendenteId: string): Promise<void> {
+export async function annullaPropostaCorrezioneAdmin(propostaId: string): Promise<void> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
 
@@ -11,7 +11,7 @@ export async function annullaPropostaCorrezioneAdmin(dipendenteId: string): Prom
   if (!token) throw new Error("Sessione mancante");
 
   const risposta = await fetch(
-    `${API_ROUTES.TIMBRATURE_CORREZIONE_ADMIN}?dipendenteId=${encodeURIComponent(dipendenteId)}`,
+    `${API_ROUTES.TIMBRATURE_CORREZIONE_ADMIN}?propostaId=${encodeURIComponent(propostaId)}`,
     {
       method: "DELETE",
       headers: {

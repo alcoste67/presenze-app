@@ -69,8 +69,7 @@ export default function CorreggiTimbraturaPage() {
   const [dataUscita, setDataUscita] = useState("");
   const [oraUscita, setOraUscita] = useState("");
   const [invioInCorso, setInvioInCorso] = useState(false);
-  const [propostaInviata, setPropostaInviata] = useState(false);
-  const [annullamentoInCorso, setAnnullamentoInCorso] = useState(false);
+  const [propostaIdInAnnullamento, setPropostaIdInAnnullamento] = useState<string | null>(null);
 
   const [dataGiornataVuota, setDataGiornataVuota] = useState(dataRomaOggi());
   const [tipoGiornataVuota, setTipoGiornataVuota] = useState<TipoAssenzaEsteso>(
@@ -136,7 +135,8 @@ export default function CorreggiTimbraturaPage() {
     try {
       setInvioInCorso(true);
       await proponiCorrezioneAdmin({ dipendenteId, data: dataUscita, ora: oraUscita });
-      setPropostaInviata(true);
+      const dati = await caricaTurnoAperto(dipendenteId);
+      setTurno(dati.turnoAperto);
       toast.success(TESTI.PROPOSTA_INVIATA);
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO));
@@ -145,17 +145,23 @@ export default function CorreggiTimbraturaPage() {
     }
   };
 
-  const handleAnnullaProposta = async () => {
+  const handleAnnullaProposta = async (propostaId: string) => {
     try {
-      setAnnullamentoInCorso(true);
-      await annullaPropostaCorrezioneAdmin(dipendenteId);
-      setTurno((precedente) => (precedente ? { ...precedente, propostaInAttesa: null } : precedente));
-      setPropostaInviata(false);
+      setPropostaIdInAnnullamento(propostaId);
+      await annullaPropostaCorrezioneAdmin(propostaId);
+      setTurno((precedente) =>
+        precedente
+          ? {
+              ...precedente,
+              proposteInAttesa: precedente.proposteInAttesa.filter((p) => p.id !== propostaId),
+            }
+          : precedente
+      );
       toast.success("Proposta annullata");
     } catch (error: unknown) {
       toast.error(getMessaggioErrore(error, ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO));
     } finally {
-      setAnnullamentoInCorso(false);
+      setPropostaIdInAnnullamento(null);
     }
   };
 
@@ -235,51 +241,61 @@ export default function CorreggiTimbraturaPage() {
               </div>
             </Card>
 
-            {turno.propostaInAttesa ? (
+            {turno.proposteInAttesa.length > 0 && (
               <Card className="p-5">
-                <p className="text-sm text-text-primary">
-                  {TESTI.GIA_IN_ATTESA_PREFIX} {formattaDataOra(turno.propostaInAttesa.creatoIl)}, per le{" "}
-                  {formattaDataOra(turno.propostaInAttesa.orarioProposto)}.
+                <p className="text-sm font-medium text-text-primary">
+                  {turno.proposteInAttesa.length === 1
+                    ? "Proposta in attesa di conferma"
+                    : `${turno.proposteInAttesa.length} proposte in attesa di conferma`}
                 </p>
-                <p className="mt-2 text-xs text-text-muted">
-                  Se il dipendente non risponde, puoi annullarla e inviarne una nuova.
+                <ul className="mt-3 flex flex-col gap-2">
+                  {turno.proposteInAttesa.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                    >
+                      <div>
+                        <p className="text-sm text-text-primary">Uscita: {formattaDataOra(p.orarioProposto)}</p>
+                        <p className="text-xs text-text-muted">Inviata il {formattaDataOra(p.creatoIl)}</p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        loading={propostaIdInAnnullamento === p.id}
+                        onClick={() => void handleAnnullaProposta(p.id)}
+                      >
+                        Annulla
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-text-muted">
+                  Puoi inviare un&apos;altra proposta qui sotto: si aggiungerà a queste, il dipendente
+                  le vedrà tutte e confermandone una le altre verranno annullate automaticamente.
                 </p>
-                <Button
-                  variant="secondary"
-                  className="mt-3 w-full"
-                  loading={annullamentoInCorso}
-                  onClick={() => void handleAnnullaProposta()}
-                >
-                  Annulla proposta
-                </Button>
-              </Card>
-            ) : propostaInviata ? (
-              <Card className="p-5">
-                <p className="text-sm text-text-primary">{TESTI.PROPOSTA_INVIATA}</p>
-              </Card>
-            ) : (
-              <Card className="p-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label={TESTI.ETICHETTA_DATA}
-                    type="date"
-                    value={dataUscita}
-                    onChange={(e) => setDataUscita(e.target.value)}
-                    disabled={invioInCorso}
-                  />
-                  <Input
-                    label={TESTI.ETICHETTA_ORARIO}
-                    type="time"
-                    value={oraUscita}
-                    onChange={(e) => setOraUscita(e.target.value)}
-                    disabled={invioInCorso}
-                  />
-                </div>
-                <Button className="mt-4 w-full" loading={invioInCorso} onClick={() => void handleConferma()}>
-                  {TESTI.CONFERMA}
-                </Button>
               </Card>
             )}
+
+            <Card className="p-5">
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label={TESTI.ETICHETTA_DATA}
+                  type="date"
+                  value={dataUscita}
+                  onChange={(e) => setDataUscita(e.target.value)}
+                  disabled={invioInCorso}
+                />
+                <Input
+                  label={TESTI.ETICHETTA_ORARIO}
+                  type="time"
+                  value={oraUscita}
+                  onChange={(e) => setOraUscita(e.target.value)}
+                  disabled={invioInCorso}
+                />
+              </div>
+              <Button className="mt-4 w-full" loading={invioInCorso} onClick={() => void handleConferma()}>
+                {TESTI.CONFERMA}
+              </Button>
+            </Card>
           </div>
         )}
 

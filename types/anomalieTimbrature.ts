@@ -1,14 +1,14 @@
-export type StatoPropostaCorrezione = "IN_ATTESA" | "CONFERMATA" | "RIFIUTATA";
+export type StatoPropostaCorrezione = "IN_ATTESA" | "CONFERMATA" | "RIFIUTATA" | "ANNULLATA";
 
 export type TurnoApertoInfo = {
   dipendenteNome: string;
   apertoDalle: string;
   oreNette: number;
-  propostaInAttesa: {
+  proposteInAttesa: {
     id: string;
     orarioProposto: string;
     creatoIl: string;
-  } | null;
+  }[];
 };
 
 export type DatiCorrezioneTimbratura = {

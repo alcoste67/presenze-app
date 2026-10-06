@@ -32,7 +32,6 @@ export const ANOMALIE_TIMBRATURE_TESTI = {
     CONFERMA: "Invia proposta al dipendente",
     PROPOSTA_INVIATA:
       "Proposta inviata: il dipendente riceverà una mail per confermarla",
-    GIA_IN_ATTESA_PREFIX: "C'è già una proposta in attesa di conferma, inviata il",
     NESSUN_TURNO_APERTO: "Questo dipendente non ha turni aperti da correggere",
   },
   PAGINA_CONFERMA: {
@@ -57,7 +56,6 @@ export const ANOMALIE_TIMBRATURE_TESTI = {
     DATA_ORARIO_OBBLIGATORI: "Data e orario sono obbligatori",
     ORARIO_FUTURO: "L'orario non può essere nel futuro",
     ORARIO_PRECEDENTE_ENTRATA: "L'orario di uscita deve essere dopo l'entrata del turno",
-    PROPOSTA_GIA_IN_ATTESA: "Esiste già una proposta in attesa per questo dipendente",
     TURNO_GIA_CHIUSO: "Il turno risulta già chiuso: nessuna correzione necessaria",
     NOTA_OBBLIGATORIA_RIFIUTO: "Spiega brevemente perché l'orario non è corretto",
   },

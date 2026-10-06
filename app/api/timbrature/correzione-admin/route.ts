@@ -97,12 +97,12 @@ export async function GET(request: NextRequest): Promise<Response> {
     return Response.json({ dipendenteNome, turnoAperto: null }, { headers: NO_STORE });
   }
 
-  const { data: proposta } = await supabaseAdmin
+  const { data: proposte } = await supabaseAdmin
     .from("timbrature_proposte_correzione")
     .select("id, orario_proposto, creato_il")
     .eq("dipendente_id", target.id)
     .eq("stato", "IN_ATTESA")
-    .maybeSingle();
+    .order("creato_il", { ascending: true });
 
   return Response.json(
     {
@@ -111,13 +111,11 @@ export async function GET(request: NextRequest): Promise<Response> {
         dipendenteNome,
         apertoDalle: turno.apertoDalle.toISOString(),
         oreNette: turno.oreNette,
-        propostaInAttesa: proposta
-          ? {
-              id: proposta.id,
-              orarioProposto: proposta.orario_proposto,
-              creatoIl: proposta.creato_il,
-            }
-          : null,
+        proposteInAttesa: (proposte || []).map((p) => ({
+          id: p.id,
+          orarioProposto: p.orario_proposto,
+          creatoIl: p.creato_il,
+        })),
       },
     },
     { headers: NO_STORE }
@@ -130,25 +128,25 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.NON_AUTORIZZATO, HTTP_STATUS.FORBIDDEN);
   }
 
-  const dipendenteId = request.nextUrl.searchParams.get("dipendenteId");
-  if (!dipendenteId) {
-    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.DIPENDENTE_NON_TROVATO, HTTP_STATUS.BAD_REQUEST);
+  const propostaId = request.nextUrl.searchParams.get("propostaId");
+  if (!propostaId) {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.PROPOSTA_NON_TROVATA, HTTP_STATUS.BAD_REQUEST);
   }
 
-  const { data: target } = await supabaseAdmin
-    .from("dipendenti")
-    .select("id, azienda_id")
-    .eq("id", dipendenteId)
+  const { data: proposta } = await supabaseAdmin
+    .from("timbrature_proposte_correzione")
+    .select("id, azienda_id, stato")
+    .eq("id", propostaId)
     .maybeSingle();
 
-  if (!target || target.azienda_id !== richiedente.azienda_id) {
-    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.DIPENDENTE_NON_TROVATO, HTTP_STATUS.NOT_FOUND);
+  if (!proposta || proposta.azienda_id !== richiedente.azienda_id || proposta.stato !== "IN_ATTESA") {
+    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.PROPOSTA_NON_TROVATA, HTTP_STATUS.NOT_FOUND);
   }
 
   const { data: annullata, error } = await supabaseAdmin
     .from("timbrature_proposte_correzione")
     .update({ stato: "ANNULLATA", risposto_il: new Date().toISOString() })
-    .eq("dipendente_id", target.id)
+    .eq("id", proposta.id)
     .eq("stato", "IN_ATTESA")
     .select("id")
     .maybeSingle();
@@ -206,17 +204,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.ORARIO_PRECEDENTE_ENTRATA, HTTP_STATUS.BAD_REQUEST);
   }
 
-  const { data: propostaEsistente } = await supabaseAdmin
-    .from("timbrature_proposte_correzione")
-    .select("id")
-    .eq("dipendente_id", target.id)
-    .eq("stato", "IN_ATTESA")
-    .maybeSingle();
-
-  if (propostaEsistente) {
-    return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.PROPOSTA_GIA_IN_ATTESA, HTTP_STATUS.CONFLICT);
-  }
-
   const { data: anomalia } = await supabaseAdmin
     .from("timbrature_avvisi_anomalia")
     .select("id")
@@ -241,8 +228,25 @@ export async function POST(request: NextRequest): Promise<Response> {
     return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 
-  const linkConferma = `${baseUrl(request)}${"/conferma-correzione"}/${proposta.id}`;
   const nomeCompleto = `${target.nome} ${target.cognome}`.trim();
+
+  const { data: proposteInAttesa } = await supabaseAdmin
+    .from("timbrature_proposte_correzione")
+    .select("id, orario_proposto, creato_il")
+    .eq("dipendente_id", target.id)
+    .eq("stato", "IN_ATTESA")
+    .order("creato_il", { ascending: true });
+
+  const elenco = proposteInAttesa || [];
+  const numero = elenco.length;
+  const piuRecente = elenco[elenco.length - 1] ?? proposta;
+  const linkConferma = `${baseUrl(request)}/conferma-correzione/${piuRecente.id}`;
+
+  const titolo = numero > 1 ? "Hai delle uscite da confermare" : "Conferma orario di uscita";
+  const corpoPush =
+    numero > 1
+      ? `Il tuo responsabile ha proposto l'orario di uscita per ${numero} turni ancora aperti: confermali o segnala se non sono corretti.`
+      : "Il tuo responsabile ha proposto un orario di uscita: confermalo appena puoi";
 
   const { data: subscriptions } = await supabaseAdmin
     .from("push_subscriptions")
@@ -253,9 +257,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     const esito = await inviaPush(
       { endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
       {
-        titolo: "Conferma orario di uscita",
-        corpo: "Il tuo responsabile ha proposto un orario di uscita: confermalo appena puoi",
-        url: `/conferma-correzione/${proposta.id}`,
+        titolo,
+        corpo: corpoPush,
+        url: `/conferma-correzione/${piuRecente.id}`,
       }
     );
     if (!esito.ok && esito.scaduta) {
@@ -267,16 +271,30 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (apiKey && target.email) {
     try {
       const resend = new Resend(apiKey);
+      const righeProposte = elenco.map((p) => {
+        const orario = new Intl.DateTimeFormat("it-IT", {
+          timeZone: "Europe/Rome",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(p.orario_proposto));
+        return `- Uscita proposta per le ${orario}: ${baseUrl(request)}/conferma-correzione/${p.id}`;
+      });
+
       await resend.emails.send({
         from: MITTENTE,
         to: [target.email],
-        subject: "Conferma il tuo orario di uscita",
+        subject: numero > 1 ? "Conferma le tue uscite" : "Conferma il tuo orario di uscita",
         text: [
           `Ciao ${nomeCompleto},`,
           "",
-          "Il tuo responsabile ha notato che il tuo turno risulta ancora aperto e ha proposto un orario di uscita.",
-          "Apri questo link per confermarlo o segnalare che non è corretto:",
-          linkConferma,
+          numero > 1
+            ? "Il tuo responsabile ha notato che il tuo turno risulta ancora aperto e ha proposto più orari di uscita. Conferma quello corretto:"
+            : "Il tuo responsabile ha notato che il tuo turno risulta ancora aperto e ha proposto un orario di uscita.",
+          "",
+          ...righeProposte,
           "",
           "Email generata automaticamente da Cantivo (cantivo.it).",
         ].join("\n"),
@@ -286,5 +304,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
-  return Response.json({ ok: true, propostaId: proposta.id }, { headers: NO_STORE });
+  return Response.json({ ok: true, propostaId: proposta.id, linkConferma }, { headers: NO_STORE });
 }
