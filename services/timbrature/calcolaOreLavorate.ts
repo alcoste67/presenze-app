@@ -58,8 +58,11 @@ export function calcolaOreLavorate(
       timbratura.tipo ===
       TIMBRATURE.CAMBIO_CANTIERE
     ) {
+      // Il flusso valido è sempre PAUSA → CAMBIO_CANTIERE (vedi
+      // validaSequenzaTimbratura): l'intervallo è quindi sempre già
+      // chiuso a questo punto, non è un'anomalia. Si comporta come un
+      // RIENTRO che riprende su un altro cantiere.
       if (!inizioIntervallo) {
-        sequenzaIncompleta = true;
         inizioIntervallo = dataTimbratura;
         continue;
       }

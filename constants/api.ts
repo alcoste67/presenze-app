@@ -71,6 +71,10 @@ export const API_ROUTES = {
     "/api/platform-admin/check",
   MODULI_ABILITATI:
     "/api/moduli-abilitati",
+  TIMBRATURE_BLOCCO_GIORNO_PRECEDENTE:
+    "/api/timbrature/blocco-giorno-precedente",
+  TIMBRATURE_CHIUDI_TURNO_PRECEDENTE:
+    "/api/timbrature/chiudi-turno-precedente",
 } as const;
 
 export const API_HEADERS = {

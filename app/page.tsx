@@ -89,6 +89,9 @@ import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
 import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { fetchBloccoGiornoPrecedente } from "@/services/timbrature/fetchBloccoGiornoPrecedente";
+import { BloccoGiornoPrecedente } from "@/components/timbrature/BloccoGiornoPrecedente";
+import type { BloccoGiornoPrecedente as BloccoGiornoPrecedenteInfo } from "@/types/bloccoGiornoPrecedente";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
 import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavoriHome";
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
@@ -364,6 +367,9 @@ export default function HomePage() {
   const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
     useState<TipoAssenza | null>(null);
   const [assenzaOggi, setAssenzaOggi] = useState<RichiestaAssenza | null>(null);
+  const [bloccoGiorno, setBloccoGiorno] = useState<BloccoGiornoPrecedenteInfo | null>(
+    null
+  );
   const [invitiCollabInAttesa, setInvitiCollabInAttesa] = useState(0);
   const [novitaLavorazioniCantiereId, setNovitaLavorazioniCantiereId] = useState<
     string | null
@@ -509,6 +515,20 @@ export default function HomePage() {
       }
     };
 
+    const refreshBloccoGiorno = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setBloccoGiorno(null);
+        return;
+      }
+
+      try {
+        setBloccoGiorno(await fetchBloccoGiornoPrecedente());
+      } catch (error) {
+        console.error("Errore controllo blocco giorno precedente", error);
+        setBloccoGiorno(null);
+      }
+    };
+
     const refreshDipendente = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setDipendente(null);
@@ -529,6 +549,7 @@ export default function HomePage() {
       setDipendente(null);
       setMostraBackoffice(false);
       setAssenzaOggi(null);
+      setBloccoGiorno(null);
       setWallboxVisibile(false);
       await refreshUltimaTimbratura(null);
       setErroreAuth(AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO);
@@ -557,6 +578,7 @@ export default function HomePage() {
           setDipendente(null);
           setMostraBackoffice(false);
           setAssenzaOggi(null);
+          setBloccoGiorno(null);
           setWallboxVisibile(false);
           setCantieri([]);
           setInvitiCollabInAttesa(0);
@@ -584,6 +606,7 @@ export default function HomePage() {
           refreshMostraBackoffice(currentUser),
           refreshDipendente(currentUser),
           refreshAssenzaOggi(currentUser),
+          refreshBloccoGiorno(currentUser),
           refreshWallboxVisibile(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
@@ -1782,7 +1805,7 @@ export default function HomePage() {
 
         <PushOptIn />
 
-        {promemoriaTimbraturaTipo && !assenzaOggi && (
+        {promemoriaTimbraturaTipo && !assenzaOggi && !bloccoGiorno && (
           <CorrezioneTimbraturaBanner
             tipo={promemoriaTimbraturaTipo}
             cantiereId={cantiereId || null}
@@ -1989,6 +2012,15 @@ export default function HomePage() {
         </Card>
 
         {/* ── Card 3: Destinazione lavoro ── */}
+        {bloccoGiorno ? (
+          <BloccoGiornoPrecedente
+            blocco={bloccoGiorno}
+            onRisolto={() => {
+              setBloccoGiorno(null);
+              void refreshUltimaTimbratura(user?.id || null);
+            }}
+          />
+        ) : (
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wider text-text-muted mb-4">
             {TIMBRATURE_TESTI.UI.DESTINAZIONE_TITOLO}
@@ -2084,6 +2116,7 @@ export default function HomePage() {
             )}
           </div>
         </Card>
+        )}
 
         {/* ── Costi commessa (solo responsabili commessa) ── */}
         <CostiCommessaHome />
