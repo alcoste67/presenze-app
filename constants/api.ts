@@ -79,6 +79,8 @@ export const API_ROUTES = {
     "/api/note-spese",
   NOTE_CHILOMETRI:
     "/api/note-chilometri",
+  TIMBRATURE_CORREZIONE_ADMIN_GIORNATA_LAVORATA:
+    "/api/timbrature/correzione-admin/giornata-lavorata",
 } as const;
 
 export const API_HEADERS = {

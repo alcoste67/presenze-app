@@ -13,12 +13,15 @@ import { supabase } from "@/lib/supabase";
 import { dataRomaDi, dataRomaOggi } from "@/lib/timezoneRoma";
 import { getMessaggioErrore } from "@/lib/errors";
 import { loadDipendenteByUserId } from "@/services/dipendenti/loadDipendenteByUserId";
+import { loadCantieri } from "@/services/cantieri/loadCantieri";
 import { caricaTurnoAperto } from "@/services/timbrature/caricaTurnoAperto";
 import { proponiCorrezioneAdmin } from "@/services/timbrature/proponiCorrezioneAdmin";
 import { annullaPropostaCorrezioneAdmin } from "@/services/timbrature/annullaPropostaCorrezioneAdmin";
+import { creaGiornataLavorataAdmin } from "@/services/timbrature/creaGiornataLavorataAdmin";
 import { compilaGiornataVuotaClient } from "@/services/assenze/fetchCompilaGiornataVuota";
 import type { TurnoApertoInfo } from "@/types/anomalieTimbrature";
 import type { TipoAssenzaEsteso } from "@/types/assenze";
+import type { TipoAttivita } from "@/types/attivita";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +29,10 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
+import { SelectAttivita } from "@/components/attivita/SelectAttivita";
+
+type ModalitaGiornataVuota = "ASSENZA" | "LAVORATA";
 
 const TIPI_GIORNATA_VUOTA: TipoAssenzaEsteso[] = [
   TIPO_ASSENZA.FERIE,
@@ -71,6 +78,10 @@ export default function CorreggiTimbraturaPage() {
   const [invioInCorso, setInvioInCorso] = useState(false);
   const [propostaIdInAnnullamento, setPropostaIdInAnnullamento] = useState<string | null>(null);
 
+  const [modalitaGiornataVuota, setModalitaGiornataVuota] = useState<ModalitaGiornataVuota>(
+    "ASSENZA"
+  );
+
   const [dataGiornataVuota, setDataGiornataVuota] = useState(dataRomaOggi());
   const [tipoGiornataVuota, setTipoGiornataVuota] = useState<TipoAssenzaEsteso>(
     TIPO_ASSENZA.FERIE
@@ -78,6 +89,14 @@ export default function CorreggiTimbraturaPage() {
   const [notaGiornataVuota, setNotaGiornataVuota] = useState("");
   const [invioGiornataVuotaInCorso, setInvioGiornataVuotaInCorso] = useState(false);
   const [giornataVuotaCompilata, setGiornataVuotaCompilata] = useState(false);
+
+  const [cantieri, setCantieri] = useState<{ id: string; nome: string }[]>([]);
+  const [cantiereIdLavorata, setCantiereIdLavorata] = useState("");
+  const [attivitaTipoLavorata, setAttivitaTipoLavorata] = useState<TipoAttivita | "">("");
+  const [oraIngressoLavorata, setOraIngressoLavorata] = useState("08:00");
+  const [oraUscitaLavorata, setOraUscitaLavorata] = useState("17:00");
+  const [invioGiornataLavorataInCorso, setInvioGiornataLavorataInCorso] = useState(false);
+  const [giornataLavorataCompilata, setGiornataLavorataCompilata] = useState(false);
 
   useEffect(() => {
     let attivo = true;
@@ -102,6 +121,14 @@ export default function CorreggiTimbraturaPage() {
           return;
         }
         setAutorizzato(true);
+
+        loadCantieri()
+          .then((lista) => {
+            if (attivo) setCantieri(lista);
+          })
+          .catch(() => {
+            if (attivo) setCantieri([]);
+          });
 
         const dati = await caricaTurnoAperto(dipendenteId);
         if (!attivo) return;
@@ -189,6 +216,35 @@ export default function CorreggiTimbraturaPage() {
     }
   };
 
+  const handleCreaGiornataLavorata = async () => {
+    if (!cantiereIdLavorata && !attivitaTipoLavorata) {
+      toast.error("Seleziona un cantiere oppure un'attività");
+      return;
+    }
+    if (cantiereIdLavorata && attivitaTipoLavorata) {
+      toast.error("Seleziona solo un cantiere oppure solo un'attività");
+      return;
+    }
+
+    try {
+      setInvioGiornataLavorataInCorso(true);
+      await creaGiornataLavorataAdmin({
+        dipendenteId,
+        data: dataGiornataVuota,
+        oraIngresso: oraIngressoLavorata,
+        oraUscita: oraUscitaLavorata,
+        cantiereId: cantiereIdLavorata || null,
+        attivitaTipo: attivitaTipoLavorata || null,
+      });
+      setGiornataLavorataCompilata(true);
+      toast.success("Giornata registrata");
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, ASSENZE_TESTI.ERRORI.SALVATAGGIO));
+    } finally {
+      setInvioGiornataLavorataInCorso(false);
+    }
+  };
+
   if (!autorizzato && loading) {
     return (
       <div className="min-h-dvh bg-bg-base">
@@ -221,6 +277,159 @@ export default function CorreggiTimbraturaPage() {
         )}
 
         {loading && <p className="mt-6 text-sm text-text-muted">{TESTI.CARICAMENTO}</p>}
+
+        {!loading && (
+          <div className="mt-5 flex flex-col gap-3">
+            <h2 className="font-heading text-lg font-medium text-text-primary">
+              Giornata senza timbrature{dipendenteNome ? ` — ${dipendenteNome}` : ""}
+            </h2>
+            <p className="text-xs text-text-muted">
+              Se un giorno lavorativo di {dipendenteNome || "questo dipendente"} risulta senza
+              nessuna timbratura, scegli se giustificarlo come assenza o se in realtà ha
+              lavorato (in quel caso si registrano le vere entrata/uscita, non un'assenza).
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={modalitaGiornataVuota === "ASSENZA" ? "primary" : "secondary"}
+                className="flex-1"
+                onClick={() => setModalitaGiornataVuota("ASSENZA")}
+              >
+                Giustifica assenza
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={modalitaGiornataVuota === "LAVORATA" ? "primary" : "secondary"}
+                className="flex-1"
+                onClick={() => setModalitaGiornataVuota("LAVORATA")}
+              >
+                Ha lavorato
+              </Button>
+            </div>
+
+            {modalitaGiornataVuota === "ASSENZA" ? (
+              giornataVuotaCompilata ? (
+                <Card className="p-5">
+                  <p className="text-sm text-text-primary">Giornata registrata</p>
+                </Card>
+              ) : (
+                <Card className="p-5">
+                  <div className="flex gap-3">
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        label="Data"
+                        type="date"
+                        className="w-full min-w-0"
+                        value={dataGiornataVuota}
+                        onChange={(e) => setDataGiornataVuota(e.target.value)}
+                        disabled={invioGiornataVuotaInCorso}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        label="Tipo"
+                        className="w-full min-w-0"
+                        value={tipoGiornataVuota}
+                        onChange={(e) => setTipoGiornataVuota(e.target.value as TipoAssenzaEsteso)}
+                        disabled={invioGiornataVuotaInCorso}
+                      >
+                        {TIPI_GIORNATA_VUOTA.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {LABEL_TIPO_ASSENZA[tipo]}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                  {tipoGiornataVuota === TIPO_ASSENZA.ALTRO && (
+                    <label className="mt-3 flex flex-col gap-1">
+                      <span className="text-sm font-medium text-text-primary">Motivo</span>
+                      <textarea
+                        value={notaGiornataVuota}
+                        onChange={(e) => setNotaGiornataVuota(e.target.value)}
+                        disabled={invioGiornataVuotaInCorso}
+                        rows={2}
+                        className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle"
+                      />
+                    </label>
+                  )}
+                  <Button
+                    className="mt-4 w-full"
+                    loading={invioGiornataVuotaInCorso}
+                    onClick={() => void handleCompilaGiornataVuota()}
+                  >
+                    Registra giornata
+                  </Button>
+                </Card>
+              )
+            ) : giornataLavorataCompilata ? (
+              <Card className="p-5">
+                <p className="text-sm text-text-primary">Giornata registrata</p>
+              </Card>
+            ) : (
+              <Card className="p-5">
+                <Input
+                  label="Data"
+                  type="date"
+                  value={dataGiornataVuota}
+                  onChange={(e) => setDataGiornataVuota(e.target.value)}
+                  disabled={invioGiornataLavorataInCorso}
+                />
+                <div className="mt-3 flex gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      label="Ingresso"
+                      type="time"
+                      className="w-full min-w-0"
+                      value={oraIngressoLavorata}
+                      onChange={(e) => setOraIngressoLavorata(e.target.value)}
+                      disabled={invioGiornataLavorataInCorso}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      label="Uscita"
+                      type="time"
+                      className="w-full min-w-0"
+                      value={oraUscitaLavorata}
+                      onChange={(e) => setOraUscitaLavorata(e.target.value)}
+                      disabled={invioGiornataLavorataInCorso}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  <SelectCantiere
+                    cantieri={cantieri}
+                    cantiereId={cantiereIdLavorata}
+                    onChange={(id) => {
+                      setCantiereIdLavorata(id);
+                      setAttivitaTipoLavorata("");
+                    }}
+                    disabled={invioGiornataLavorataInCorso}
+                  />
+                  <SelectAttivita
+                    attivitaTipo={attivitaTipoLavorata}
+                    onChange={(tipo) => {
+                      setAttivitaTipoLavorata(tipo);
+                      if (tipo) setCantiereIdLavorata("");
+                    }}
+                    disabled={invioGiornataLavorataInCorso}
+                  />
+                </div>
+                <Button
+                  className="mt-4 w-full"
+                  loading={invioGiornataLavorataInCorso}
+                  onClick={() => void handleCreaGiornataLavorata()}
+                >
+                  Registra giornata lavorata
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
 
         {!loading && !turno && (
           <Card className="mt-5 p-5">
@@ -296,74 +505,6 @@ export default function CorreggiTimbraturaPage() {
                 {TESTI.CONFERMA}
               </Button>
             </Card>
-          </div>
-        )}
-
-        {!loading && (
-          <div className="mt-8 flex flex-col gap-3">
-            <h2 className="font-heading text-lg font-medium text-text-primary">
-              Giornata senza timbrature{dipendenteNome ? ` — ${dipendenteNome}` : ""}
-            </h2>
-            <p className="text-xs text-text-muted">
-              Se un giorno lavorativo di {dipendenteNome || "questo dipendente"} risulta senza
-              nessuna timbratura, classificalo come ferie, permesso o altro: la giornata verrà
-              registrata come già approvata.
-            </p>
-
-            {giornataVuotaCompilata ? (
-              <Card className="p-5">
-                <p className="text-sm text-text-primary">Giornata registrata</p>
-              </Card>
-            ) : (
-              <Card className="p-5">
-                <div className="flex gap-3">
-                  <div className="min-w-0 flex-1">
-                    <Input
-                      label="Data"
-                      type="date"
-                      className="w-full min-w-0"
-                      value={dataGiornataVuota}
-                      onChange={(e) => setDataGiornataVuota(e.target.value)}
-                      disabled={invioGiornataVuotaInCorso}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Select
-                      label="Tipo"
-                      className="w-full min-w-0"
-                      value={tipoGiornataVuota}
-                      onChange={(e) => setTipoGiornataVuota(e.target.value as TipoAssenzaEsteso)}
-                      disabled={invioGiornataVuotaInCorso}
-                    >
-                      {TIPI_GIORNATA_VUOTA.map((tipo) => (
-                        <option key={tipo} value={tipo}>
-                          {LABEL_TIPO_ASSENZA[tipo]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-                {tipoGiornataVuota === TIPO_ASSENZA.ALTRO && (
-                  <label className="mt-3 flex flex-col gap-1">
-                    <span className="text-sm font-medium text-text-primary">Motivo</span>
-                    <textarea
-                      value={notaGiornataVuota}
-                      onChange={(e) => setNotaGiornataVuota(e.target.value)}
-                      disabled={invioGiornataVuotaInCorso}
-                      rows={2}
-                      className="w-full rounded-md border border-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-bg-subtle"
-                    />
-                  </label>
-                )}
-                <Button
-                  className="mt-4 w-full"
-                  loading={invioGiornataVuotaInCorso}
-                  onClick={() => void handleCompilaGiornataVuota()}
-                >
-                  Registra giornata
-                </Button>
-              </Card>
-            )}
           </div>
         )}
       </main>
