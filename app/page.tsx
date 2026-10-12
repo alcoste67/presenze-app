@@ -1923,7 +1923,7 @@ export default function HomePage() {
             </Link>
 
             {noteSpeseVisibile && (
-              <a href={APP_ROUTES.NOTE_SPESE}>
+              <Link href={APP_ROUTES.NOTE_SPESE}>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -1931,7 +1931,7 @@ export default function HomePage() {
                 >
                   {NOTE_SPESE_TESTI.TITOLO}
                 </Button>
-              </a>
+              </Link>
             )}
 
             {wallboxVisibile && (

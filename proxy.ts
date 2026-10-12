@@ -69,6 +69,8 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/termini") &&
     !pathname.startsWith("/timbrature") &&
     !pathname.startsWith("/storico") &&
+    !pathname.startsWith("/note-spese") &&
+    !pathname.startsWith("/conferma-correzione") &&
     !pathname.startsWith("/firma-remota") &&
     !pathname.startsWith("/checklist-wallbox/firma-remota") &&
     !pathname.startsWith("/backoffice") &&
