@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
 import { dataRomaDi, dataRomaOggi, romaLocalToUtc } from "@/lib/timezoneRoma";
 import { calcolaTurnoApertoENetteOre } from "@/services/timbrature/calcolaOreNetteTurnoAperto";
+import { notificaAdminTurnoCorretto } from "@/services/timbrature/notificaAdminTurnoCorretto";
 
 export const runtime = "nodejs";
 
@@ -142,6 +143,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     .update({ stato: "ANNULLATA", risposto_il: new Date().toISOString() })
     .eq("dipendente_id", dipendente.id)
     .eq("stato", "IN_ATTESA");
+
+  await notificaAdminTurnoCorretto({
+    dipendenteId: dipendente.id,
+    apertoDalle: turno.apertoDalle,
+    orarioUscita: orarioProposto,
+  });
 
   return Response.json({ ok: true }, { headers: NO_STORE });
 }

@@ -9,6 +9,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
 import { inviaPush } from "@/lib/webPush";
 import { calcolaTurnoApertoENetteOre } from "@/services/timbrature/calcolaOreNetteTurnoAperto";
+import { notificaAdminTurnoCorretto } from "@/services/timbrature/notificaAdminTurnoCorretto";
 
 export const runtime = "nodejs";
 
@@ -245,6 +246,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     `${nomeCompleto} ha confermato l'orario`,
     `${nomeCompleto} ha confermato l'orario di uscita proposto. La timbratura è stata registrata.`
   );
+
+  await notificaAdminTurnoCorretto({
+    dipendenteId: dipendente.id,
+    apertoDalle: turno.apertoDalle,
+    orarioUscita: new Date(proposta.orario_proposto),
+  });
 
   return Response.json({ ok: true, esito: "CONFERMATA" }, { headers: NO_STORE });
 }

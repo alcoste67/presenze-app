@@ -5,6 +5,7 @@ import { HTTP_STATUS } from "@/constants/api";
 import { RAPPORTI_INTERVENTO_LIMITI } from "@/constants/rapportiIntervento";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
+import { inviaPush } from "@/lib/webPush";
 import { loadRapportoIntervento } from "@/services/rapportiIntervento/loadRapportoIntervento";
 import {
   generaRapportoInterventoPdf,
@@ -25,24 +26,43 @@ async function avvisaAziendaFirmaCompletata(
   aziendaId: string
 ) {
   try {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) return;
-
     const rapporto = await loadRapportoIntervento(rapportoInterventoId, supabaseAdmin);
     if (!rapporto) return;
 
     const { data: dipendenti } = await supabaseAdmin
       .from("dipendenti")
-      .select("email, ruolo, attivo")
+      .select("id, email, ruolo, attivo")
       .eq("azienda_id", aziendaId)
       .eq("attivo", true);
 
-    const destinatari = (dipendenti || [])
-      .filter((d) => ["ADMIN", "SUPERADMIN"].includes(d.ruolo))
-      .map((d) => d.email)
-      .filter(Boolean);
+    const admin = (dipendenti || []).filter((d) => ["ADMIN", "SUPERADMIN"].includes(d.ruolo));
+    const destinatari = admin.map((d) => d.email).filter(Boolean);
 
-    if (destinatari.length === 0) return;
+    if (admin.length === 0) return;
+
+    const titoloPush = `Cliente ha firmato — ${rapporto.cantiere_nome_snapshot}`;
+    const corpoPush = "Il cliente ha firmato da remoto il rapporto di lavoro.";
+
+    const { data: subscriptions } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .in(
+        "dipendente_id",
+        admin.map((a) => a.id)
+      );
+
+    for (const subscription of subscriptions || []) {
+      const esito = await inviaPush(
+        { endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
+        { titolo: titoloPush, corpo: corpoPush }
+      );
+      if (!esito.ok && esito.scaduta) {
+        await supabaseAdmin.from("push_subscriptions").delete().eq("id", subscription.id);
+      }
+    }
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey || destinatari.length === 0) return;
 
     const pdfBytes = await generaRapportoInterventoPdf(rapporto, {
       mostraFatturazione: true,
