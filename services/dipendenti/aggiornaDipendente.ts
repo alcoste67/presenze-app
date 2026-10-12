@@ -26,10 +26,13 @@ export async function aggiornaDipendente({
       costo_orario: dipendente.costo_orario,
       ral: dipendente.ral,
       avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
+      usa_auto_propria: dipendente.usa_auto_propria,
+      tariffa_km_rimborso: dipendente.tariffa_km_rimborso,
+      veicolo_descrizione: dipendente.veicolo_descrizione,
     })
     .eq("id", dipendenteId)
     .select(
-      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral, avvisa_admin_timbratura"
+      "id, nome, cognome, email, ruolo, attivo, tipo_conteggio_ore, auth_user_id, created_at, costo_orario, ral, avvisa_admin_timbratura, usa_auto_propria, tariffa_km_rimborso, veicolo_descrizione"
     )
     .single();
 

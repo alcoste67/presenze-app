@@ -73,6 +73,9 @@ type DipendenteFormState = {
   costo_orario: string;
   ral: string;
   avvisa_admin_timbratura: boolean;
+  usa_auto_propria: boolean;
+  tariffa_km_rimborso: string;
+  veicolo_descrizione: string;
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -103,6 +106,9 @@ const FORM_INIZIALE: DipendenteFormState = {
   costo_orario: "",
   ral: "",
   avvisa_admin_timbratura: false,
+  usa_auto_propria: false,
+  tariffa_km_rimborso: "",
+  veicolo_descrizione: "",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -125,6 +131,9 @@ function preparaDipendente(dipendente: DipendenteFormState): DipendenteInput {
     costo_orario: parseNumericoDecimale(dipendente.costo_orario),
     ral: parseNumericoDecimale(dipendente.ral),
     avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
+    usa_auto_propria: dipendente.usa_auto_propria,
+    tariffa_km_rimborso: parseNumericoDecimale(dipendente.tariffa_km_rimborso),
+    veicolo_descrizione: dipendente.veicolo_descrizione.trim(),
   };
 }
 
@@ -308,6 +317,10 @@ export default function BackofficeDipendentiPage() {
       costo_orario: dipendente.costo_orario !== null ? String(dipendente.costo_orario) : "",
       ral: dipendente.ral !== null ? String(dipendente.ral) : "",
       avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
+      usa_auto_propria: dipendente.usa_auto_propria,
+      tariffa_km_rimborso:
+        dipendente.tariffa_km_rimborso !== null ? String(dipendente.tariffa_km_rimborso) : "",
+      veicolo_descrizione: dipendente.veicolo_descrizione,
     });
   };
 
@@ -327,6 +340,9 @@ export default function BackofficeDipendentiPage() {
           costo_orario: dipendente.costo_orario,
           ral: dipendente.ral,
           avvisa_admin_timbratura: dipendente.avvisa_admin_timbratura,
+          usa_auto_propria: dipendente.usa_auto_propria,
+          tariffa_km_rimborso: dipendente.tariffa_km_rimborso,
+          veicolo_descrizione: dipendente.veicolo_descrizione,
         },
       });
 
@@ -347,6 +363,12 @@ export default function BackofficeDipendentiPage() {
           costo_orario: dipendenteAggiornato.costo_orario !== null ? String(dipendenteAggiornato.costo_orario) : "",
           ral: dipendenteAggiornato.ral !== null ? String(dipendenteAggiornato.ral) : "",
           avvisa_admin_timbratura: dipendenteAggiornato.avvisa_admin_timbratura,
+          usa_auto_propria: dipendenteAggiornato.usa_auto_propria,
+          tariffa_km_rimborso:
+            dipendenteAggiornato.tariffa_km_rimborso !== null
+              ? String(dipendenteAggiornato.tariffa_km_rimborso)
+              : "",
+          veicolo_descrizione: dipendenteAggiornato.veicolo_descrizione,
         });
       }
 
@@ -461,6 +483,9 @@ export default function BackofficeDipendentiPage() {
                 ral: r.ral,
                 costo_orario: Math.round((r.ral * 1.30) / 1720 * 100) / 100,
                 avvisa_admin_timbratura: d.avvisa_admin_timbratura,
+                usa_auto_propria: d.usa_auto_propria,
+                tariffa_km_rimborso: d.tariffa_km_rimborso,
+                veicolo_descrizione: d.veicolo_descrizione,
               },
             });
             console.log("[lul] aggiornato:", d.id, res);
@@ -713,6 +738,45 @@ export default function BackofficeDipendentiPage() {
                 />
                 Avvisa admin a ogni entrata/uscita
               </label>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.usa_auto_propria}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, usa_auto_propria: e.target.checked }))
+                  }
+                  disabled={salvataggio}
+                  className="h-4 w-4 accent-brand-500"
+                />
+                Usa auto propria per lavoro (rimborso chilometrico)
+              </label>
+
+              {form.usa_auto_propria && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Tariffa rimborso (€/km)"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={form.tariffa_km_rimborso}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, tariffa_km_rimborso: e.target.value }))
+                    }
+                    disabled={salvataggio}
+                  />
+                  <Input
+                    label="Veicolo (riferimento)"
+                    type="text"
+                    placeholder="es. Panda 1.3 diesel"
+                    value={form.veicolo_descrizione}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, veicolo_descrizione: e.target.value }))
+                    }
+                    disabled={salvataggio}
+                  />
+                </div>
+              )}
 
               <div className="flex gap-2 pt-1">
                 <Button

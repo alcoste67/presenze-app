@@ -1,3 +1,10 @@
+import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
+
+export const RUOLI_APPROVA_NOTE_SPESE = [
+  RUOLI_DIPENDENTE.ADMIN,
+  RUOLI_DIPENDENTE.SUPERADMIN,
+] as const;
+
 export const TIPO_SPESA = {
   PASTO: "PASTO",
   MATERIALE: "MATERIALE",
@@ -75,5 +82,7 @@ export const NOTE_SPESE_TESTI = {
     SALVATAGGIO: "Errore salvataggio",
     CARICAMENTO: "Errore caricamento",
     NON_TROVATA: "Nota spesa non trovata",
+    GIA_GESTITA: "Nota spesa già approvata o rifiutata",
+    NOTA_RIFIUTO_OBBLIGATORIA: "Indica il motivo del rifiuto",
   },
 } as const;

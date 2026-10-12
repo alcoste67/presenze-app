@@ -20,6 +20,9 @@ export type Dipendente = {
   costo_orario: number | null;
   ral: number | null;
   avvisa_admin_timbratura: boolean;
+  usa_auto_propria: boolean;
+  tariffa_km_rimborso: number | null;
+  veicolo_descrizione: string;
 };
 
 export type DipendenteInput = {
@@ -32,4 +35,7 @@ export type DipendenteInput = {
   costo_orario: number | null;
   ral: number | null;
   avvisa_admin_timbratura: boolean;
+  usa_auto_propria: boolean;
+  tariffa_km_rimborso: number | null;
+  veicolo_descrizione: string;
 };

@@ -32,6 +32,10 @@ export const APP_ROUTES = {
     "/backoffice/calendario",
   BACKOFFICE_CORREGGI_TIMBRATURA:
     "/backoffice/correggi-timbratura",
+  BACKOFFICE_NOTE_SPESE:
+    "/backoffice/note-spese",
+  BACKOFFICE_RIMBORSI_KM:
+    "/backoffice/rimborsi-km",
   CONFERMA_CORREZIONE:
     "/conferma-correzione",
   SUPERADMIN: "/superadmin",
