@@ -2,11 +2,16 @@ import { supabase } from "@/lib/supabase";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
 import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
 import { getMessaggioErroreApi } from "@/lib/errors";
-import type { NotaSpesa } from "@/types/noteSpese";
+import type { NotaSpesa, StatoNotaSpesa } from "@/types/noteSpese";
 
-export async function fetchNoteSpese(params: { dataInizio?: string; dataFine?: string } = {}): Promise<
-  NotaSpesa[]
-> {
+export async function fetchNoteSpese(
+  params: {
+    dataInizio?: string;
+    dataFine?: string;
+    stato?: StatoNotaSpesa;
+    soloMie?: boolean;
+  } = {}
+): Promise<NotaSpesa[]> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
 
@@ -16,6 +21,8 @@ export async function fetchNoteSpese(params: { dataInizio?: string; dataFine?: s
   const query = new URLSearchParams();
   if (params.dataInizio) query.set("dataInizio", params.dataInizio);
   if (params.dataFine) query.set("dataFine", params.dataFine);
+  if (params.stato) query.set("stato", params.stato);
+  if (params.soloMie) query.set("soloMie", "true");
 
   const risposta = await fetch(`${API_ROUTES.NOTE_SPESE}?${query.toString()}`, {
     headers: {

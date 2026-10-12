@@ -16,7 +16,9 @@ import {
   FileText,
   Home,
   ListCheck,
+  Car,
   MapPin,
+  Receipt,
   ShieldAlert,
   Tags,
   Users,
@@ -30,9 +32,11 @@ import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
+import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
+import { RIMBORSI_KM_TESTI } from "@/constants/rimborsiKm";
 import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
 import { APP_ROUTES } from "@/constants/routes";
 
@@ -373,6 +377,22 @@ export default function BackofficePage() {
                   icon={<Calculator className="h-5 w-5" />}
                   nome={MACCHINARI_TESTI.TITOLO}
                   descrizione={MACCHINARI_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.NOTE_SPESE) && (
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_NOTE_SPESE}
+                  icon={<Receipt className="h-5 w-5" />}
+                  nome={NOTE_SPESE_TESTI.TITOLO}
+                  descrizione="Approva o rifiuta le spese inviate dai dipendenti"
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.NOTE_SPESE) && (
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_RIMBORSI_KM}
+                  icon={<Car className="h-5 w-5" />}
+                  nome={RIMBORSI_KM_TESTI.TITOLO}
+                  descrizione={RIMBORSI_KM_TESTI.SOTTOTITOLO}
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.CONTROLLO_COSTI) && <CardControlloCostiAdmin />}
