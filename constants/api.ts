@@ -75,6 +75,10 @@ export const API_ROUTES = {
     "/api/timbrature/blocco-giorno-precedente",
   TIMBRATURE_CHIUDI_TURNO_PRECEDENTE:
     "/api/timbrature/chiudi-turno-precedente",
+  NOTE_SPESE:
+    "/api/note-spese",
+  NOTE_CHILOMETRI:
+    "/api/note-chilometri",
 } as const;
 
 export const API_HEADERS = {

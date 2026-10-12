@@ -20,6 +20,10 @@ import {
   trovaGiornateVuoteDaClassificare,
 } from "@/services/timbrature/rilevaGiornateVuote";
 import { notificaGiornateVuoteDaClassificare } from "@/services/timbrature/notificaGiornateVuote";
+import {
+  inFinestraRiepilogoNoteSpese,
+  inviaRiepilogoGiornalieroNoteSpese,
+} from "@/services/noteSpese/riepilogoGiornalieroAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,6 +105,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let riepilogoNoteSpeseInviati = 0;
+  if (inFinestraRiepilogoNoteSpese(minutiRoma)) {
+    riepilogoNoteSpeseInviati = await inviaRiepilogoGiornalieroNoteSpese(supabaseAdmin);
+  }
+
   for (const dipendente of dipendenti || []) {
     if (!dipendente.auth_user_id) continue;
 
@@ -165,6 +174,7 @@ export async function GET(request: NextRequest) {
       anomalieRilevate,
       promemoriaProposteInviati,
       promemoriaGiornateVuoteInviati,
+      riepilogoNoteSpeseInviati,
     },
     { headers: NO_STORE }
   );

@@ -20,6 +20,7 @@ export const MODULI_BACKOFFICE = {
   LIBRO_PRESENZE: "libro-presenze",
   COSTI_MACCHINARI: "costi-macchinari",
   CONTROLLO_COSTI: "controllo-costi",
+  NOTE_SPESE: "note-spese",
 } as const;
 
 export type ModuloBackoffice =
@@ -43,6 +44,7 @@ export const LABEL_MODULI_BACKOFFICE: Record<ModuloBackoffice, string> = {
   [MODULI_BACKOFFICE.LIBRO_PRESENZE]: "Libro presenze",
   [MODULI_BACKOFFICE.COSTI_MACCHINARI]: "Costi macchinari",
   [MODULI_BACKOFFICE.CONTROLLO_COSTI]: "Controllo costi",
+  [MODULI_BACKOFFICE.NOTE_SPESE]: "Note spese e rimborsi chilometrici",
 };
 
 export const PIANI_ABBONAMENTO = ["base", "pro", "enterprise"] as const;

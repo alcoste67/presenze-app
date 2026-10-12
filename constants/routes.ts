@@ -2,6 +2,7 @@ export const APP_ROUTES = {
   HOME: "/",
   TIMBRATURE: "/timbrature",
   STORICO: "/storico",
+  NOTE_SPESE: "/note-spese",
   BACKOFFICE: "/backoffice",
   BACKOFFICE_RAPPORTI_INTERVENTO:
     "/backoffice/rapporti-intervento",

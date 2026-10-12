@@ -25,6 +25,7 @@ import {
   FileText,
   History,
   Pause,
+  Receipt,
   Repeat,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ import {
   AUTH_TESTI,
 } from "@/constants/auth";
 import { ASSENZE_TESTI } from "@/constants/assenze";
+import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
@@ -89,6 +91,8 @@ import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
 import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
+import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { fetchBloccoGiornoPrecedente } from "@/services/timbrature/fetchBloccoGiornoPrecedente";
 import { BloccoGiornoPrecedente } from "@/components/timbrature/BloccoGiornoPrecedente";
 import type { BloccoGiornoPrecedente as BloccoGiornoPrecedenteInfo } from "@/types/bloccoGiornoPrecedente";
@@ -364,6 +368,7 @@ export default function HomePage() {
 
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
   const [wallboxVisibile, setWallboxVisibile] = useState(false);
+  const [noteSpeseVisibile, setNoteSpeseVisibile] = useState(false);
   const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
     useState<TipoAssenza | null>(null);
   const [assenzaOggi, setAssenzaOggi] = useState<RichiestaAssenza | null>(null);
@@ -492,6 +497,21 @@ export default function HomePage() {
       }
     };
 
+    const refreshNoteSpeseVisibile = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setNoteSpeseVisibile(false);
+        return;
+      }
+
+      try {
+        const moduli = await fetchModuliAbilitati();
+        setNoteSpeseVisibile(moduli.has(MODULI_BACKOFFICE.NOTE_SPESE));
+      } catch (error) {
+        console.error("Errore controllo modulo note spese", error);
+        setNoteSpeseVisibile(true);
+      }
+    };
+
     const refreshAssenzaOggi = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setAssenzaOggi(null);
@@ -551,6 +571,7 @@ export default function HomePage() {
       setAssenzaOggi(null);
       setBloccoGiorno(null);
       setWallboxVisibile(false);
+      setNoteSpeseVisibile(false);
       await refreshUltimaTimbratura(null);
       setErroreAuth(AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO);
       await esciAuth();
@@ -580,6 +601,7 @@ export default function HomePage() {
           setAssenzaOggi(null);
           setBloccoGiorno(null);
           setWallboxVisibile(false);
+          setNoteSpeseVisibile(false);
           setCantieri([]);
           setInvitiCollabInAttesa(0);
           setNovitaLavorazioniCantiereId(null);
@@ -608,6 +630,7 @@ export default function HomePage() {
           refreshAssenzaOggi(currentUser),
           refreshBloccoGiorno(currentUser),
           refreshWallboxVisibile(currentUser),
+          refreshNoteSpeseVisibile(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
           // della PWA non deve sopravvivere a login/logout/switch account
@@ -1898,6 +1921,18 @@ export default function HomePage() {
                 {RAPPORTI_INTERVENTO_TESTI.TITOLO}
               </Button>
             </Link>
+
+            {noteSpeseVisibile && (
+              <Link href={APP_ROUTES.NOTE_SPESE}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Receipt className="h-4 w-4" />}
+                >
+                  {NOTE_SPESE_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
 
             {wallboxVisibile && (
               <Link href={APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX}>
