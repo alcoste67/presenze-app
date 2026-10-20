@@ -13,10 +13,10 @@ export function inFinestraPromemoriaGiornateVuote(minutiRoma: number): boolean {
   return minutiRoma >= soglia && minutiRoma < soglia + FINESTRA_MINUTI_CRON;
 }
 
-type DipendenteRiga = {
+export type DipendenteRiga = {
   id: string;
   azienda_id: string;
-  auth_user_id: string;
+  auth_user_id: string | null;
   created_at: string;
   tipo_conteggio_ore: string;
 };
@@ -47,19 +47,68 @@ export type GiornataVuotaDipendente = {
 
 /**
  * Giorni lavorativi recenti (fino a 30) senza nessuna timbratura e senza
- * una richiesta ferie/permesso/altro che li copra, per ogni dipendente
- * attivo A TEMPO PIENO (REALE o forfait 8h). I part-time (forfait 4h)
- * sono esclusi: non è detto lavorino tutti i giorni feriali, quindi un
- * giorno vuoto per loro non è un'anomalia — non abbiamo un calendario
- * per-dipendente dei giorni effettivamente lavorati per fare di meglio.
- * Si accumulano finché non vengono classificati (dall'admin o da una
- * richiesta del dipendente stesso): nessuno sblocco automatico.
+ * una richiesta ferie/permesso/altro/malattia che li copra, per UN
+ * dipendente attivo A TEMPO PIENO (REALE o forfait 8h). I part-time
+ * (forfait 4h) sono esclusi: non è detto lavorino tutti i giorni feriali,
+ * quindi un giorno vuoto per loro non è un'anomalia — non abbiamo un
+ * calendario per-dipendente dei giorni effettivamente lavorati per fare
+ * di meglio. Si accumulano finché non vengono classificati (dall'admin o
+ * da una richiesta del dipendente stesso): nessuno sblocco automatico.
+ */
+export async function trovaGiornateVuoteDipendente(
+  supabaseAdmin: SupabaseClient,
+  dipendente: DipendenteRiga
+): Promise<string[]> {
+  if (
+    !dipendente.auth_user_id ||
+    dipendente.tipo_conteggio_ore === TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_4H
+  ) {
+    return [];
+  }
+
+  const oggi = dataRomaOggi();
+  const dataMinima = dataRomaDi(dipendente.created_at);
+  const candidati = candidatiLavorativi(oggi, dataMinima);
+  if (candidati.length === 0) return [];
+
+  const inizioFinestra = candidati[candidati.length - 1];
+
+  const [{ data: timbrature }, { data: richieste }] = await Promise.all([
+    supabaseAdmin
+      .from("timbrature")
+      .select("created_at")
+      .eq("user_id", dipendente.auth_user_id)
+      .gte("created_at", romaLocalToUtc(inizioFinestra, "00:00").toISOString())
+      .lt("created_at", romaLocalToUtc(oggi, "00:00").toISOString()),
+    supabaseAdmin
+      .from("richieste_assenza")
+      .select("data_inizio, data_fine")
+      .eq("dipendente_id", dipendente.id)
+      .in("stato", ["IN_ATTESA", "APPROVATA"])
+      .lte("data_inizio", oggi)
+      .gte("data_fine", inizioFinestra),
+  ]);
+
+  const giorniConTimbratura = new Set(
+    (timbrature || []).map((t) => dataRomaDi(t.created_at as string))
+  );
+
+  const richiesteRows = (richieste || []) as { data_inizio: string; data_fine: string }[];
+  const giorniCoperti = (data: string) =>
+    richiesteRows.some((r) => r.data_inizio <= data && data <= r.data_fine);
+
+  return candidati
+    .filter((data) => !giorniConTimbratura.has(data) && !giorniCoperti(data))
+    .sort();
+}
+
+/**
+ * Stessa rilevazione, per ogni dipendente attivo dell'intera piattaforma
+ * (uso: cron del promemoria giornaliero cumulativo).
  */
 export async function trovaGiornateVuoteDaClassificare(
   supabaseAdmin: SupabaseClient
 ): Promise<GiornataVuotaDipendente[]> {
-  const oggi = dataRomaOggi();
-
   const { data: dipendenti, error } = await supabaseAdmin
     .from("dipendenti")
     .select("id, azienda_id, auth_user_id, created_at, tipo_conteggio_ore")
@@ -75,45 +124,13 @@ export async function trovaGiornateVuoteDaClassificare(
   const risultato: GiornataVuotaDipendente[] = [];
 
   for (const dipendente of (dipendenti || []) as DipendenteRiga[]) {
-    const dataMinima = dataRomaDi(dipendente.created_at);
-    const candidati = candidatiLavorativi(oggi, dataMinima);
-    if (candidati.length === 0) continue;
-
-    const inizioFinestra = candidati[candidati.length - 1];
-
-    const [{ data: timbrature }, { data: richieste }] = await Promise.all([
-      supabaseAdmin
-        .from("timbrature")
-        .select("created_at")
-        .eq("user_id", dipendente.auth_user_id)
-        .gte("created_at", romaLocalToUtc(inizioFinestra, "00:00").toISOString())
-        .lt("created_at", romaLocalToUtc(oggi, "00:00").toISOString()),
-      supabaseAdmin
-        .from("richieste_assenza")
-        .select("data_inizio, data_fine")
-        .eq("dipendente_id", dipendente.id)
-        .in("stato", ["IN_ATTESA", "APPROVATA"])
-        .lte("data_inizio", oggi)
-        .gte("data_fine", inizioFinestra),
-    ]);
-
-    const giorniConTimbratura = new Set(
-      (timbrature || []).map((t) => dataRomaDi(t.created_at as string))
-    );
-
-    const richiesteRows = (richieste || []) as { data_inizio: string; data_fine: string }[];
-    const giorniCoperti = (data: string) =>
-      richiesteRows.some((r) => r.data_inizio <= data && data <= r.data_fine);
-
-    const giorniVuoti = candidati.filter(
-      (data) => !giorniConTimbratura.has(data) && !giorniCoperti(data)
-    );
+    const giorniVuoti = await trovaGiornateVuoteDipendente(supabaseAdmin, dipendente);
 
     if (giorniVuoti.length > 0) {
       risultato.push({
         dipendenteId: dipendente.id,
         aziendaId: dipendente.azienda_id,
-        giorni: giorniVuoti.sort(),
+        giorni: giorniVuoti,
       });
     }
   }

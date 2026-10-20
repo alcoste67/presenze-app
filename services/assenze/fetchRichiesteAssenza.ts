@@ -1,7 +1,7 @@
 import { isRecord } from "@/lib/typeGuards";
 import { getMessaggioErroreApi } from "@/lib/errors";
 import { API_HEADERS, API_ROUTES } from "@/constants/api";
-import { ASSENZE_TESTI } from "@/constants/assenze";
+import { ASSENZE_TESTI, TIPO_ASSENZA } from "@/constants/assenze";
 import { supabase } from "@/lib/supabase";
 import type { RichiestaAssenza, StatoRichiestaAssenza } from "@/types/assenze";
 
@@ -10,13 +10,20 @@ type RichiesteAssenzaRisposta = {
   puoApprovare: boolean;
 };
 
+// Tutti i tipi possibili in risposta: FERIE/PERMESSO (richiesti dal
+// dipendente) e ALTRO/MALATTIA (compilati dall'admin) — non solo i due
+// richiedibili da sé, altrimenti basta una riga ALTRO o MALATTIA
+// nell'elenco per invalidare l'intera risposta.
+const TIPI_RICHIESTA_VALIDI = new Set<string>(Object.values(TIPO_ASSENZA));
+
 function isRichiestaAssenza(value: unknown): value is RichiestaAssenza {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.dipendenteId === "string" &&
     typeof value.dipendenteNome === "string" &&
-    (value.tipo === "FERIE" || value.tipo === "PERMESSO") &&
+    typeof value.tipo === "string" &&
+    TIPI_RICHIESTA_VALIDI.has(value.tipo) &&
     typeof value.dataInizio === "string" &&
     typeof value.dataFine === "string" &&
     typeof value.giornataIntera === "boolean" &&

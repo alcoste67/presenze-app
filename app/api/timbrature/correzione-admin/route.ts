@@ -10,6 +10,7 @@ import { isRecord } from "@/lib/typeGuards";
 import { romaLocalToUtc } from "@/lib/timezoneRoma";
 import { inviaPush } from "@/lib/webPush";
 import { calcolaTurnoApertoENetteOre } from "@/services/timbrature/calcolaOreNetteTurnoAperto";
+import { trovaGiornateVuoteDipendente } from "@/services/timbrature/rilevaGiornateVuote";
 
 export const runtime = "nodejs";
 
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const { data: target } = await supabaseAdmin
     .from("dipendenti")
-    .select("id, nome, cognome, azienda_id, auth_user_id")
+    .select("id, nome, cognome, azienda_id, auth_user_id, created_at, tipo_conteggio_ore")
     .eq("id", dipendenteId)
     .maybeSingle();
 
@@ -92,9 +93,17 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const dipendenteNome = `${target.nome} ${target.cognome}`.trim();
 
+  const giornateVuote = await trovaGiornateVuoteDipendente(supabaseAdmin, {
+    id: target.id,
+    azienda_id: target.azienda_id,
+    auth_user_id: target.auth_user_id,
+    created_at: target.created_at,
+    tipo_conteggio_ore: target.tipo_conteggio_ore,
+  });
+
   const turno = await caricaTurnoApertoTarget(target.auth_user_id);
   if (!turno) {
-    return Response.json({ dipendenteNome, turnoAperto: null }, { headers: NO_STORE });
+    return Response.json({ dipendenteNome, turnoAperto: null, giornateVuote }, { headers: NO_STORE });
   }
 
   const { data: proposte } = await supabaseAdmin
@@ -107,6 +116,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   return Response.json(
     {
       dipendenteNome,
+      giornateVuote,
       turnoAperto: {
         dipendenteNome,
         apertoDalle: turno.apertoDalle.toISOString(),

@@ -35,7 +35,7 @@ import {
   AUTH_OTP,
   AUTH_TESTI,
 } from "@/constants/auth";
-import { ASSENZE_TESTI } from "@/constants/assenze";
+import { ASSENZE_TESTI, LABEL_TIPO_ASSENZA_MINUSCOLO } from "@/constants/assenze";
 import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
@@ -2078,7 +2078,7 @@ export default function HomePage() {
           <div className="mt-4 flex flex-col gap-2">
             {statoAttuale === STATI.FUORI && assenzaOggi && (
               <div className="rounded-md border border-warning-500/40 bg-warning-50 px-3 py-2.5 text-sm text-warning-500">
-                Oggi sei in {assenzaOggi.tipo === "FERIE" ? "ferie" : "permesso"}
+                Oggi sei in {LABEL_TIPO_ASSENZA_MINUSCOLO[assenzaOggi.tipo] || "assenza"}
               </div>
             )}
             {statoAttuale === STATI.FUORI && !assenzaOggi && (

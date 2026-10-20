@@ -9,12 +9,22 @@ export const TIPO_ASSENZA = {
   FERIE: "FERIE",
   PERMESSO: "PERMESSO",
   ALTRO: "ALTRO",
+  MALATTIA: "MALATTIA",
 } as const;
 
 export const LABEL_TIPO_ASSENZA: Record<string, string> = {
   [TIPO_ASSENZA.FERIE]: "Ferie",
   [TIPO_ASSENZA.PERMESSO]: "Permesso",
   [TIPO_ASSENZA.ALTRO]: "Altro",
+  [TIPO_ASSENZA.MALATTIA]: "Malattia",
+};
+
+// Forma minuscola per frasi tipo "Oggi sei in ferie/permesso/malattia".
+export const LABEL_TIPO_ASSENZA_MINUSCOLO: Record<string, string> = {
+  [TIPO_ASSENZA.FERIE]: "ferie",
+  [TIPO_ASSENZA.PERMESSO]: "permesso",
+  [TIPO_ASSENZA.ALTRO]: "altro",
+  [TIPO_ASSENZA.MALATTIA]: "malattia",
 };
 
 export const STATO_RICHIESTA_ASSENZA = {
@@ -58,6 +68,16 @@ export const ASSENZE_TESTI = {
     "La richiesta non conterà più come ferie/permesso. Se era già approvata, sparirà dal calendario.",
   LE_MIE_RICHIESTE: "Le mie richieste",
   NESSUNA_MIA_RICHIESTA: "Nessuna richiesta ferie/permesso",
+  MALATTIA: {
+    TITOLO: "Malattia",
+    DESCRIZIONE:
+      "Registra un periodo di malattia documentato (es. da certificato medico): viene salvato subito come approvato.",
+    ETICHETTA_DATA_INIZIO: "Malattia dal",
+    ETICHETTA_DATA_FINE: "al",
+    ETICHETTA_NOTA: "Nota (facoltativa)",
+    CONFERMA: "Registra malattia",
+    REGISTRATA: "Malattia registrata",
+  },
   ERRORI: {
     SESSIONE_MANCANTE: "Sessione utente non valida",
     RISPOSTA_NON_VALIDA: "Risposta richieste assenza non valida",
@@ -73,6 +93,7 @@ export const ASSENZE_TESTI = {
     TOKEN_NON_VALIDO: "Token autenticazione non valido",
     ACCESSO_NEGATO: "Accesso non autorizzato",
     NON_TROVATA: "Richiesta non trovata",
+    PERIODO_SOVRAPPOSTO: "Esiste già una richiesta ferie/permesso/malattia in questo periodo",
   },
   MESSAGGI: {
     INVIATA: "Richiesta inviata, in attesa di approvazione",

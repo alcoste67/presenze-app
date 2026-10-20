@@ -30,7 +30,7 @@ export async function caricaTurnoAperto(
   }
 
   if (!isRecord(payload)) {
-    return { dipendenteNome: "", turnoAperto: null };
+    return { dipendenteNome: "", turnoAperto: null, giornateVuote: [] };
   }
 
   return payload as unknown as DatiCorrezioneTimbratura;

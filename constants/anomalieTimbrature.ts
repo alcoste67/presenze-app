@@ -33,6 +33,18 @@ export const ANOMALIE_TIMBRATURE_TESTI = {
     PROPOSTA_INVIATA:
       "Proposta inviata: il dipendente riceverà una mail per confermarla",
     NESSUN_TURNO_APERTO: "Questo dipendente non ha turni aperti da correggere",
+    TABELLA: {
+      TITOLO: "Anomalie da correggere",
+      NESSUNA_ANOMALIA: "Nessuna anomalia da correggere per questo dipendente",
+      COLONNA_GIORNO: "Giorno",
+      COLONNA_TIPO: "Tipo",
+      COLONNA_AZIONE: "Azione",
+      TIPO_GIORNO_VUOTO: "Giorno senza timbrature",
+      TIPO_TURNO_APERTO_PREFIX: "Turno aperto da",
+      TIPO_TURNO_APERTO_SUFFIX: "h",
+      CORREGGI: "Correggi",
+      CHIUDI: "Chiudi",
+    },
   },
   PAGINA_CONFERMA: {
     TITOLO: "Conferma orario di uscita",

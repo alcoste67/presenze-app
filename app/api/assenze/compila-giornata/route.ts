@@ -9,7 +9,9 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 const DATA_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-const TIPI_VALIDI = new Set(Object.values(TIPO_ASSENZA));
+// MALATTIA copre un intervallo di date, non un singolo giorno: ha il suo
+// endpoint dedicato (POST /api/assenze/malattia), non passa da qui.
+const TIPI_VALIDI = new Set([TIPO_ASSENZA.FERIE, TIPO_ASSENZA.PERMESSO, TIPO_ASSENZA.ALTRO]);
 
 function jsonErrore(errore: string, status: number) {
   return Response.json({ errore }, { status, headers: NO_STORE });
