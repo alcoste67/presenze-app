@@ -14,6 +14,7 @@ export type TurnoApertoInfo = {
 export type DatiCorrezioneTimbratura = {
   dipendenteNome: string;
   turnoAperto: TurnoApertoInfo | null;
+  giornateVuote: string[];
 };
 
 export type PropostaCorrezioneInfo = {
