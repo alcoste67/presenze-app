@@ -72,7 +72,7 @@ const DOMANDE_FORM: {
   },
 ];
 
-function statoIniziale(): ChecklistWallboxInput {
+function statoIniziale(soloA2C = false): ChecklistWallboxInput {
   return {
     ragione_sociale: "",
     piva: "",
@@ -106,7 +106,7 @@ function statoIniziale(): ChecklistWallboxInput {
     planimetria_data_url: null,
     luogo: "",
     data_sopralluogo: null,
-    formato_stampa: "EDISON",
+    formato_stampa: soloA2C ? "A2C" : "EDISON",
   };
 }
 
@@ -337,7 +337,7 @@ export default function ChecklistWallboxPage() {
           ? CHECKLIST_WALLBOX_TESTI.MESSAGGI.MODIFICATA
           : CHECKLIST_WALLBOX_TESTI.MESSAGGI.CREATA
       );
-      setForm(statoIniziale());
+      setForm(statoIniziale(soloA2C));
       setMaterialiQuantita({});
       setMaterialiAltro(materialiAltroIniziale());
       setChecklistInModificaId(null);
@@ -501,7 +501,7 @@ export default function ChecklistWallboxPage() {
                 const next = !v;
                 if (next) {
                   setChecklistInModificaId(null);
-                  setForm(statoIniziale());
+                  setForm(statoIniziale(soloA2C));
                   setMaterialiQuantita({});
                   setMaterialiAltro(materialiAltroIniziale());
                 }
