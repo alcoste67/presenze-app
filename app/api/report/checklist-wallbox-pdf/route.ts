@@ -68,8 +68,6 @@ function jsonErrore(error: string, status: number) {
 export async function GET(request: NextRequest) {
   const checklistWallboxId =
     request.nextUrl.searchParams.get("checklistWallboxId") || "";
-  const formato =
-    request.nextUrl.searchParams.get("formato") === "A2C" ? "A2C" : "EDISON";
 
   try {
     if (!checklistWallboxId) {
@@ -131,6 +129,10 @@ export async function GET(request: NextRequest) {
         HTTP_STATUS.NOT_FOUND
       );
     }
+
+    // Il formato è quello salvato sulla checklist, mai un parametro in
+    // query string: è un documento legale, non si improvvisa.
+    const formato = checklist.formato_stampa === "A2C" ? "A2C" : "EDISON";
 
     const pdfBytesChecklist =
       formato === "A2C"

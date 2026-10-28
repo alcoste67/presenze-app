@@ -2,9 +2,6 @@ import { isRecord } from "@/lib/typeGuards";
 import { API_HEADERS } from "@/constants/api";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { supabase } from "@/lib/supabase";
-import type { FormatoChecklistWallbox } from "@/types/checklistWallbox";
-
-export type { FormatoChecklistWallbox };
 
 type ChecklistWallboxPdf = {
   blob: Blob;
@@ -29,9 +26,10 @@ function getNomeFilePdf(response: Response) {
   return match?.[1] || "checklist-wallbox.pdf";
 }
 
+/** Scarica il PDF della checklist: il formato (Edison/A2C) lo decide il
+ * server dal record salvato, non si passa dal client. */
 export async function fetchChecklistWallboxPdf(
-  checklistWallboxId: string,
-  formato: FormatoChecklistWallbox = "EDISON"
+  checklistWallboxId: string
 ): Promise<ChecklistWallboxPdf> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -42,7 +40,7 @@ export async function fetchChecklistWallboxPdf(
   }
 
   const response = await fetch(
-    `/api/report/checklist-wallbox-pdf?checklistWallboxId=${encodeURIComponent(checklistWallboxId)}&formato=${formato}`,
+    `/api/report/checklist-wallbox-pdf?checklistWallboxId=${encodeURIComponent(checklistWallboxId)}`,
     {
       headers: {
         [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${accessToken}`,

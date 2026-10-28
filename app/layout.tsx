@@ -3,6 +3,7 @@ import { Montserrat, Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { ToastProvider } from "@/components/ui/Toast";
+import { RestrizioneSoloWallboxA2C } from "@/components/auth/RestrizioneSoloWallboxA2C";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -40,7 +41,10 @@ export default function RootLayout({
       className={`${montserrat.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans overflow-x-hidden">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <RestrizioneSoloWallboxA2C />
+          {children}
+        </ToastProvider>
         <Script
           src="https://embeds.iubenda.com/widgets/c376aaf4-4c91-4945-b867-9c5e1fb8215a.js"
           strategy="afterInteractive"

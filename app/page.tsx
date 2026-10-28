@@ -27,6 +27,7 @@ import {
   Pause,
   Receipt,
   Repeat,
+  Users,
 } from "lucide-react";
 
 import {
@@ -91,6 +92,7 @@ import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
 import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { checkRestrizioneWallboxA2C } from "@/services/checklistWallbox/checkSoloWallboxA2C";
 import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { fetchBloccoGiornoPrecedente } from "@/services/timbrature/fetchBloccoGiornoPrecedente";
@@ -369,6 +371,7 @@ export default function HomePage() {
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
   const [wallboxVisibile, setWallboxVisibile] = useState(false);
   const [noteSpeseVisibile, setNoteSpeseVisibile] = useState(false);
+  const [adminFuniVisibile, setAdminFuniVisibile] = useState(false);
   const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
     useState<TipoAssenza | null>(null);
   const [assenzaOggi, setAssenzaOggi] = useState<RichiestaAssenza | null>(null);
@@ -512,6 +515,21 @@ export default function HomePage() {
       }
     };
 
+    const refreshAdminFuniVisibile = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setAdminFuniVisibile(false);
+        return;
+      }
+
+      try {
+        const { ristretto, isAdmin } = await checkRestrizioneWallboxA2C(currentUser.id);
+        setAdminFuniVisibile(ristretto && isAdmin);
+      } catch (error) {
+        console.error("Errore controllo admin azienda ristretta wallbox", error);
+        setAdminFuniVisibile(false);
+      }
+    };
+
     const refreshAssenzaOggi = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setAssenzaOggi(null);
@@ -572,6 +590,7 @@ export default function HomePage() {
       setBloccoGiorno(null);
       setWallboxVisibile(false);
       setNoteSpeseVisibile(false);
+      setAdminFuniVisibile(false);
       await refreshUltimaTimbratura(null);
       setErroreAuth(AUTH_TESTI.ERRORI.DIPENDENTE_NON_ATTIVO);
       await esciAuth();
@@ -602,6 +621,7 @@ export default function HomePage() {
           setBloccoGiorno(null);
           setWallboxVisibile(false);
           setNoteSpeseVisibile(false);
+          setAdminFuniVisibile(false);
           setCantieri([]);
           setInvitiCollabInAttesa(0);
           setNovitaLavorazioniCantiereId(null);
@@ -631,6 +651,7 @@ export default function HomePage() {
           refreshBloccoGiorno(currentUser),
           refreshWallboxVisibile(currentUser),
           refreshNoteSpeseVisibile(currentUser),
+          refreshAdminFuniVisibile(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
           // della PWA non deve sopravvivere a login/logout/switch account
@@ -1942,6 +1963,18 @@ export default function HomePage() {
                   icon={<FileText className="h-4 w-4" />}
                 >
                   {CHECKLIST_WALLBOX_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
+
+            {adminFuniVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_DIPENDENTI}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Users className="h-4 w-4" />}
+                >
+                  Dipendenti
                 </Button>
               </Link>
             )}

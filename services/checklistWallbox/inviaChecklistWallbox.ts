@@ -2,7 +2,6 @@ import { supabase } from "@/lib/supabase";
 import { API_HEADERS } from "@/constants/api";
 import { getMessaggioErroreApi } from "@/lib/errors";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
-import type { FormatoChecklistWallbox } from "@/services/checklistWallbox/fetchChecklistWallboxPdf";
 
 type EsitoInvio = {
   inviata: boolean;
@@ -11,13 +10,15 @@ type EsitoInvio = {
   messageId: string | null;
 };
 
-/** Invia il PDF della checklist firmata via email (cliente + admin + compilatore). */
+/**
+ * Invia il PDF della checklist firmata via email (cliente + admin +
+ * compilatore). Il formato (Edison/A2C) lo decide il server dal record
+ * salvato: non si passa dal client, è un documento legale.
+ */
 export async function inviaChecklistWallbox({
   checklistWallboxId,
-  formato = "EDISON",
 }: {
   checklistWallboxId: string;
-  formato?: FormatoChecklistWallbox;
 }): Promise<EsitoInvio> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -33,7 +34,7 @@ export async function inviaChecklistWallbox({
       [API_HEADERS.CONTENT_TYPE]: API_HEADERS.APPLICATION_JSON,
       [API_HEADERS.AUTHORIZATION]: `${API_HEADERS.BEARER_PREFIX}${token}`,
     },
-    body: JSON.stringify({ checklistWallboxId, formato }),
+    body: JSON.stringify({ checklistWallboxId }),
   });
 
   const payload = await risposta.json().catch(() => null);

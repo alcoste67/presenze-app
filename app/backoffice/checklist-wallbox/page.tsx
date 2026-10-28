@@ -15,6 +15,8 @@ import {
   LABEL_STATI_CHECKLIST_WALLBOX,
 } from "@/constants/checklistWallbox";
 import { getMessaggioErrore } from "@/lib/errors";
+import { supabase } from "@/lib/supabase";
+import { checkRestrizioneWallboxA2C } from "@/services/checklistWallbox/checkSoloWallboxA2C";
 import { creaChecklistWallbox } from "@/services/checklistWallbox/creaChecklistWallbox";
 import { aggiornaChecklistWallbox } from "@/services/checklistWallbox/aggiornaChecklistWallbox";
 import { loadChecklistiWallbox } from "@/services/checklistWallbox/loadChecklistiWallbox";
@@ -179,6 +181,40 @@ export default function ChecklistWallboxPage() {
   >(materialiAltroIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
   const [checklistInModificaId, setChecklistInModificaId] = useState<string | null>(null);
+  const [soloA2C, setSoloA2C] = useState(false);
+  const [adminFuni, setAdminFuni] = useState(false);
+  const [userIdCorrente, setUserIdCorrente] = useState<string | null>(null);
+
+  useEffect(() => {
+    let attivo = true;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      setUserIdCorrente(user.id);
+      checkRestrizioneWallboxA2C(user.id).then(({ ristretto, isAdmin }) => {
+        if (!attivo || !ristretto) return;
+        setSoloA2C(true);
+        setAdminFuni(isAdmin);
+        setForm((f) => ({ ...f, formato_stampa: "A2C" }));
+        // L'admin atterra sullo storico completo dell'azienda; l'operaio
+        // va dritto in compilazione (non ha uno storico da sfogliare, solo
+        // le proprie checklist ancora da firmare/inviare).
+        if (!isAdmin) setMostraForm(true);
+      });
+    });
+
+    return () => {
+      attivo = false;
+    };
+  }, []);
+
+  // Aziende ristrette alla sola checklist A2C: l'admin vede tutto lo
+  // storico dell'azienda, ogni altro dipendente vede e modifica solo le
+  // checklist create da lui.
+  const checklistsVisibili =
+    soloA2C && !adminFuni
+      ? checklists.filter((c) => c.created_by === userIdCorrente)
+      : checklists;
 
   const ricarica = async () => {
     try {
@@ -338,7 +374,6 @@ export default function ChecklistWallboxPage() {
       setAzioneInCorsoId(checklist.id);
       const esito = await inviaChecklistWallbox({
         checklistWallboxId: checklist.id,
-        formato: checklist.formato_stampa,
       });
       toast.success(
         `${CHECKLIST_WALLBOX_TESTI.MESSAGGI.INVIATA} ${esito.destinatario}`
@@ -379,10 +414,7 @@ export default function ChecklistWallboxPage() {
   const handleDownload = async (checklist: ChecklistWallbox) => {
     try {
       setAzioneInCorsoId(checklist.id);
-      const { blob, nomeFile } = await fetchChecklistWallboxPdf(
-        checklist.id,
-        checklist.formato_stampa
-      );
+      const { blob, nomeFile } = await fetchChecklistWallboxPdf(checklist.id);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -401,10 +433,7 @@ export default function ChecklistWallboxPage() {
   const handleCondividiWhatsapp = async (checklist: ChecklistWallbox) => {
     try {
       setAzioneInCorsoId(checklist.id);
-      const { blob, nomeFile } = await fetchChecklistWallboxPdf(
-        checklist.id,
-        checklist.formato_stampa
-      );
+      const { blob, nomeFile } = await fetchChecklistWallboxPdf(checklist.id);
       const file = new File([blob], nomeFile, { type: "application/pdf" });
       const nav = navigator as Navigator & {
         canShare?: (data: ShareData) => boolean;
@@ -492,36 +521,38 @@ export default function ChecklistWallboxPage() {
                   {CHECKLIST_WALLBOX_TESTI.MODIFICA_TITOLO}
                 </p>
               )}
-              <div>
-                <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
-                  Formato PDF
-                </h2>
-                <div className="flex gap-1.5">
-                  {(["EDISON", "A2C"] as const).map((formato) => (
-                    <button
-                      key={formato}
-                      type="button"
-                      disabled={salvataggio}
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          formato_stampa: formato,
-                          ...(formato === "A2C"
-                            ? { ragione_sociale: "", piva: "", codice_ditta: "" }
-                            : {}),
-                        })
-                      }
-                      className={`h-9 rounded-md border px-4 text-sm font-medium transition-colors ${
-                        form.formato_stampa === formato
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "border-border bg-bg-card text-text-primary hover:bg-bg-subtle"
-                      }`}
-                    >
-                      {formato === "EDISON" ? "Edison" : "A2C"}
-                    </button>
-                  ))}
+              {!soloA2C && (
+                <div>
+                  <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
+                    Formato PDF
+                  </h2>
+                  <div className="flex gap-1.5">
+                    {(["EDISON", "A2C"] as const).map((formato) => (
+                      <button
+                        key={formato}
+                        type="button"
+                        disabled={salvataggio}
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            formato_stampa: formato,
+                            ...(formato === "A2C"
+                              ? { ragione_sociale: "", piva: "", codice_ditta: "" }
+                              : {}),
+                          })
+                        }
+                        className={`h-9 rounded-md border px-4 text-sm font-medium transition-colors ${
+                          form.formato_stampa === formato
+                            ? "border-brand-500 bg-brand-500 text-white"
+                            : "border-border bg-bg-card text-text-primary hover:bg-bg-subtle"
+                        }`}
+                      >
+                        {formato === "EDISON" ? "Edison" : "A2C"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
@@ -938,13 +969,13 @@ export default function ChecklistWallboxPage() {
             </p>
           )}
 
-          {!loading && checklists.length === 0 && (
+          {!loading && checklistsVisibili.length === 0 && (
             <p className="text-sm text-text-muted">
               {CHECKLIST_WALLBOX_TESTI.NESSUNA_CHECKLIST}
             </p>
           )}
 
-          {checklists.map((checklist) => {
+          {checklistsVisibili.map((checklist) => {
             const nomeCliente =
               `${checklist.nome} ${checklist.cognome}`.trim() || "-";
             const inCorso = azioneInCorsoId === checklist.id;
