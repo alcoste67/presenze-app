@@ -402,26 +402,9 @@ export async function generaPdfChecklistWallboxA2C(
   const colWidth = (PAGE_WIDTH - MARGIN_X * 2 - 18) / 2;
   let y = 748;
 
-  drawCampo({
-    page,
-    fonts,
-    label: CHECKLIST_WALLBOX_TESTI.RAGIONE_SOCIALE,
-    value: checklist.ragione_sociale,
-    x: MARGIN_X,
-    y,
-    width: colWidth,
-  });
-  drawCampo({
-    page,
-    fonts,
-    label: CHECKLIST_WALLBOX_TESTI.CODICE_DITTA,
-    value: checklist.codice_ditta,
-    x: MARGIN_X + colWidth + 18,
-    y,
-    width: colWidth,
-  });
-
-  y -= 40;
+  // Ragione sociale/P.IVA/codice ditta sono dati dell'installatore lato
+  // Edison: per il formato A2C non si compilano, quindi non li stampiamo
+  // (altrimenti uscirebbero etichette vuote sul PDF).
   drawCampo({
     page,
     fonts,

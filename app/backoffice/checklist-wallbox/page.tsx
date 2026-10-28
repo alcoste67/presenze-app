@@ -502,7 +502,15 @@ export default function ChecklistWallboxPage() {
                       key={formato}
                       type="button"
                       disabled={salvataggio}
-                      onClick={() => setForm({ ...form, formato_stampa: formato })}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          formato_stampa: formato,
+                          ...(formato === "A2C"
+                            ? { ragione_sociale: "", piva: "", codice_ditta: "" }
+                            : {}),
+                        })
+                      }
                       className={`h-9 rounded-md border px-4 text-sm font-medium transition-colors ${
                         form.formato_stampa === formato
                           ? "border-brand-500 bg-brand-500 text-white"
@@ -520,28 +528,32 @@ export default function ChecklistWallboxPage() {
                   {CHECKLIST_WALLBOX_TESTI.DATI_CLIENTE}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input
-                    label={CHECKLIST_WALLBOX_TESTI.RAGIONE_SOCIALE}
-                    value={form.ragione_sociale}
-                    onChange={(e) =>
-                      setForm({ ...form, ragione_sociale: e.target.value })
-                    }
-                    disabled={salvataggio}
-                  />
-                  <Input
-                    label={CHECKLIST_WALLBOX_TESTI.PIVA}
-                    value={form.piva}
-                    onChange={(e) => setForm({ ...form, piva: e.target.value })}
-                    disabled={salvataggio}
-                  />
-                  <Input
-                    label={CHECKLIST_WALLBOX_TESTI.CODICE_DITTA}
-                    value={form.codice_ditta}
-                    onChange={(e) =>
-                      setForm({ ...form, codice_ditta: e.target.value })
-                    }
-                    disabled={salvataggio}
-                  />
+                  {form.formato_stampa !== "A2C" && (
+                    <>
+                      <Input
+                        label={CHECKLIST_WALLBOX_TESTI.RAGIONE_SOCIALE}
+                        value={form.ragione_sociale}
+                        onChange={(e) =>
+                          setForm({ ...form, ragione_sociale: e.target.value })
+                        }
+                        disabled={salvataggio}
+                      />
+                      <Input
+                        label={CHECKLIST_WALLBOX_TESTI.PIVA}
+                        value={form.piva}
+                        onChange={(e) => setForm({ ...form, piva: e.target.value })}
+                        disabled={salvataggio}
+                      />
+                      <Input
+                        label={CHECKLIST_WALLBOX_TESTI.CODICE_DITTA}
+                        value={form.codice_ditta}
+                        onChange={(e) =>
+                          setForm({ ...form, codice_ditta: e.target.value })
+                        }
+                        disabled={salvataggio}
+                      />
+                    </>
+                  )}
                   <Input
                     label={CHECKLIST_WALLBOX_TESTI.NOME}
                     value={form.nome}
