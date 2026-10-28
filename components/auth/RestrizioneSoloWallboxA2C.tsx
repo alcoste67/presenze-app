@@ -17,9 +17,13 @@ const ROUTE_WALLBOX = APP_ROUTES.BACKOFFICE_CHECKLIST_WALLBOX;
 const ROUTE_CONSENTITE_OPERAIO = [ROUTE_WALLBOX];
 
 // L'admin di un'azienda ristretta gestisce anche gli utenti ("dipendenti")
-// e ha Home come pagina di partenza (bottone verso dipendenti).
+// e ha Home come pagina di partenza (bottone verso dipendenti). Dopo il
+// login proxy.ts porta su /timbrature, non su "/": è la stessa pagina
+// Home (app/timbrature/page.tsx la re-esporta), va quindi consentita
+// anche lei, altrimenti l'admin viene rimbalzato subito dopo il login.
 const ROUTE_CONSENTITE_ADMIN = [
   APP_ROUTES.HOME,
+  APP_ROUTES.TIMBRATURE,
   ROUTE_WALLBOX,
   APP_ROUTES.BACKOFFICE_DIPENDENTI,
 ];
