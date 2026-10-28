@@ -84,6 +84,7 @@ const LABEL_RUOLI_DIPENDENTE: Record<RuoloDipendente, string> = {
   [RUOLI_DIPENDENTE.OPERAIO]: "Operaio",
   [RUOLI_DIPENDENTE.RESPONSABILE]: "Responsabile",
   [RUOLI_DIPENDENTE.UFFICIO]: "Ufficio",
+  [RUOLI_DIPENDENTE.COMMERCIALE]: "Commerciale",
   [RUOLI_DIPENDENTE.ADMIN]: "Admin",
   [RUOLI_DIPENDENTE.SUPERADMIN]: "Superadmin",
 };
@@ -94,6 +95,7 @@ const RUOLO_BADGE_VARIANT: Record<RuoloDipendente, BadgeProps["variant"]> = {
   [RUOLI_DIPENDENTE.RESPONSABILE]: "info",
   [RUOLI_DIPENDENTE.OPERAIO]: "success",
   [RUOLI_DIPENDENTE.UFFICIO]: "muted",
+  [RUOLI_DIPENDENTE.COMMERCIALE]: "warning",
 };
 
 const FORM_INIZIALE: DipendenteFormState = {

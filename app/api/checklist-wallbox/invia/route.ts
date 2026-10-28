@@ -122,10 +122,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => null)) as {
       checklistWallboxId?: string;
-      formato?: string;
     } | null;
     checklistId = body?.checklistWallboxId || "";
-    const formato = normalizzaFormato(body?.formato);
 
     if (!checklistId) {
       return jsonErrore(
@@ -194,6 +192,10 @@ export async function POST(request: NextRequest) {
         HTTP_STATUS.CONFLICT
       );
     }
+
+    // Il formato è quello salvato sulla checklist, mai quello (eventuale)
+    // passato dal client: è un documento legale, non si improvvisa.
+    const formato = normalizzaFormato(checklist.formato_stampa);
 
     if (!checklist.email_cliente) {
       return jsonErrore(

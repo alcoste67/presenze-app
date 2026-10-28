@@ -4,6 +4,8 @@ export const APP_ROUTES = {
   STORICO: "/storico",
   NOTE_SPESE: "/note-spese",
   BACKOFFICE: "/backoffice",
+  BACKOFFICE_DIPENDENTI:
+    "/backoffice/dipendenti",
   BACKOFFICE_RAPPORTI_INTERVENTO:
     "/backoffice/rapporti-intervento",
   BACKOFFICE_CHECKLIST_WALLBOX:
