@@ -1849,7 +1849,7 @@ export default function HomePage() {
 
         <PushOptIn />
 
-        {promemoriaTimbraturaTipo && !assenzaOggi && !bloccoGiorno && (
+        {promemoriaTimbraturaTipo && !assenzaOggi && !bloccoGiorno && !adminFuniVisibile && (
           <CorrezioneTimbraturaBanner
             tipo={promemoriaTimbraturaTipo}
             cantiereId={cantiereId || null}
@@ -1923,27 +1923,31 @@ export default function HomePage() {
           <div className="my-4 border-t border-border" />
 
           <div className="flex flex-wrap gap-2">
-            <Link href={APP_ROUTES.STORICO}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<History className="h-4 w-4" />}
-              >
-                {TIMBRATURE_TESTI.UI.STORICO}
-              </Button>
-            </Link>
+            {!adminFuniVisibile && (
+              <Link href={APP_ROUTES.STORICO}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<History className="h-4 w-4" />}
+                >
+                  {TIMBRATURE_TESTI.UI.STORICO}
+                </Button>
+              </Link>
+            )}
 
-            <Link href={APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<ClipboardList className="h-4 w-4" />}
-              >
-                {RAPPORTI_INTERVENTO_TESTI.TITOLO}
-              </Button>
-            </Link>
+            {!adminFuniVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_RAPPORTI_INTERVENTO}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<ClipboardList className="h-4 w-4" />}
+                >
+                  {RAPPORTI_INTERVENTO_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
 
-            {noteSpeseVisibile && (
+            {noteSpeseVisibile && !adminFuniVisibile && (
               <Link href={APP_ROUTES.NOTE_SPESE}>
                 <Button
                   variant="secondary"
@@ -1979,7 +1983,7 @@ export default function HomePage() {
               </Link>
             )}
 
-            {wallboxVisibile && (
+            {wallboxVisibile && !adminFuniVisibile && (
               <Link href={APP_ROUTES.BACKOFFICE_ORDINI_LAVORO}>
                 <Button
                   variant="secondary"
@@ -1991,17 +1995,19 @@ export default function HomePage() {
               </Link>
             )}
 
-            <Link href={APP_ROUTES.BACKOFFICE_CALENDARIO}>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<CalendarDays className="h-4 w-4" />}
-              >
-                {PIANIFICAZIONI_TESTI.TITOLO}
-              </Button>
-            </Link>
+            {!adminFuniVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_CALENDARIO}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<CalendarDays className="h-4 w-4" />}
+                >
+                  {PIANIFICAZIONI_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
 
-            {mostraBackoffice && (
+            {mostraBackoffice && !adminFuniVisibile && (
               <Link href={APP_ROUTES.BACKOFFICE}>
                 <Button
                   variant="secondary"
@@ -2015,9 +2021,14 @@ export default function HomePage() {
           </div>
         </Card>
 
-        {/* ── Calendario lavori: oggi e domani ── */}
-        <CalendarioLavoriHome />
+        {/* ── Calendario lavori: oggi e domani (non per l'admin di
+             un'azienda ristretta: niente accesso al backoffice calendario) ── */}
+        {!adminFuniVisibile && <CalendarioLavoriHome />}
 
+        {/* ── Card 2 e 3: timbrature (non per l'admin di un'azienda
+             ristretta: lì Home serve solo per Checklist Wallbox/Dipendenti) ── */}
+        {!adminFuniVisibile && (
+          <>
         {/* ── Card 2: Stato attuale ── */}
         <Card className="p-5">
           <div className="flex items-center justify-between">
@@ -2185,9 +2196,11 @@ export default function HomePage() {
           </div>
         </Card>
         )}
+          </>
+        )}
 
         {/* ── Costi commessa (solo responsabili commessa) ── */}
-        <CostiCommessaHome />
+        {!adminFuniVisibile && <CostiCommessaHome />}
       </main>
 
       {richiestaAssenzaTipo && (
