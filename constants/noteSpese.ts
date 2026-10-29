@@ -62,6 +62,10 @@ export const NOTE_SPESE_TESTI = {
     CONFERMA: "Salva chilometri",
     SALVATI: "Chilometri salvati",
   },
+  POPUP_KM_USCITA: {
+    DESCRIZIONE: "Hai timbrato l'uscita: quanti km hai percorso oggi con la tua auto?",
+    PIU_TARDI: "Più tardi",
+  },
   SEZIONE_RIMBORSO_PROPRIO: {
     TITOLO: "I miei rimborsi chilometrici",
     MESE: "Mese",

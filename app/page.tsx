@@ -105,6 +105,8 @@ import { CorrezioneTimbraturaBanner } from "@/components/timbrature/CorrezioneTi
 import { CORREZIONI_TIMBRATURE } from "@/constants/correzioniTimbrature";
 import { dataRomaDi, dataRomaOggi, giornoLavorativoRoma, oraRomaAttuale } from "@/lib/timezoneRoma";
 import { notificaAdminSeAbilitato } from "@/services/timbrature/notificaAdminSeAbilitato";
+import { fetchNoteChilometri } from "@/services/noteSpese/fetchNoteChilometri";
+import { salvaNotaChilometriClient } from "@/services/noteSpese/salvaNotaChilometriClient";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -331,6 +333,11 @@ export default function HomePage() {
     useState<TipoDialogLavorazioni | null>(null);
 
   const [mostraLavorazioniUscita, setMostraLavorazioniUscita] = useState(false);
+
+  // ── Popup km percorsi, dopo timbratura uscita (solo auto propria) ──
+  const [mostraPopupKmUscita, setMostraPopupKmUscita] = useState(false);
+  const [kmUscitaInput, setKmUscitaInput] = useState("");
+  const [salvataggioKmUscitaInCorso, setSalvataggioKmUscitaInCorso] = useState(false);
 
   // ── Wizard uscita: lavorazioni → macchinari → foto ──
   type StepUscita = "CANTIERE" | "LAVORAZIONI" | "MACCHINARI" | "FOTO";
@@ -847,6 +854,26 @@ export default function HomePage() {
     dipendente?.ruolo ?? ""
   );
 
+  // Dopo una timbratura di uscita: se il dipendente usa l'auto propria e
+  // non ha ancora inserito i km di oggi, propone il popup per farlo.
+  // Best-effort: un errore qui non deve mai bloccare un'uscita già
+  // registrata, quindi viene semplicemente ignorato.
+  const verificaEApriPopupKmUscita = async () => {
+    try {
+      const oggi = dataRomaOggi();
+      const { usaAutoPropria, note } = await fetchNoteChilometri({
+        dataInizio: oggi,
+        dataFine: oggi,
+      });
+      if (usaAutoPropria && note.length === 0) {
+        setKmUscitaInput("");
+        setMostraPopupKmUscita(true);
+      }
+    } catch {
+      // ignorato: vedi commento sopra
+    }
+  };
+
   const resetLavorazioniUscita = () => {
     setMostraLavorazioniUscita(false);
     setLavorazioniUscita([]);
@@ -1090,6 +1117,10 @@ export default function HomePage() {
 
       if (tipo === TIMBRATURE.ENTRATA || tipo === TIMBRATURE.USCITA) {
         void notificaAdminSeAbilitato(tipo);
+      }
+
+      if (tipo === TIMBRATURE.USCITA) {
+        void verificaEApriPopupKmUscita();
       }
 
       resetLavorazioniUscita();
@@ -1567,6 +1598,9 @@ export default function HomePage() {
       return;
     }
 
+    // Letto prima del reset finale, che azzera tipoDialogLavorazioni.
+    const eraUscita = tipoDialogLavorazioni === TIMBRATURE.USCITA;
+
     const lavorazioniPayload = getLavorazioniUscitaPayload();
     if (!lavorazioniPayload) {
       setErroreLavorazioniUscita(
@@ -1679,6 +1713,10 @@ export default function HomePage() {
       toast.success(
         `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
       );
+
+      if (eraUscita) {
+        void verificaEApriPopupKmUscita();
+      }
     } catch (error: unknown) {
       console.error("Errore conferma uscita", {
         dettaglio: JSON.stringify(error),
@@ -1689,6 +1727,25 @@ export default function HomePage() {
       );
     } finally {
       setSalvataggioUscita(false);
+    }
+  };
+
+  const handleSalvaKmUscita = async () => {
+    const kmNumero = Number(kmUscitaInput.replace(",", "."));
+    if (!Number.isFinite(kmNumero) || kmNumero < 0) {
+      toast.error(NOTE_SPESE_TESTI.ERRORI.KM_NON_VALIDI);
+      return;
+    }
+
+    try {
+      setSalvataggioKmUscitaInCorso(true);
+      await salvaNotaChilometriClient({ data: dataRomaOggi(), km: kmNumero });
+      toast.success(NOTE_SPESE_TESTI.SEZIONE_KM.SALVATI);
+      setMostraPopupKmUscita(false);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, NOTE_SPESE_TESTI.ERRORI.SALVATAGGIO));
+    } finally {
+      setSalvataggioKmUscitaInCorso(false);
     }
   };
 
@@ -2705,6 +2762,62 @@ export default function HomePage() {
                   </Button>
                 </>
               )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Popup km percorsi dopo uscita (solo auto propria) ── */}
+      {mostraPopupKmUscita && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="popup-km-uscita-titolo"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-text-primary/60 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+        >
+          <Card className="w-full max-w-[420px] p-5">
+            <h2
+              id="popup-km-uscita-titolo"
+              className="font-heading text-xl font-medium text-text-primary"
+            >
+              {NOTE_SPESE_TESTI.SEZIONE_KM.TITOLO}
+            </h2>
+            <p className="mt-2 text-sm text-text-muted">
+              {NOTE_SPESE_TESTI.POPUP_KM_USCITA.DESCRIZIONE}
+            </p>
+
+            <label className="mt-4 flex flex-col gap-1">
+              <span className="text-sm font-medium text-text-primary">
+                {NOTE_SPESE_TESTI.SEZIONE_KM.ETICHETTA_KM}
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                autoFocus
+                value={kmUscitaInput}
+                onChange={(e) => setKmUscitaInput(e.target.value)}
+                disabled={salvataggioKmUscitaInCorso}
+                className="h-11 rounded-md border border-border bg-bg-card px-3 text-sm text-text-primary outline-none focus:border-brand-500"
+              />
+            </label>
+
+            <div className="mt-4 flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                disabled={salvataggioKmUscitaInCorso}
+                onClick={() => setMostraPopupKmUscita(false)}
+              >
+                {NOTE_SPESE_TESTI.POPUP_KM_USCITA.PIU_TARDI}
+              </Button>
+              <Button
+                className="flex-1"
+                loading={salvataggioKmUscitaInCorso}
+                onClick={() => void handleSalvaKmUscita()}
+              >
+                {NOTE_SPESE_TESTI.SEZIONE_KM.CONFERMA}
+              </Button>
             </div>
           </Card>
         </div>
