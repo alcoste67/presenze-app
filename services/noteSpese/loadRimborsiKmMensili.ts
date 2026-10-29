@@ -31,29 +31,37 @@ export async function loadRimborsiKmMensili({
   anno,
   mese,
   supabaseClient,
+  dipendenteId,
 }: {
   aziendaId: string;
   anno: number;
   mese: number;
   supabaseClient: SupabaseClient;
+  /** Se impostato, limita il risultato al solo dipendente indicato (vista "i miei rimborsi"). */
+  dipendenteId?: string;
 }): Promise<RimborsoKmRiga[]> {
   const dataInizio = getPrimoGiornoMese(anno, mese);
   const dataFineEsclusiva = getPrimoGiornoMeseSuccessivo(anno, mese);
 
+  let queryDipendenti = supabaseClient
+    .from("dipendenti")
+    .select("id, nome, cognome, usa_auto_propria, tariffa_km_rimborso, veicolo_descrizione")
+    .eq("azienda_id", aziendaId)
+    .eq("usa_auto_propria", true);
+  let queryKm = supabaseClient
+    .from("note_chilometri")
+    .select("dipendente_id, km")
+    .eq("azienda_id", aziendaId)
+    .gte("data", dataInizio)
+    .lt("data", dataFineEsclusiva);
+
+  if (dipendenteId) {
+    queryDipendenti = queryDipendenti.eq("id", dipendenteId);
+    queryKm = queryKm.eq("dipendente_id", dipendenteId);
+  }
+
   const [{ data: dipendentiData, error: dipendentiError }, { data: kmData, error: kmError }] =
-    await Promise.all([
-      supabaseClient
-        .from("dipendenti")
-        .select("id, nome, cognome, usa_auto_propria, tariffa_km_rimborso, veicolo_descrizione")
-        .eq("azienda_id", aziendaId)
-        .eq("usa_auto_propria", true),
-      supabaseClient
-        .from("note_chilometri")
-        .select("dipendente_id, km")
-        .eq("azienda_id", aziendaId)
-        .gte("data", dataInizio)
-        .lt("data", dataFineEsclusiva),
-    ]);
+    await Promise.all([queryDipendenti, queryKm]);
 
   if (dipendentiError) throw dipendentiError;
   if (kmError) throw kmError;

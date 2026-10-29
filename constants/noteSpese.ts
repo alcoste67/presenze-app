@@ -62,6 +62,16 @@ export const NOTE_SPESE_TESTI = {
     CONFERMA: "Salva chilometri",
     SALVATI: "Chilometri salvati",
   },
+  SEZIONE_RIMBORSO_PROPRIO: {
+    TITOLO: "I miei rimborsi chilometrici",
+    MESE: "Mese",
+    CERCA: "Cerca",
+    CARICAMENTO: "Caricamento...",
+    NESSUN_RISULTATO: "Nessun km registrato nel mese selezionato",
+    KM_TOTALI: "Km totali",
+    RIMBORSO: "Rimborso",
+    TARIFFA_NON_IMPOSTATA: "Tariffa non impostata",
+  },
   ELENCO: {
     TITOLO: "Le mie spese recenti",
     NESSUNA: "Nessuna spesa registrata",

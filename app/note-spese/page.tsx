@@ -14,7 +14,9 @@ import { creaNotaSpesaClient } from "@/services/noteSpese/creaNotaSpesaClient";
 import { fetchNoteSpese } from "@/services/noteSpese/fetchNoteSpese";
 import { fetchNoteChilometri } from "@/services/noteSpese/fetchNoteChilometri";
 import { salvaNotaChilometriClient } from "@/services/noteSpese/salvaNotaChilometriClient";
+import { fetchRimborsiKmMensili } from "@/services/noteSpese/fetchRimborsiKmMensili";
 import type { NotaSpesa, TipoSpesa } from "@/types/noteSpese";
+import type { RimborsoKmRiga } from "@/types/rimborsiKm";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +45,15 @@ function formattaImporto(importo: number): string {
   return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(importo);
 }
 
+function formattaKm(km: number): string {
+  return new Intl.NumberFormat("it-IT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(km);
+}
+
+function getMeseOggiInput(): string {
+  const oggi = new Date();
+  return `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, "0")}`;
+}
+
 const BADGE_STATO: Record<string, string> = {
   IN_ATTESA: "bg-warning-50 text-warning-500",
   APPROVATA: "bg-success-50 text-success-500",
@@ -66,6 +77,10 @@ export default function NoteSpesePage() {
   const [km, setKm] = useState("");
   const [invioKmInCorso, setInvioKmInCorso] = useState(false);
 
+  const [meseRimborso, setMeseRimborso] = useState(getMeseOggiInput());
+  const [rigaRimborso, setRigaRimborso] = useState<RimborsoKmRiga | null | undefined>(undefined);
+  const [loadingRimborso, setLoadingRimborso] = useState(false);
+
   const [noteSpese, setNoteSpese] = useState<NotaSpesa[]>([]);
 
   const caricaTutto = async () => {
@@ -79,6 +94,30 @@ export default function NoteSpesePage() {
       setKm(String(chilometri.note[0].km));
     }
   };
+
+  const handleCercaRimborso = async (mese: string) => {
+    const [annoStr, meseStr] = mese.split("-");
+    const anno = Number(annoStr);
+    const meseNumero = Number(meseStr);
+    if (!anno || !meseNumero) return;
+
+    try {
+      setLoadingRimborso(true);
+      const risposta = await fetchRimborsiKmMensili({ anno, mese: meseNumero });
+      setRigaRimborso(risposta.righe[0] || null);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, TESTI.ERRORI.CARICAMENTO));
+    } finally {
+      setLoadingRimborso(false);
+    }
+  };
+
+  useEffect(() => {
+    if (usaAutoPropria) {
+      void handleCercaRimborso(meseRimborso);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usaAutoPropria]);
 
   useEffect(() => {
     let attivo = true;
@@ -213,6 +252,64 @@ export default function NoteSpesePage() {
                 >
                   {TESTI.SEZIONE_KM.CONFERMA}
                 </Button>
+              </Card>
+            )}
+
+            {usaAutoPropria && (
+              <Card className="p-5">
+                <h2 className="font-heading text-lg font-medium text-text-primary">
+                  {TESTI.SEZIONE_RIMBORSO_PROPRIO.TITOLO}
+                </h2>
+                <div className="mt-4 flex items-end gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      label={TESTI.SEZIONE_RIMBORSO_PROPRIO.MESE}
+                      type="month"
+                      className="w-full min-w-0"
+                      value={meseRimborso}
+                      onChange={(e) => setMeseRimborso(e.target.value)}
+                      disabled={loadingRimborso}
+                    />
+                  </div>
+                  <Button
+                    variant="secondary"
+                    loading={loadingRimborso}
+                    onClick={() => void handleCercaRimborso(meseRimborso)}
+                  >
+                    {TESTI.SEZIONE_RIMBORSO_PROPRIO.CERCA}
+                  </Button>
+                </div>
+
+                {loadingRimborso && (
+                  <p className="mt-3 text-sm text-text-muted">
+                    {TESTI.SEZIONE_RIMBORSO_PROPRIO.CARICAMENTO}
+                  </p>
+                )}
+
+                {!loadingRimborso && rigaRimborso === null && (
+                  <p className="mt-3 text-sm text-text-muted">
+                    {TESTI.SEZIONE_RIMBORSO_PROPRIO.NESSUN_RISULTATO}
+                  </p>
+                )}
+
+                {!loadingRimborso && rigaRimborso && (
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-border bg-bg-base px-3 py-2.5">
+                    <div>
+                      <p className="text-xs text-text-muted">{TESTI.SEZIONE_RIMBORSO_PROPRIO.KM_TOTALI}</p>
+                      <p className="text-sm font-medium text-text-primary">
+                        {formattaKm(rigaRimborso.kmTotali)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-text-muted">{TESTI.SEZIONE_RIMBORSO_PROPRIO.RIMBORSO}</p>
+                      <p className="text-sm font-medium text-text-primary">
+                        {rigaRimborso.rimborso !== null
+                          ? formattaImporto(rigaRimborso.rimborso)
+                          : TESTI.SEZIONE_RIMBORSO_PROPRIO.TARIFFA_NON_IMPOSTATA}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
 
