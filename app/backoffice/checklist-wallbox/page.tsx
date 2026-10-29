@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { Home, Plus, Share2, Download, Send } from "lucide-react";
+import { Home, Maximize2, Plus, Share2, Download, Send, X } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
 import {
@@ -184,6 +184,28 @@ export default function ChecklistWallboxPage() {
   const [soloA2C, setSoloA2C] = useState(false);
   const [adminFuni, setAdminFuni] = useState(false);
   const [userIdCorrente, setUserIdCorrente] = useState<string | null>(null);
+  const [planimetriaSchermoIntero, setPlanimetriaSchermoIntero] = useState(false);
+  const [planimetriaCanvasSize, setPlanimetriaCanvasSize] = useState({
+    width: 720,
+    height: 390,
+  });
+
+  useEffect(() => {
+    if (!planimetriaSchermoIntero) return;
+    // Spazio per header/toolbar della videata dedicata + margini.
+    const ALTEZZA_RISERVATA = 96;
+    const MARGINE = 32;
+    const MAX_LATO = 1600;
+    const width = Math.min(
+      Math.max(Math.round(window.innerWidth - MARGINE), 280),
+      MAX_LATO
+    );
+    const height = Math.min(
+      Math.max(Math.round(window.innerHeight - ALTEZZA_RISERVATA - MARGINE), 280),
+      MAX_LATO
+    );
+    setPlanimetriaCanvasSize({ width, height });
+  }, [planimetriaSchermoIntero]);
 
   useEffect(() => {
     let attivo = true;
@@ -889,17 +911,36 @@ export default function ChecklistWallboxPage() {
                 <h2 className="font-heading text-lg font-medium text-text-primary mb-3">
                   {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO}
                 </h2>
-                <FirmaCanvas
-                  label={CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_AVVISO}
-                  clearLabel={CHECKLIST_WALLBOX_TESTI.CANCELLA_FIRMA}
-                  value={form.planimetria_data_url}
-                  onChange={(value) =>
-                    setForm({ ...form, planimetria_data_url: value })
-                  }
+                <p className="mb-2 text-sm text-text-muted">
+                  {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_AVVISO}
+                </p>
+
+                {form.planimetria_data_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.planimetria_data_url}
+                    alt={CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO}
+                    className="w-full rounded-md border border-border bg-bg-card shadow-inner"
+                  />
+                ) : (
+                  <div className="flex aspect-[16/9] w-full items-center justify-center rounded-md border border-dashed border-border bg-bg-card text-sm text-text-muted">
+                    {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_VUOTA}
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
                   disabled={salvataggio}
-                  width={720}
-                  height={390}
-                />
+                  icon={<Maximize2 className="h-4 w-4" />}
+                  onClick={() => setPlanimetriaSchermoIntero(true)}
+                >
+                  {form.planimetria_data_url
+                    ? CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_MODIFICA
+                    : CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_DISEGNA}
+                </Button>
               </div>
 
               <div>
@@ -1059,6 +1100,43 @@ export default function ChecklistWallboxPage() {
           })}
         </div>
       </main>
+
+      {planimetriaSchermoIntero && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO}
+          className="fixed inset-0 z-50 flex flex-col bg-bg-base"
+        >
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="font-heading text-base font-medium text-text-primary">
+              {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_TITOLO}
+            </h2>
+            <Button
+              type="button"
+              size="sm"
+              icon={<X className="h-4 w-4" />}
+              onClick={() => setPlanimetriaSchermoIntero(false)}
+            >
+              {CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_CHIUDI}
+            </Button>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+            <FirmaCanvas
+              label={CHECKLIST_WALLBOX_TESTI.PLANIMETRIA_AVVISO}
+              clearLabel={CHECKLIST_WALLBOX_TESTI.CANCELLA_FIRMA}
+              value={form.planimetria_data_url}
+              onChange={(value) =>
+                setForm({ ...form, planimetria_data_url: value })
+              }
+              disabled={salvataggio}
+              width={planimetriaCanvasSize.width}
+              height={planimetriaCanvasSize.height}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
