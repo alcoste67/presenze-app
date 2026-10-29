@@ -124,7 +124,7 @@ Audit su `services/timbrature/creaTimbratura.ts`.
 
 **Scope**:
 * Riprodurre bug specifico (qual è il PDF result atteso?)
-* Verificare logica aggregazione in `services/sal/loadSalCantiere.ts`
+* Verificare logica aggregazione in `services/lavorazioni/loadSalCantiere.ts`
 * Controllare PDF template se formula è corretta
 * Implementare fix minimo
 
