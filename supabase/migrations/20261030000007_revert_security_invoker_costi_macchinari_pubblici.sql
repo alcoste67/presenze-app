@@ -1,0 +1,21 @@
+-- Revert di 20261030000000: quella migration presumeva (sbagliando, per
+-- non aver controllato la cartella migrations/ prima di oggi) che la
+-- vista costi_macchinari_pubblici non avesse già un filtro tenant. In
+-- realtà da giugno 2026 (migrations/task0_fix_viste_security_definer.sql)
+-- la vista resta DELIBERATAMENTE security definer — serve a nascondere
+-- le colonne di costo a chi non è admin, cosa che security_invoker non fa
+-- (nasconde solo righe/permessi, non colonne) — con un filtro esplicito
+-- "WHERE azienda_id = current_azienda_id()" scritto dentro la vista
+-- stessa, che la rende già sicura cross-tenant senza bisogno di invoker
+-- rights.
+--
+-- Impostare security_invoker = true fa sì che la vista erediti ANCHE la
+-- policy SELECT della tabella sottostante (costi_macchinari_commessa),
+-- che richiede current_is_admin(): un RESPONSABILE o un OPERAIO, che
+-- dovrebbero vedere i costi macchinari (senza importi) tramite questa
+-- vista "pubblica", si ritroverebbero con zero risultati.
+--
+-- Eseguire prima su DEV (mkfedjazibcmstkjxkfm), verificare, poi PROD
+-- (skdtczhvxvawwjanciss).
+
+ALTER VIEW public.costi_macchinari_pubblici SET (security_invoker = false);
