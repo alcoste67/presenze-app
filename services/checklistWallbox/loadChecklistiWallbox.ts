@@ -6,12 +6,19 @@ import type { ChecklistWallbox } from "@/types/checklistWallbox";
 type SupabaseClient = typeof supabase;
 
 export async function loadChecklistiWallbox(
+  { creatoDa }: { creatoDa?: string } = {},
   supabaseClient: SupabaseClient = supabase
 ): Promise<ChecklistWallbox[]> {
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("checklist_wallbox")
     .select(SELECT_CHECKLIST_WALLBOX)
     .order("created_at", { ascending: false });
+
+  if (creatoDa) {
+    query = query.eq("created_by", creatoDa);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throwErroreSupabase("Lettura elenco checklist wallbox", error);

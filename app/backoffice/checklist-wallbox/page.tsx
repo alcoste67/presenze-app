@@ -207,41 +207,26 @@ export default function ChecklistWallboxPage() {
     setPlanimetriaCanvasSize({ width, height });
   }, [planimetriaSchermoIntero]);
 
-  useEffect(() => {
-    let attivo = true;
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      setUserIdCorrente(user.id);
-      checkRestrizioneWallboxA2C(user.id).then(({ ristretto, isAdmin }) => {
-        if (!attivo || !ristretto) return;
-        setSoloA2C(true);
-        setAdminFuni(isAdmin);
-        setForm((f) => ({ ...f, formato_stampa: "A2C" }));
-        // L'admin atterra sullo storico completo dell'azienda; l'operaio
-        // va dritto in compilazione (non ha uno storico da sfogliare, solo
-        // le proprie checklist ancora da firmare/inviare).
-        if (!isAdmin) setMostraForm(true);
-      });
-    });
-
-    return () => {
-      attivo = false;
-    };
-  }, []);
-
   // Aziende ristrette alla sola checklist A2C: l'admin vede tutto lo
   // storico dell'azienda, ogni altro dipendente vede e modifica solo le
-  // checklist create da lui.
+  // checklist create da lui. Il filtro è applicato già nella query (non
+  // solo in questo render): un operaio ristretto non deve mai ricevere
+  // dal server le checklist dei colleghi.
   const checklistsVisibili =
     soloA2C && !adminFuni
       ? checklists.filter((c) => c.created_by === userIdCorrente)
       : checklists;
 
-  const ricarica = async () => {
+  const ricarica = async (creatoDaOverride?: string) => {
     try {
       setLoading(true);
-      const dati = await loadChecklistiWallbox();
+      const creatoDa =
+        creatoDaOverride !== undefined
+          ? creatoDaOverride || undefined
+          : soloA2C && !adminFuni
+            ? userIdCorrente || undefined
+            : undefined;
+      const dati = await loadChecklistiWallbox({ creatoDa });
       setChecklists(dati);
     } catch (error: unknown) {
       toast.error(
@@ -253,7 +238,38 @@ export default function ChecklistWallboxPage() {
   };
 
   useEffect(() => {
-    void ricarica();
+    let attivo = true;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (attivo) await ricarica();
+        return;
+      }
+
+      setUserIdCorrente(user.id);
+      const { ristretto, isAdmin } = await checkRestrizioneWallboxA2C(user.id);
+      if (!attivo) return;
+
+      let soloProprie = false;
+      if (ristretto) {
+        setSoloA2C(true);
+        setAdminFuni(isAdmin);
+        setForm((f) => ({ ...f, formato_stampa: "A2C" }));
+        // L'admin atterra sullo storico completo dell'azienda; l'operaio
+        // va dritto in compilazione (non ha uno storico da sfogliare, solo
+        // le proprie checklist ancora da firmare/inviare).
+        if (!isAdmin) setMostraForm(true);
+        soloProprie = !isAdmin;
+      }
+
+      await ricarica(soloProprie ? user.id : "");
+    })();
+
+    return () => {
+      attivo = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
