@@ -27,6 +27,19 @@ function sottraiGiorni(dataYYYYMMDD: string, giorni: number): string {
   return data.toISOString().slice(0, 10);
 }
 
+async function aziendaRistrettaSoloWallboxA2C(
+  supabaseAdmin: SupabaseClient,
+  aziendaId: string
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("aziende")
+    .select("solo_checklist_wallbox_a2c")
+    .eq("id", aziendaId)
+    .maybeSingle();
+
+  return Boolean(data?.solo_checklist_wallbox_a2c);
+}
+
 function candidatiLavorativi(oggi: string, dataMinima: string): string[] {
   const candidati: string[] = [];
   for (let i = 1; i <= FINESTRA_GIORNI; i++) {
@@ -54,6 +67,9 @@ export type GiornataVuotaDipendente = {
  * calendario per-dipendente dei giorni effettivamente lavorati per fare
  * di meglio. Si accumulano finché non vengono classificati (dall'admin o
  * da una richiesta del dipendente stesso): nessuno sblocco automatico.
+ * Le aziende con solo_checklist_wallbox_a2c=true (es. FUNI) sono escluse:
+ * i loro dipendenti non hanno accesso alla timbratura, quindi ogni
+ * giorno risulterebbe sempre "vuoto".
  */
 export async function trovaGiornateVuoteDipendente(
   supabaseAdmin: SupabaseClient,
@@ -63,6 +79,10 @@ export async function trovaGiornateVuoteDipendente(
     !dipendente.auth_user_id ||
     dipendente.tipo_conteggio_ore === TIPO_CONTEGGIO_ORE.GIORNATA_FORFAIT_4H
   ) {
+    return [];
+  }
+
+  if (await aziendaRistrettaSoloWallboxA2C(supabaseAdmin, dipendente.azienda_id)) {
     return [];
   }
 
