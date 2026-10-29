@@ -39,7 +39,7 @@ async function getDipendenteChiamante(
   return (dipendente as DipendenteChiamante | null) || null;
 }
 
-function puoVedereRimborsi(ruolo: string): boolean {
+function puoVedereRimborsiAzienda(ruolo: string): boolean {
   return (RUOLI_APPROVA_NOTE_SPESE as readonly string[]).includes(ruolo);
 }
 
@@ -53,10 +53,6 @@ export async function GET(request: Request): Promise<Response> {
     const dipendente = await getDipendenteChiamante(accessToken);
     if (!dipendente) {
       return jsonErrore(RIMBORSI_KM_TESTI.ERRORI.TOKEN_NON_VALIDO, HTTP_STATUS.UNAUTHORIZED);
-    }
-
-    if (!puoVedereRimborsi(dipendente.ruolo)) {
-      return jsonErrore(RIMBORSI_KM_TESTI.ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN);
     }
 
     const { searchParams } = new URL(request.url);
@@ -74,11 +70,17 @@ export async function GET(request: Request): Promise<Response> {
       return jsonErrore(RIMBORSI_KM_TESTI.ERRORI.MESE_NON_VALIDO, HTTP_STATUS.BAD_REQUEST);
     }
 
+    // Admin/Superadmin vedono tutta l'azienda; gli altri ruoli solo la
+    // propria riga (dipendenteId è sempre il proprio, mai un valore
+    // passato dal client).
+    const vedeTuttaAzienda = puoVedereRimborsiAzienda(dipendente.ruolo);
+
     const righe = await loadRimborsiKmMensili({
       aziendaId: dipendente.azienda_id,
       anno,
       mese,
       supabaseClient: supabaseAdmin,
+      dipendenteId: vedeTuttaAzienda ? undefined : dipendente.id,
     });
 
     return Response.json({ anno, mese, righe }, { headers: NO_STORE });
