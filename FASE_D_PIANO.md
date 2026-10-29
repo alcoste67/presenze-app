@@ -14,7 +14,7 @@ Stato al 2026-06-13 (preparato in autonomia mentre Alex era assente).
 
 ## FATTO (pronto, build-verified)
 
-### DB — `migrations/task14_sal_valorizzato.sql` (da eseguire DEV → PROD)
+### DB — `supabase/migrations/20260613000015_sal_valorizzato.sql` (da eseguire DEV → PROD)
 - `sal_freeze_lavorazioni`: + `unita_misura_snapshot`, `quantita_snapshot`,
   `prezzo_unitario_snapshot`, `importo_totale`, `importo_maturato`,
   `importo_periodo` (tutte nullable).
