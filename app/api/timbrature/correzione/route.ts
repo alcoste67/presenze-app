@@ -3,6 +3,7 @@ import { Resend } from "resend";
 
 import { HTTP_STATUS } from "@/constants/api";
 import { CORREZIONI_TIMBRATURE_TESTI } from "@/constants/correzioniTimbrature";
+import { LAVORAZIONI_LIMITI, LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { TIMBRATURE } from "@/constants/stati";
 import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -14,6 +15,7 @@ import { caricaStatoGiornata } from "@/services/timbrature/statoGiornataDipenden
 import { validaSequenzaTimbratura } from "@/services/timbrature/validaSequenzaTimbratura";
 import { valutaPromemoria } from "@/services/timbrature/valutaPromemoria";
 import { notificaAdminTimbratura } from "@/services/timbrature/notificaAdminTimbratura";
+import type { TimbraturaLavorazioneInput } from "@/types/timbratureLavorazioni";
 
 export const runtime = "nodejs";
 
@@ -69,6 +71,31 @@ export async function POST(request: NextRequest) {
   const orario = body.orario;
   const cantiereIdRichiesto = typeof body.cantiereId === "string" ? body.cantiereId : null;
   const attivitaTipoRichiesta = typeof body.attivitaTipo === "string" ? body.attivitaTipo : null;
+
+  const lavorazioniInput: TimbraturaLavorazioneInput[] = [];
+  if (body.lavorazioni !== undefined) {
+    if (!Array.isArray(body.lavorazioni)) {
+      return jsonErrore(LAVORAZIONI_TESTI.ERRORI.PERCENTUALE_NON_VALIDA, HTTP_STATUS.BAD_REQUEST);
+    }
+    for (const voce of body.lavorazioni) {
+      if (
+        !isRecord(voce) ||
+        typeof voce.lavorazioneId !== "string" ||
+        !voce.lavorazioneId ||
+        (voce.percentualeAvanzamento !== null &&
+          (typeof voce.percentualeAvanzamento !== "number" ||
+            !Number.isInteger(voce.percentualeAvanzamento) ||
+            voce.percentualeAvanzamento < LAVORAZIONI_LIMITI.PERCENTUALE_MIN ||
+            voce.percentualeAvanzamento > LAVORAZIONI_LIMITI.PERCENTUALE_MAX))
+      ) {
+        return jsonErrore(LAVORAZIONI_TESTI.ERRORI.PERCENTUALE_NON_VALIDA, HTTP_STATUS.BAD_REQUEST);
+      }
+      lavorazioniInput.push({
+        lavorazioneId: voce.lavorazioneId,
+        percentualeAvanzamento: voce.percentualeAvanzamento,
+      });
+    }
+  }
 
   // ── La finestra di correzione va rivalutata qui: mai fidarsi del client ──
   const inFerieOggi = await haAssenzaGiornataIntera({
@@ -151,6 +178,40 @@ export async function POST(request: NextRequest) {
     return jsonErrore(CORREZIONI_TIMBRATURE_TESTI.ERRORI.GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 
+  if (lavorazioniInput.length > 0) {
+    const lavorazioniUniche = Array.from(
+      new Map(lavorazioniInput.map((l) => [l.lavorazioneId, l])).values()
+    );
+
+    const { error: erroreLavorazioni } = await supabaseAdmin
+      .from("timbrature_lavorazioni")
+      .upsert(
+        lavorazioniUniche.map((lavorazione) => ({
+          timbratura_id: nuovaTimbratura.id,
+          lavorazione_id: lavorazione.lavorazioneId,
+          percentuale_avanzamento: lavorazione.percentualeAvanzamento,
+          azienda_id: dipendente.azienda_id,
+        })),
+        { onConflict: "timbratura_id,lavorazione_id" }
+      );
+
+    if (erroreLavorazioni) {
+      console.error("Errore salvataggio lavorazioni autocorrezione", erroreLavorazioni);
+      return jsonErrore(LAVORAZIONI_TESTI.ERRORI.GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    }
+
+    await Promise.all(
+      lavorazioniUniche
+        .filter((lavorazione) => lavorazione.percentualeAvanzamento !== null)
+        .map((lavorazione) =>
+          supabaseAdmin
+            .from("lavorazioni_cantiere")
+            .update({ percentuale_completamento: lavorazione.percentualeAvanzamento })
+            .eq("id", lavorazione.lavorazioneId)
+        )
+    );
+  }
+
   await supabaseAdmin.from("timbrature_autocorrezioni").insert({
     azienda_id: dipendente.azienda_id,
     dipendente_id: dipendente.id,
@@ -195,5 +256,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return Response.json({ ok: true }, { headers: NO_STORE });
+  return Response.json(
+    { ok: true, id: nuovaTimbratura.id, cantiereId },
+    { headers: NO_STORE }
+  );
 }

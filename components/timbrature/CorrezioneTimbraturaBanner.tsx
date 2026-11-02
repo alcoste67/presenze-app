@@ -16,6 +16,11 @@ type Props = {
   cantiereId?: string | null;
   attivitaTipo?: TipoAttivita | "";
   onCorretto: () => void;
+  // Solo per tipo "USCITA": invece di inviare subito, passa la mano al
+  // genitore che apre la stessa wizard lavorazioni/macchinari/foto/km
+  // dell'uscita normale (stessi passaggi obbligatori).
+  loadingCorrezioneUscita?: boolean;
+  onCorreggiUscita?: (orario: string) => void;
 };
 
 function oraAttualeInput() {
@@ -23,7 +28,14 @@ function oraAttualeInput() {
   return `${String(adesso.getHours()).padStart(2, "0")}:${String(adesso.getMinutes()).padStart(2, "0")}`;
 }
 
-export function CorrezioneTimbraturaBanner({ tipo, cantiereId, attivitaTipo, onCorretto }: Props) {
+export function CorrezioneTimbraturaBanner({
+  tipo,
+  cantiereId,
+  attivitaTipo,
+  onCorretto,
+  loadingCorrezioneUscita = false,
+  onCorreggiUscita,
+}: Props) {
   const toast = useToast();
   const [orario, setOrario] = useState(oraAttualeInput);
   const [invioInCorso, setInvioInCorso] = useState(false);
@@ -40,13 +52,18 @@ export function CorrezioneTimbraturaBanner({ tipo, cantiereId, attivitaTipo, onC
         };
 
   const handleConferma = async () => {
+    if (tipo === "USCITA") {
+      onCorreggiUscita?.(orario);
+      return;
+    }
+
     try {
       setInvioInCorso(true);
       await correggiTimbratura({
         tipo,
         orario,
-        cantiereId: tipo === "ENTRATA" ? cantiereId : undefined,
-        attivitaTipo: tipo === "ENTRATA" && attivitaTipo ? attivitaTipo : undefined,
+        cantiereId,
+        attivitaTipo: attivitaTipo || undefined,
       });
       toast.success(CORREZIONI_TIMBRATURE_TESTI.MESSAGGI.REGISTRATA);
       onCorretto();
@@ -56,6 +73,8 @@ export function CorrezioneTimbraturaBanner({ tipo, cantiereId, attivitaTipo, onC
       setInvioInCorso(false);
     }
   };
+
+  const loading = tipo === "USCITA" ? loadingCorrezioneUscita : invioInCorso;
 
   return (
     <Card className="p-4 flex items-start gap-3 border-warning-500/50 bg-warning-50">
@@ -72,11 +91,11 @@ export function CorrezioneTimbraturaBanner({ tipo, cantiereId, attivitaTipo, onC
               type="time"
               value={orario}
               onChange={(e) => setOrario(e.target.value)}
-              disabled={invioInCorso}
+              disabled={loading}
               className="h-9 rounded-md border border-border bg-bg-card px-2 text-sm text-text-primary outline-none focus:border-brand-500"
             />
           </label>
-          <Button size="sm" loading={invioInCorso} onClick={() => void handleConferma()}>
+          <Button size="sm" loading={loading} onClick={() => void handleConferma()}>
             {CORREZIONI_TIMBRATURE_TESTI.BANNER.CONFERMA}
           </Button>
         </div>

@@ -97,6 +97,7 @@ import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbi
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { fetchBloccoGiornoPrecedente } from "@/services/timbrature/fetchBloccoGiornoPrecedente";
 import { chiudiTurnoPrecedenteClient } from "@/services/timbrature/chiudiTurnoPrecedenteClient";
+import { correggiTimbratura } from "@/services/timbrature/correggiTimbratura";
 import { BLOCCO_GIORNO_PRECEDENTE_TESTI } from "@/constants/bloccoGiornoPrecedente";
 import { BloccoGiornoPrecedente } from "@/components/timbrature/BloccoGiornoPrecedente";
 import type { BloccoGiornoPrecedente as BloccoGiornoPrecedenteInfo } from "@/types/bloccoGiornoPrecedente";
@@ -104,7 +105,7 @@ import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
 import { CalendarioLavoriHome } from "@/components/pianificazioni/CalendarioLavoriHome";
 import { PushOptIn } from "@/components/notifichePush/PushOptIn";
 import { CorrezioneTimbraturaBanner } from "@/components/timbrature/CorrezioneTimbraturaBanner";
-import { CORREZIONI_TIMBRATURE } from "@/constants/correzioniTimbrature";
+import { CORREZIONI_TIMBRATURE, CORREZIONI_TIMBRATURE_TESTI } from "@/constants/correzioniTimbrature";
 import { dataRomaDi, dataRomaOggi, giornoLavorativoRoma, oraRomaAttuale } from "@/lib/timezoneRoma";
 import { notificaAdminSeAbilitato } from "@/services/timbrature/notificaAdminSeAbilitato";
 import { fetchNoteChilometri } from "@/services/noteSpese/fetchNoteChilometri";
@@ -130,7 +131,8 @@ type PercentualiLavorazioniUscita = Record<string, string>;
 type TipoDialogLavorazioni =
   | typeof TIMBRATURE.USCITA
   | typeof TIMBRATURE.CAMBIO_CANTIERE
-  | "CHIUDI_TURNO_PRECEDENTE";
+  | "CHIUDI_TURNO_PRECEDENTE"
+  | "CORREZIONE_USCITA_OGGI";
 
 // ─── Local constants ──────────────────────────────────────────────────────────
 
@@ -397,6 +399,13 @@ export default function HomePage() {
     ora: string;
   } | null>(null);
   const [chiusuraTurnoInCorso, setChiusuraTurnoInCorso] = useState(false);
+  // Orario scelto correggendo un'uscita di oggi (banner "non risulta
+  // ancora un'uscita oggi"): stessa idea di correzioneTurnoOrario ma per
+  // il giorno corrente, serve solo l'ora.
+  const [correzioneUscitaOrario, setCorrezioneUscitaOrario] = useState<
+    string | null
+  >(null);
+  const [correzioneUscitaInCorso, setCorrezioneUscitaInCorso] = useState(false);
   const [invitiCollabInAttesa, setInvitiCollabInAttesa] = useState(0);
   const [novitaLavorazioniCantiereId, setNovitaLavorazioniCantiereId] = useState<
     string | null
@@ -913,6 +922,7 @@ export default function HomePage() {
     setCreazioneCantiereInCorso(false);
     setCreaBozzaRapporto(false);
     setCorrezioneTurnoOrario(null);
+    setCorrezioneUscitaOrario(null);
   };
 
   // "+ Proponi lavorazione": crea subito la proposta a DB e la
@@ -1098,7 +1108,9 @@ export default function HomePage() {
 
     // Macchinari disponibili per lo step dedicato (solo ruoli abilitati)
     if (
-      (tipo === TIMBRATURE.USCITA || tipo === "CHIUDI_TURNO_PRECEDENTE") &&
+      (tipo === TIMBRATURE.USCITA ||
+        tipo === "CHIUDI_TURNO_PRECEDENTE" ||
+        tipo === "CORREZIONE_USCITA_OGGI") &&
       puoRegistrareMacchinari
     ) {
       loadMacchinariPubblici()
@@ -1209,6 +1221,47 @@ export default function HomePage() {
       toast.error(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO);
     } finally {
       setChiusuraTurnoInCorso(false);
+    }
+  };
+
+  // Correzione dell'uscita di oggi (banner "non risulta ancora un'uscita
+  // oggi"): stessi passaggi obbligatori di un'uscita normale quando si è
+  // dentro su un cantiere. Su una semplice attività chiude subito, ma
+  // propone comunque il popup km.
+  const handleCorreggiUscitaOggi = async (orario: string) => {
+    const cantiereTurno = ultimaTimbratura?.cantiere_id || null;
+
+    if (!cantiereTurno) {
+      try {
+        setCorrezioneUscitaInCorso(true);
+        await correggiTimbratura({ tipo: "USCITA", orario });
+        toast.success(CORREZIONI_TIMBRATURE_TESTI.MESSAGGI.REGISTRATA);
+        void refreshUltimaTimbratura(user?.id || null);
+        void verificaEApriPopupKmUscita();
+      } catch (error: unknown) {
+        toast.error(
+          getMessaggioErrore(error, CORREZIONI_TIMBRATURE_TESTI.ERRORI.GENERICO)
+        );
+      } finally {
+        setCorrezioneUscitaInCorso(false);
+      }
+      return;
+    }
+
+    try {
+      setCorrezioneUscitaInCorso(true);
+      const lavorazioni = await loadLavorazioniAttiveCantiere(cantiereTurno);
+      setCorrezioneUscitaOrario(orario);
+      mostraDialogLavorazioni({
+        tipo: "CORREZIONE_USCITA_OGGI",
+        cantiereIdLavorazioni: cantiereTurno,
+        lavorazioni,
+      });
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO);
+    } finally {
+      setCorrezioneUscitaInCorso(false);
     }
   };
 
@@ -1659,13 +1712,19 @@ export default function HomePage() {
       return;
     }
 
-    // Letti prima del reset finale, che azzera tipoDialogLavorazioni e
-    // correzioneTurnoOrario.
+    // Letti prima del reset finale, che azzera tipoDialogLavorazioni,
+    // correzioneTurnoOrario e correzioneUscitaOrario.
     const eraUscita = tipoDialogLavorazioni === TIMBRATURE.USCITA;
     const eraChiusuraTurno = tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE";
+    const eraCorrezioneUscitaOggi = tipoDialogLavorazioni === "CORREZIONE_USCITA_OGGI";
     const orarioCorrezione = correzioneTurnoOrario;
+    const orarioCorrezioneUscita = correzioneUscitaOrario;
 
     if (eraChiusuraTurno && !orarioCorrezione) {
+      setErroreLavorazioniUscita(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO);
+      return;
+    }
+    if (eraCorrezioneUscitaOggi && !orarioCorrezioneUscita) {
       setErroreLavorazioniUscita(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO);
       return;
     }
@@ -1692,9 +1751,16 @@ export default function HomePage() {
             lavorazioni: lavorazioniPayload,
           });
           timbraturaId = chiusura.id;
+        } else if (eraCorrezioneUscitaOggi && orarioCorrezioneUscita) {
+          const correzione = await correggiTimbratura({
+            tipo: "USCITA",
+            orario: orarioCorrezioneUscita,
+            lavorazioni: lavorazioniPayload,
+          });
+          timbraturaId = correzione.id;
         } else {
-          // Mai "CHIUDI_TURNO_PRECEDENTE" qui: quel caso è gestito nel
-          // ramo sopra (eraChiusuraTurno && orarioCorrezione).
+          // Mai "CHIUDI_TURNO_PRECEDENTE"/"CORREZIONE_USCITA_OGGI" qui:
+          // gestiti nei rami sopra.
           const timbratura = await handleTimbratura({
             cantiereId: cantiereIdUscita,
             attivitaTipo: null,
@@ -1709,7 +1775,8 @@ export default function HomePage() {
 
         // 2. Macchinari usati (best effort, una sola volta). Data
         // dell'utilizzo: quella del turno corretto se è una chiusura in
-        // ritardo, altrimenti oggi.
+        // ritardo, altrimenti oggi (vale anche per la correzione uscita
+        // di oggi, che è già sul giorno corrente).
         const dataUtilizzoMacchinari =
           eraChiusuraTurno && orarioCorrezione
             ? orarioCorrezione.data
@@ -1807,6 +1874,10 @@ export default function HomePage() {
         if (orarioCorrezione) {
           void verificaEApriPopupKmUscita(orarioCorrezione.data);
         }
+      } else if (eraCorrezioneUscitaOggi) {
+        toast.success(CORREZIONI_TIMBRATURE_TESTI.MESSAGGI.REGISTRATA);
+        void refreshUltimaTimbratura(user?.id || null);
+        void verificaEApriPopupKmUscita();
       } else {
         toast.success(
           `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
@@ -2011,6 +2082,8 @@ export default function HomePage() {
             cantiereId={cantiereId || null}
             attivitaTipo={attivitaTipo}
             onCorretto={() => void refreshUltimaTimbratura(user?.id || null)}
+            loadingCorrezioneUscita={correzioneUscitaInCorso}
+            onCorreggiUscita={(orario) => void handleCorreggiUscitaOggi(orario)}
           />
         )}
 
@@ -2393,7 +2466,9 @@ export default function HomePage() {
                         ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_FOTO
                         : tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE"
                           ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CHIUDI_TURNO
-                          : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
+                          : tipoDialogLavorazioni === "CORREZIONE_USCITA_OGGI"
+                            ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CORREZIONE_USCITA
+                            : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
               </h2>
               <p className="mt-2 text-sm text-text-muted">
                 {dialogCambioCantiere
@@ -2406,7 +2481,9 @@ export default function HomePage() {
                         ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_FOTO
                         : tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE"
                           ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CHIUDI_TURNO
-                          : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
+                          : tipoDialogLavorazioni === "CORREZIONE_USCITA_OGGI"
+                            ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CORREZIONE_USCITA
+                            : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
               </p>
             </div>
 
