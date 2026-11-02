@@ -39,10 +39,11 @@ export function valutaPromemoriaPush(
     return "RIENTRO";
   }
 
+  // "sei attualmente dentro", non "è mai risultata un'uscita oggi": vedi
+  // commento in valutaPromemoria.ts.
   if (
     inFinestra(minutiRoma, CORREZIONI_TIMBRATURE.SOGLIA_ORA_USCITA * 60) &&
-    stato.haEntrataOggi &&
-    !stato.haUscitaOggi
+    stato.statoAttuale === STATI.DENTRO
   ) {
     return "USCITA";
   }
