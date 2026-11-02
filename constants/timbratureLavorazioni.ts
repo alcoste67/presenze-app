@@ -2,10 +2,14 @@ export const TIMBRATURE_LAVORAZIONI_TESTI = {
   TITOLO_USCITA: "Lavorazioni svolte",
   TITOLO_CAMBIO_CANTIERE:
     "Lavorazioni cantiere precedente",
+  TITOLO_CHIUDI_TURNO:
+    "Lavorazioni del turno da chiudere",
   DESCRIZIONE_USCITA:
     "Seleziona le lavorazioni completate nella giornata.",
   DESCRIZIONE_CAMBIO_CANTIERE:
     "Seleziona le lavorazioni svolte prima del cambio cantiere.",
+  DESCRIZIONE_CHIUDI_TURNO:
+    "Seleziona le lavorazioni completate nel turno che stai chiudendo in ritardo.",
   PERCENTUALE_LABEL:
     "Percentuale completamento",
   SALVA_USCITA: "Salva uscita",

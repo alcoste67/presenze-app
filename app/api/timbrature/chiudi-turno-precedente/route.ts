@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { HTTP_STATUS } from "@/constants/api";
 import { BLOCCO_GIORNO_PRECEDENTE_TESTI } from "@/constants/bloccoGiornoPrecedente";
+import { LAVORAZIONI_LIMITI, LAVORAZIONI_TESTI } from "@/constants/lavorazioni";
 import { TIMBRATURE } from "@/constants/stati";
 import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -9,6 +10,7 @@ import { isRecord } from "@/lib/typeGuards";
 import { dataRomaDi, dataRomaOggi, romaLocalToUtc } from "@/lib/timezoneRoma";
 import { calcolaTurnoApertoENetteOre } from "@/services/timbrature/calcolaOreNetteTurnoAperto";
 import { notificaAdminTurnoCorretto } from "@/services/timbrature/notificaAdminTurnoCorretto";
+import type { TimbraturaLavorazioneInput } from "@/types/timbratureLavorazioni";
 
 export const runtime = "nodejs";
 
@@ -66,6 +68,31 @@ export async function POST(request: NextRequest): Promise<Response> {
       BLOCCO_GIORNO_PRECEDENTE_TESTI.ERRORI.ORARIO_OBBLIGATORIO,
       HTTP_STATUS.BAD_REQUEST
     );
+  }
+
+  const lavorazioniInput: TimbraturaLavorazioneInput[] = [];
+  if (body.lavorazioni !== undefined) {
+    if (!Array.isArray(body.lavorazioni)) {
+      return jsonErrore(LAVORAZIONI_TESTI.ERRORI.PERCENTUALE_NON_VALIDA, HTTP_STATUS.BAD_REQUEST);
+    }
+    for (const voce of body.lavorazioni) {
+      if (
+        !isRecord(voce) ||
+        typeof voce.lavorazioneId !== "string" ||
+        !voce.lavorazioneId ||
+        (voce.percentualeAvanzamento !== null &&
+          (typeof voce.percentualeAvanzamento !== "number" ||
+            !Number.isInteger(voce.percentualeAvanzamento) ||
+            voce.percentualeAvanzamento < LAVORAZIONI_LIMITI.PERCENTUALE_MIN ||
+            voce.percentualeAvanzamento > LAVORAZIONI_LIMITI.PERCENTUALE_MAX))
+      ) {
+        return jsonErrore(LAVORAZIONI_TESTI.ERRORI.PERCENTUALE_NON_VALIDA, HTTP_STATUS.BAD_REQUEST);
+      }
+      lavorazioniInput.push({
+        lavorazioneId: voce.lavorazioneId,
+        percentualeAvanzamento: voce.percentualeAvanzamento,
+      });
+    }
   }
 
   const { data: eventi } = await supabaseAdmin
@@ -130,6 +157,40 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
+  if (lavorazioniInput.length > 0) {
+    const lavorazioniUniche = Array.from(
+      new Map(lavorazioniInput.map((l) => [l.lavorazioneId, l])).values()
+    );
+
+    const { error: erroreLavorazioni } = await supabaseAdmin
+      .from("timbrature_lavorazioni")
+      .upsert(
+        lavorazioniUniche.map((lavorazione) => ({
+          timbratura_id: nuovaTimbratura.id,
+          lavorazione_id: lavorazione.lavorazioneId,
+          percentuale_avanzamento: lavorazione.percentualeAvanzamento,
+          azienda_id: dipendente.azienda_id,
+        })),
+        { onConflict: "timbratura_id,lavorazione_id" }
+      );
+
+    if (erroreLavorazioni) {
+      console.error("Errore salvataggio lavorazioni chiusura turno", erroreLavorazioni);
+      return jsonErrore(LAVORAZIONI_TESTI.ERRORI.GENERICO, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    }
+
+    await Promise.all(
+      lavorazioniUniche
+        .filter((lavorazione) => lavorazione.percentualeAvanzamento !== null)
+        .map((lavorazione) =>
+          supabaseAdmin
+            .from("lavorazioni_cantiere")
+            .update({ percentuale_completamento: lavorazione.percentualeAvanzamento })
+            .eq("id", lavorazione.lavorazioneId)
+        )
+    );
+  }
+
   await supabaseAdmin
     .from("timbrature_avvisi_anomalia")
     .update({ risolto_il: new Date().toISOString() })
@@ -150,5 +211,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     orarioUscita: orarioProposto,
   });
 
-  return Response.json({ ok: true }, { headers: NO_STORE });
+  return Response.json(
+    { ok: true, id: nuovaTimbratura.id, cantiereId: ultimaTimbratura?.cantiere_id ?? null },
+    { headers: NO_STORE }
+  );
 }
