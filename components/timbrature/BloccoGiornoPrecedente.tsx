@@ -6,7 +6,6 @@ import { ASSENZE_TESTI } from "@/constants/assenze";
 import { BLOCCO_GIORNO_PRECEDENTE_TESTI } from "@/constants/bloccoGiornoPrecedente";
 import { dataRomaDi } from "@/lib/timezoneRoma";
 import { getMessaggioErrore } from "@/lib/errors";
-import { chiudiTurnoPrecedenteClient } from "@/services/timbrature/chiudiTurnoPrecedenteClient";
 import { creaRichiestaAssenzaClient } from "@/services/assenze/salvaRichiestaAssenza";
 import type { BloccoGiornoPrecedente as BloccoGiornoPrecedenteInfo } from "@/types/bloccoGiornoPrecedente";
 import type { TipoAssenza } from "@/types/assenze";
@@ -48,32 +47,24 @@ function oraRomaDi(iso: string): string {
 
 function ChiudiTurnoAperto({
   apertoDalle,
-  onRisolto,
+  loading,
+  onConferma,
 }: {
   apertoDalle: string;
-  onRisolto: () => void;
+  loading: boolean;
+  onConferma: (data: string, ora: string) => void;
 }) {
   const toast = useToast();
   const [data, setData] = useState(dataRomaDi(apertoDalle));
   const [ora, setOra] = useState(oraRomaDi(new Date().toISOString()));
-  const [invio, setInvio] = useState(false);
 
-  const handleConferma = async () => {
+  const handleConferma = () => {
     if (!data || !ora) {
       toast.error(TESTI.ERRORI.ORARIO_OBBLIGATORIO);
       return;
     }
 
-    try {
-      setInvio(true);
-      await chiudiTurnoPrecedenteClient({ data, ora });
-      toast.success(TESTI.TURNO_APERTO.CHIUSO);
-      onRisolto();
-    } catch (error: unknown) {
-      toast.error(getMessaggioErrore(error, TESTI.ERRORI.GENERICO));
-    } finally {
-      setInvio(false);
-    }
+    onConferma(data, ora);
   };
 
   return (
@@ -94,7 +85,7 @@ function ChiudiTurnoAperto({
             className="w-full min-w-0"
             value={data}
             onChange={(e) => setData(e.target.value)}
-            disabled={invio}
+            disabled={loading}
           />
         </div>
         <div className="min-w-0 flex-1">
@@ -104,12 +95,12 @@ function ChiudiTurnoAperto({
             className="w-full min-w-0"
             value={ora}
             onChange={(e) => setOra(e.target.value)}
-            disabled={invio}
+            disabled={loading}
           />
         </div>
       </div>
 
-      <Button className="mt-4 w-full" loading={invio} onClick={() => void handleConferma()}>
+      <Button className="mt-4 w-full" loading={loading} onClick={handleConferma}>
         {TESTI.TURNO_APERTO.CONFERMA}
       </Button>
     </Card>
@@ -203,13 +194,23 @@ function GiustificaGiornataVuota({
 
 export function BloccoGiornoPrecedente({
   blocco,
+  loadingChiusuraTurno,
+  onChiudiTurno,
   onRisolto,
 }: {
   blocco: BloccoGiornoPrecedenteInfo;
+  loadingChiusuraTurno: boolean;
+  onChiudiTurno: (data: string, ora: string) => void;
   onRisolto: () => void;
 }) {
   if (blocco.tipo === "TURNO_APERTO") {
-    return <ChiudiTurnoAperto apertoDalle={blocco.apertoDalle} onRisolto={onRisolto} />;
+    return (
+      <ChiudiTurnoAperto
+        apertoDalle={blocco.apertoDalle}
+        loading={loadingChiusuraTurno}
+        onConferma={onChiudiTurno}
+      />
+    );
   }
 
   return <GiustificaGiornataVuota data={blocco.data} onRisolto={onRisolto} />;

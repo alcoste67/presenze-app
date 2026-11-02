@@ -96,6 +96,8 @@ import { checkRestrizioneWallboxA2C } from "@/services/checklistWallbox/checkSol
 import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { fetchBloccoGiornoPrecedente } from "@/services/timbrature/fetchBloccoGiornoPrecedente";
+import { chiudiTurnoPrecedenteClient } from "@/services/timbrature/chiudiTurnoPrecedenteClient";
+import { BLOCCO_GIORNO_PRECEDENTE_TESTI } from "@/constants/bloccoGiornoPrecedente";
 import { BloccoGiornoPrecedente } from "@/components/timbrature/BloccoGiornoPrecedente";
 import type { BloccoGiornoPrecedente as BloccoGiornoPrecedenteInfo } from "@/types/bloccoGiornoPrecedente";
 import { CostiCommessaHome } from "@/components/commessa/CostiCommessaHome";
@@ -127,7 +129,8 @@ type PercentualiLavorazioniUscita = Record<string, string>;
 
 type TipoDialogLavorazioni =
   | typeof TIMBRATURE.USCITA
-  | typeof TIMBRATURE.CAMBIO_CANTIERE;
+  | typeof TIMBRATURE.CAMBIO_CANTIERE
+  | "CHIUDI_TURNO_PRECEDENTE";
 
 // ─── Local constants ──────────────────────────────────────────────────────────
 
@@ -337,6 +340,7 @@ export default function HomePage() {
   // ── Popup km percorsi, dopo timbratura uscita (solo auto propria) ──
   const [mostraPopupKmUscita, setMostraPopupKmUscita] = useState(false);
   const [kmUscitaInput, setKmUscitaInput] = useState("");
+  const [kmUscitaData, setKmUscitaData] = useState(dataRomaOggi());
   const [salvataggioKmUscitaInCorso, setSalvataggioKmUscitaInCorso] = useState(false);
 
   // ── Wizard uscita: lavorazioni → macchinari → foto ──
@@ -385,6 +389,14 @@ export default function HomePage() {
   const [bloccoGiorno, setBloccoGiorno] = useState<BloccoGiornoPrecedenteInfo | null>(
     null
   );
+  // Data/ora scelte per chiudere un turno aperto da giorni fa: servono per
+  // compilare la wizard lavorazioni (stessi passaggi obbligatori di
+  // un'uscita normale) e per datare correttamente km/macchinari.
+  const [correzioneTurnoOrario, setCorrezioneTurnoOrario] = useState<{
+    data: string;
+    ora: string;
+  } | null>(null);
+  const [chiusuraTurnoInCorso, setChiusuraTurnoInCorso] = useState(false);
   const [invitiCollabInAttesa, setInvitiCollabInAttesa] = useState(0);
   const [novitaLavorazioniCantiereId, setNovitaLavorazioniCantiereId] = useState<
     string | null
@@ -854,19 +866,21 @@ export default function HomePage() {
     dipendente?.ruolo ?? ""
   );
 
-  // Dopo una timbratura di uscita: se il dipendente usa l'auto propria e
-  // non ha ancora inserito i km di oggi, propone il popup per farlo.
-  // Best-effort: un errore qui non deve mai bloccare un'uscita già
-  // registrata, quindi viene semplicemente ignorato.
-  const verificaEApriPopupKmUscita = async () => {
+  // Dopo una timbratura di uscita (anche una chiusura in ritardo di un
+  // turno precedente, sulla data corretta invece di oggi): se il
+  // dipendente usa l'auto propria e non ha ancora inserito i km di quel
+  // giorno, propone il popup per farlo. Best-effort: un errore qui non
+  // deve mai bloccare un'uscita già registrata, quindi viene semplicemente
+  // ignorato.
+  const verificaEApriPopupKmUscita = async (data: string = dataRomaOggi()) => {
     try {
-      const oggi = dataRomaOggi();
       const { usaAutoPropria, note } = await fetchNoteChilometri({
-        dataInizio: oggi,
-        dataFine: oggi,
+        dataInizio: data,
+        dataFine: data,
       });
       if (usaAutoPropria && note.length === 0) {
         setKmUscitaInput("");
+        setKmUscitaData(data);
         setMostraPopupKmUscita(true);
       }
     } catch {
@@ -898,6 +912,7 @@ export default function HomePage() {
     setCantiereNuovoCambio(false);
     setCreazioneCantiereInCorso(false);
     setCreaBozzaRapporto(false);
+    setCorrezioneTurnoOrario(null);
   };
 
   // "+ Proponi lavorazione": crea subito la proposta a DB e la
@@ -1082,7 +1097,10 @@ export default function HomePage() {
     setMostraLavorazioniUscita(true);
 
     // Macchinari disponibili per lo step dedicato (solo ruoli abilitati)
-    if (tipo === TIMBRATURE.USCITA && puoRegistrareMacchinari) {
+    if (
+      (tipo === TIMBRATURE.USCITA || tipo === "CHIUDI_TURNO_PRECEDENTE") &&
+      puoRegistrareMacchinari
+    ) {
       loadMacchinariPubblici()
         .then((macchinari) =>
           setMacchinariDisponibili(macchinari.filter((m) => m.attivo))
@@ -1148,6 +1166,49 @@ export default function HomePage() {
       }
 
       toast.error(messaggioErrore);
+    }
+  };
+
+  // Chiusura di un turno aperto da giorni fa (tasto di correzione in
+  // home): stessi passaggi obbligatori di un'uscita normale (lavorazioni,
+  // macchinari, foto, km) quando il turno era su un cantiere. Se era su
+  // una semplice attività (niente lavorazioni possibili) chiude subito,
+  // ma propone comunque il popup km sulla data corretta.
+  const handleChiudiTurnoPrecedente = async (data: string, ora: string) => {
+    const cantiereTurno = ultimaTimbratura?.cantiere_id || null;
+
+    if (!cantiereTurno) {
+      try {
+        setChiusuraTurnoInCorso(true);
+        await chiudiTurnoPrecedenteClient({ data, ora });
+        toast.success(BLOCCO_GIORNO_PRECEDENTE_TESTI.TURNO_APERTO.CHIUSO);
+        setBloccoGiorno(null);
+        void refreshUltimaTimbratura(user?.id || null);
+        void verificaEApriPopupKmUscita(data);
+      } catch (error: unknown) {
+        toast.error(
+          getMessaggioErrore(error, BLOCCO_GIORNO_PRECEDENTE_TESTI.ERRORI.GENERICO)
+        );
+      } finally {
+        setChiusuraTurnoInCorso(false);
+      }
+      return;
+    }
+
+    try {
+      setChiusuraTurnoInCorso(true);
+      const lavorazioni = await loadLavorazioniAttiveCantiere(cantiereTurno);
+      setCorrezioneTurnoOrario({ data, ora });
+      mostraDialogLavorazioni({
+        tipo: "CHIUDI_TURNO_PRECEDENTE",
+        cantiereIdLavorazioni: cantiereTurno,
+        lavorazioni,
+      });
+    } catch (error: unknown) {
+      console.error(error);
+      toast.error(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.CARICAMENTO);
+    } finally {
+      setChiusuraTurnoInCorso(false);
     }
   };
 
@@ -1598,8 +1659,16 @@ export default function HomePage() {
       return;
     }
 
-    // Letto prima del reset finale, che azzera tipoDialogLavorazioni.
+    // Letti prima del reset finale, che azzera tipoDialogLavorazioni e
+    // correzioneTurnoOrario.
     const eraUscita = tipoDialogLavorazioni === TIMBRATURE.USCITA;
+    const eraChiusuraTurno = tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE";
+    const orarioCorrezione = correzioneTurnoOrario;
+
+    if (eraChiusuraTurno && !orarioCorrezione) {
+      setErroreLavorazioniUscita(TIMBRATURE_LAVORAZIONI_TESTI.ERRORI.GENERICO);
+      return;
+    }
 
     const lavorazioniPayload = getLavorazioniUscitaPayload();
     if (!lavorazioniPayload) {
@@ -1616,16 +1685,36 @@ export default function HomePage() {
       // 1. Timbratura (una sola volta: nei retry foto si riusa l'id)
       let timbraturaId = timbraturaUscitaId;
       if (!timbraturaId) {
-        const timbratura = await handleTimbratura({
-          cantiereId: cantiereIdUscita,
-          attivitaTipo: null,
-          tipo: tipoDialogLavorazioni,
-          lavorazioni: lavorazioniPayload,
-        });
-        timbraturaId = timbratura.id;
-        setTimbraturaUscitaId(timbratura.id);
+        if (eraChiusuraTurno && orarioCorrezione) {
+          const chiusura = await chiudiTurnoPrecedenteClient({
+            data: orarioCorrezione.data,
+            ora: orarioCorrezione.ora,
+            lavorazioni: lavorazioniPayload,
+          });
+          timbraturaId = chiusura.id;
+        } else {
+          // Mai "CHIUDI_TURNO_PRECEDENTE" qui: quel caso è gestito nel
+          // ramo sopra (eraChiusuraTurno && orarioCorrezione).
+          const timbratura = await handleTimbratura({
+            cantiereId: cantiereIdUscita,
+            attivitaTipo: null,
+            tipo: tipoDialogLavorazioni as
+              | typeof TIMBRATURE.USCITA
+              | typeof TIMBRATURE.CAMBIO_CANTIERE,
+            lavorazioni: lavorazioniPayload,
+          });
+          timbraturaId = timbratura.id;
+        }
+        setTimbraturaUscitaId(timbraturaId);
 
-        // 2. Macchinari usati (best effort, una sola volta)
+        // 2. Macchinari usati (best effort, una sola volta). Data
+        // dell'utilizzo: quella del turno corretto se è una chiusura in
+        // ritardo, altrimenti oggi.
+        const dataUtilizzoMacchinari =
+          eraChiusuraTurno && orarioCorrezione
+            ? orarioCorrezione.data
+            : new Date().toISOString().slice(0, 10);
+
         for (const usato of macchinariUsati) {
           const macchinario = macchinariDisponibili.find(
             (m) => m.id === usato.macchinarioId
@@ -1640,7 +1729,7 @@ export default function HomePage() {
               tipo_macchinario:
                 macchinario.tipo_nome || macchinario.tipo,
               descrizione: macchinario.descrizione || "",
-              data_utilizzo: new Date().toISOString().slice(0, 10),
+              data_utilizzo: dataUtilizzoMacchinari,
               ore_utilizzo: Number(usato.ore.replace(",", ".")),
               tariffa_oraria: null,
               costo_totale: null,
@@ -1710,12 +1799,22 @@ export default function HomePage() {
       }
 
       resetLavorazioniUscita();
-      toast.success(
-        `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
-      );
 
-      if (eraUscita) {
-        void verificaEApriPopupKmUscita();
+      if (eraChiusuraTurno) {
+        toast.success(BLOCCO_GIORNO_PRECEDENTE_TESTI.TURNO_APERTO.CHIUSO);
+        setBloccoGiorno(null);
+        void refreshUltimaTimbratura(user?.id || null);
+        if (orarioCorrezione) {
+          void verificaEApriPopupKmUscita(orarioCorrezione.data);
+        }
+      } else {
+        toast.success(
+          `${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_PREFIX} ${tipoDialogLavorazioni} ${TIMBRATURE_TESTI.MESSAGGI.REGISTRATA_SUFFIX}`
+        );
+
+        if (eraUscita) {
+          void verificaEApriPopupKmUscita();
+        }
       }
     } catch (error: unknown) {
       console.error("Errore conferma uscita", {
@@ -1739,7 +1838,7 @@ export default function HomePage() {
 
     try {
       setSalvataggioKmUscitaInCorso(true);
-      await salvaNotaChilometriClient({ data: dataRomaOggi(), km: kmNumero });
+      await salvaNotaChilometriClient({ data: kmUscitaData, km: kmNumero });
       toast.success(NOTE_SPESE_TESTI.SEZIONE_KM.SALVATI);
       setMostraPopupKmUscita(false);
     } catch (error: unknown) {
@@ -2151,6 +2250,8 @@ export default function HomePage() {
         {bloccoGiorno ? (
           <BloccoGiornoPrecedente
             blocco={bloccoGiorno}
+            loadingChiusuraTurno={chiusuraTurnoInCorso}
+            onChiudiTurno={(data, ora) => void handleChiudiTurnoPrecedente(data, ora)}
             onRisolto={() => {
               setBloccoGiorno(null);
               void refreshUltimaTimbratura(user?.id || null);
@@ -2290,7 +2391,9 @@ export default function HomePage() {
                       ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_MACCHINARI
                       : stepUscita === "FOTO"
                         ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_FOTO
-                        : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
+                        : tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE"
+                          ? TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_CHIUDI_TURNO
+                          : TIMBRATURE_LAVORAZIONI_TESTI.TITOLO_USCITA}
               </h2>
               <p className="mt-2 text-sm text-text-muted">
                 {dialogCambioCantiere
@@ -2301,7 +2404,9 @@ export default function HomePage() {
                       ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_MACCHINARI
                       : stepUscita === "FOTO"
                         ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_FOTO
-                        : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
+                        : tipoDialogLavorazioni === "CHIUDI_TURNO_PRECEDENTE"
+                          ? TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_CHIUDI_TURNO
+                          : TIMBRATURE_LAVORAZIONI_TESTI.DESCRIZIONE_USCITA}
               </p>
             </div>
 
@@ -2398,18 +2503,19 @@ export default function HomePage() {
                 </>
               ) : stepUscita === "FOTO" && !dialogCambioCantiere ? (
                 <>
-                  {puoRegistrareMacchinari && (
-                    <label className="flex items-center gap-3 rounded-md bg-bg-subtle p-3 text-sm font-medium text-text-primary">
-                      <input
-                        type="checkbox"
-                        checked={creaBozzaRapporto}
-                        onChange={(e) => setCreaBozzaRapporto(e.target.checked)}
-                        disabled={salvataggioUscita || timbraturaUscitaId !== null}
-                        className="h-5 w-5 accent-brand-500"
-                      />
-                      {TIMBRATURE_LAVORAZIONI_TESTI.CREA_BOZZA_RAPPORTO}
-                    </label>
-                  )}
+                  {puoRegistrareMacchinari &&
+                    tipoDialogLavorazioni !== "CHIUDI_TURNO_PRECEDENTE" && (
+                      <label className="flex items-center gap-3 rounded-md bg-bg-subtle p-3 text-sm font-medium text-text-primary">
+                        <input
+                          type="checkbox"
+                          checked={creaBozzaRapporto}
+                          onChange={(e) => setCreaBozzaRapporto(e.target.checked)}
+                          disabled={salvataggioUscita || timbraturaUscitaId !== null}
+                          className="h-5 w-5 accent-brand-500"
+                        />
+                        {TIMBRATURE_LAVORAZIONI_TESTI.CREA_BOZZA_RAPPORTO}
+                      </label>
+                    )}
 
                   <label className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-bg-subtle text-sm font-medium text-text-primary transition-colors hover:border-brand-500">
                     {TIMBRATURE_LAVORAZIONI_TESTI.AGGIUNGI_FOTO}
