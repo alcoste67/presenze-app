@@ -16,6 +16,7 @@ import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { isResponsabile } from "@/services/dipendenti/isResponsabile";
 import { isDipendenteAttivo } from "@/services/dipendenti/isDipendenteAttivo";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { checkAccessoFotovoltaico } from "@/services/checklistFotovoltaico/checkAccessoFotovoltaico";
 
 type Props = {
   children: ReactNode;
@@ -52,6 +53,22 @@ export function ProtezioneBackoffice({
     const accessoWallbox = pagineWallbox.some(
       (route) => pathname === route || pathname.startsWith(`${route}/`)
     );
+    // Catalogo moduli + checklist fotovoltaico: stesso principio del
+    // wallbox (vedi lib/fotovoltaicoAccess.ts), solo aziende abilitate da
+    // Alex esplicitamente. All'interno dell'azienda abilitata, il
+    // catalogo moduli resta riservato agli ADMIN (è un'anagrafica), la
+    // checklist è aperta a qualsiasi dipendente attivo (compilata anche
+    // dai tecnici in cantiere).
+    const pagineFotovoltaico = [
+      APP_ROUTES.BACKOFFICE_FOTOVOLTAICO,
+      APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO,
+    ];
+    const accessoFotovoltaico = pagineFotovoltaico.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
+    const accessoChecklistFotovoltaico =
+      pathname === APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO ||
+      pathname.startsWith(`${APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO}/`);
     const accessoCostiMacchinari =
       pathname ===
       APP_ROUTES.BACKOFFICE_COSTI_MACCHINARI;
@@ -91,6 +108,43 @@ export function ProtezioneBackoffice({
           }
 
           if (!wallboxAbilitata) {
+            router.replace(APP_ROUTES.HOME);
+
+            return;
+          }
+
+          setAutorizzato(true);
+
+          return;
+        }
+
+        if (accessoFotovoltaico) {
+          const fotovoltaicoAbilitato = await checkAccessoFotovoltaico(user.id);
+
+          if (!attivo) {
+            return;
+          }
+
+          if (!fotovoltaicoAbilitato) {
+            router.replace(APP_ROUTES.HOME);
+
+            return;
+          }
+
+          if (accessoChecklistFotovoltaico) {
+            setAutorizzato(true);
+
+            return;
+          }
+
+          // Catalogo moduli: anche con azienda abilitata, resta riservato agli ADMIN.
+          const utenteAdminFotovoltaico = await isAdmin(user.email);
+
+          if (!attivo) {
+            return;
+          }
+
+          if (!utenteAdminFotovoltaico) {
             router.replace(APP_ROUTES.HOME);
 
             return;

@@ -43,6 +43,7 @@ import { APP_ROUTES } from "@/constants/routes";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
+import { CardFotovoltaicoAdmin } from "@/components/backoffice/CardFotovoltaicoAdmin";
 import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
@@ -250,6 +251,7 @@ export default function BackofficePage() {
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.MACCHINARI) && <CardMacchinariAdmin />}
+              <CardFotovoltaicoAdmin />
             </div>
           </section>
 

@@ -27,6 +27,7 @@ import {
   Pause,
   Receipt,
   Repeat,
+  Sun,
   Users,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ import {
 } from "@/constants/auth";
 import { ASSENZE_TESTI, LABEL_TIPO_ASSENZA_MINUSCOLO } from "@/constants/assenze";
 import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
+import { CHECKLIST_FOTOVOLTAICO_TESTI } from "@/constants/checklistFotovoltaico";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
 import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { LAVORAZIONI_LIMITI } from "@/constants/lavorazioni";
@@ -92,6 +94,7 @@ import { SelectCantiere } from "@/components/cantieri/SelectCantiere";
 import { RichiestaAssenzaDialog } from "@/components/assenze/RichiestaAssenzaDialog";
 import { fetchRichiesteAssenza } from "@/services/assenze/fetchRichiesteAssenza";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { checkAccessoFotovoltaico } from "@/services/checklistFotovoltaico/checkAccessoFotovoltaico";
 import { checkRestrizioneWallboxA2C } from "@/services/checklistWallbox/checkSoloWallboxA2C";
 import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
@@ -384,6 +387,7 @@ export default function HomePage() {
   const [mostraBackoffice, setMostraBackoffice] = useState(false);
   const [wallboxVisibile, setWallboxVisibile] = useState(false);
   const [noteSpeseVisibile, setNoteSpeseVisibile] = useState(false);
+  const [checklistFotovoltaicoVisibile, setChecklistFotovoltaicoVisibile] = useState(false);
   const [adminFuniVisibile, setAdminFuniVisibile] = useState(false);
   const [richiestaAssenzaTipo, setRichiestaAssenzaTipo] =
     useState<TipoAssenza | null>(null);
@@ -543,6 +547,20 @@ export default function HomePage() {
       }
     };
 
+    const refreshChecklistFotovoltaicoVisibile = async (currentUser: User | null) => {
+      if (!currentUser?.id) {
+        setChecklistFotovoltaicoVisibile(false);
+        return;
+      }
+
+      try {
+        setChecklistFotovoltaicoVisibile(await checkAccessoFotovoltaico(currentUser.id));
+      } catch (error) {
+        console.error("Errore controllo accesso fotovoltaico", error);
+        setChecklistFotovoltaicoVisibile(false);
+      }
+    };
+
     const refreshAdminFuniVisibile = async (currentUser: User | null) => {
       if (!currentUser?.id) {
         setAdminFuniVisibile(false);
@@ -679,6 +697,7 @@ export default function HomePage() {
           refreshBloccoGiorno(currentUser),
           refreshWallboxVisibile(currentUser),
           refreshNoteSpeseVisibile(currentUser),
+          refreshChecklistFotovoltaicoVisibile(currentUser),
           refreshAdminFuniVisibile(currentUser),
           refreshUltimaTimbratura(currentUser.id),
           // Ricarica i cantieri a ogni cambio utente: lo stato in memoria
@@ -2196,6 +2215,18 @@ export default function HomePage() {
                   icon={<FileText className="h-4 w-4" />}
                 >
                   {CHECKLIST_WALLBOX_TESTI.TITOLO}
+                </Button>
+              </Link>
+            )}
+
+            {checklistFotovoltaicoVisibile && (
+              <Link href={APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Sun className="h-4 w-4" />}
+                >
+                  {CHECKLIST_FOTOVOLTAICO_TESTI.TITOLO}
                 </Button>
               </Link>
             )}
