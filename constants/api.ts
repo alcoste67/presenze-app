@@ -7,6 +7,8 @@ export const API_ROUTES = {
     "/api/dipendenti/elimina-se-vuoto",
   LAVORAZIONI_ESTRAI_DA_COMPUTO:
     "/api/lavorazioni/estrai-da-computo",
+  MODULI_FOTOVOLTAICI_ESTRAI_DA_SCHEDA:
+    "/api/moduli-fotovoltaici/estrai-da-scheda",
   REPORT_LIBRO_PRESENZE:
     "/api/report/libro-presenze",
   REPORT_PRESENZE:

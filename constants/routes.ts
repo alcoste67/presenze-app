@@ -20,6 +20,8 @@ export const APP_ROUTES = {
     "/backoffice/commessa",
   BACKOFFICE_MACCHINARI:
     "/backoffice/macchinari",
+  BACKOFFICE_FOTOVOLTAICO:
+    "/backoffice/fotovoltaico",
   BACKOFFICE_CLIENTI:
     "/backoffice/clienti",
   BACKOFFICE_COLLABORAZIONI:
