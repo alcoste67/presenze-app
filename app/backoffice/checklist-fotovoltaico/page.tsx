@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Home, Plus, Send, Trash2 } from "lucide-react";
+import { Download, Home, Plus, Send, Trash2, X } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
 import {
@@ -36,6 +36,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { FirmaCanvas } from "@/components/rapportiIntervento/FirmaCanvas";
 
 const BADGE_PER_STATO: Record<string, BadgeProps["variant"]> = {
   [CHECKLIST_FOTOVOLTAICO_STATI.BOZZA]: "muted",
@@ -86,6 +87,7 @@ function statoIniziale(): ChecklistFotovoltaicoInput {
     margine_batteria: CHECKLIST_FOTOVOLTAICO_DEFAULT_DIMENSIONAMENTO.MARGINE_BATTERIA,
     modulo_fotovoltaico_id: null,
     materiali: [],
+    planimetria_data_url: null,
     note: "",
     luogo: "",
     data_sopralluogo: null,
@@ -178,6 +180,19 @@ export default function ChecklistFotovoltaicoPage() {
   const [form, setForm] = useState<ChecklistFotovoltaicoInput>(statoIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
   const [checklistInModificaId, setChecklistInModificaId] = useState<string | null>(null);
+  const [planimetriaSchermoIntero, setPlanimetriaSchermoIntero] = useState(false);
+  const [planimetriaCanvasSize, setPlanimetriaCanvasSize] = useState({ width: 720, height: 390 });
+
+  useEffect(() => {
+    if (!planimetriaSchermoIntero) return;
+    // Spazio per header/toolbar della videata dedicata + margini.
+    const ALTEZZA_RISERVATA = 96;
+    const MARGINE = 32;
+    const MAX_LATO = 1600;
+    const width = Math.min(Math.max(Math.round(window.innerWidth - MARGINE), 280), MAX_LATO);
+    const height = Math.min(Math.max(Math.round(window.innerHeight - ALTEZZA_RISERVATA - MARGINE), 280), MAX_LATO);
+    setPlanimetriaCanvasSize({ width, height });
+  }, [planimetriaSchermoIntero]);
 
   const moduloSelezionato = useMemo(
     () => moduli.find((m) => m.id === form.modulo_fotovoltaico_id) || null,
@@ -304,6 +319,7 @@ export default function ChecklistFotovoltaicoPage() {
       margine_batteria: checklist.margine_batteria,
       modulo_fotovoltaico_id: checklist.modulo_fotovoltaico_id,
       materiali: checklist.materiali,
+      planimetria_data_url: checklist.planimetria_data_url,
       note: checklist.note,
       luogo: checklist.luogo,
       data_sopralluogo: checklist.data_sopralluogo,
@@ -789,6 +805,35 @@ export default function ChecklistFotovoltaicoPage() {
                 </div>
               </div>
 
+              {/* ── Planimetria ── */}
+              <div>
+                <h2 className="font-heading text-base font-medium text-text-primary mb-2">
+                  {CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_TITOLO}
+                </h2>
+                <p className="text-xs text-text-muted mb-2">{CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_AVVISO}</p>
+                {form.planimetria_data_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.planimetria_data_url}
+                    alt={CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_TITOLO}
+                    className="mb-2 w-full max-w-sm rounded-md border border-border"
+                  />
+                ) : (
+                  <p className="text-sm text-text-muted mb-2">{CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_VUOTA}</p>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={salvataggio}
+                  onClick={() => setPlanimetriaSchermoIntero(true)}
+                >
+                  {form.planimetria_data_url
+                    ? CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_MODIFICA
+                    : CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_DISEGNA}
+                </Button>
+              </div>
+
               {/* ── Note ── */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-text-primary">{CHECKLIST_FOTOVOLTAICO_TESTI.NOTE}</label>
@@ -881,6 +926,41 @@ export default function ChecklistFotovoltaicoPage() {
           })}
         </div>
       </main>
+
+      {planimetriaSchermoIntero && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_TITOLO}
+          className="fixed inset-0 z-50 flex flex-col bg-bg-base"
+        >
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="font-heading text-base font-medium text-text-primary">
+              {CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_TITOLO}
+            </h2>
+            <Button
+              type="button"
+              size="sm"
+              icon={<X className="h-4 w-4" />}
+              onClick={() => setPlanimetriaSchermoIntero(false)}
+            >
+              {CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_CHIUDI}
+            </Button>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+            <FirmaCanvas
+              label={CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_AVVISO}
+              clearLabel={CHECKLIST_FOTOVOLTAICO_TESTI.CANCELLA_FIRMA}
+              value={form.planimetria_data_url}
+              onChange={(value) => setForm((f) => ({ ...f, planimetria_data_url: value }))}
+              disabled={salvataggio}
+              width={planimetriaCanvasSize.width}
+              height={planimetriaCanvasSize.height}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

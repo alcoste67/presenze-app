@@ -30,10 +30,31 @@ const COLORS = {
   green: rgb(0.106, 0.612, 0.325),
 } as const;
 
+// Accento di default (brand Cantivo): usato quando l'azienda non ha
+// personalizzato il colore primario in aziende.colori.
+const ACCENTO_DEFAULT = rgb(0.914, 0.337, 0.141); // #e95624
+
 type FontSet = {
   regular: PDFFont;
   bold: PDFFont;
 };
+
+// Dati di marchio dell'azienda che genera il documento (non Cantivo
+// stesso): nome mostrato in intestazione, logo e colore d'accento se
+// personalizzati, altrimenti i default Cantivo.
+export type AziendaBranding = {
+  nome: string;
+  logoUrl: string | null;
+  colorePrimario: string | null;
+};
+
+function hexToRgb(hex: string | null): RGB | null {
+  if (!hex) return null;
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return null;
+  const n = parseInt(match[1], 16);
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+}
 
 function normalizzaTestoPdf(value: string) {
   return value
@@ -132,6 +153,33 @@ async function embedLogoCantivo(pdfDoc: PDFDocument) {
   };
 }
 
+/** Logo dell'azienda che genera il documento, se personalizzato (storage
+ * pubblico); altrimenti il logo Cantivo di default. */
+async function embedLogoAzienda(pdfDoc: PDFDocument, azienda: AziendaBranding) {
+  if (azienda.logoUrl) {
+    try {
+      const risposta = await fetch(azienda.logoUrl);
+      if (risposta.ok) {
+        const contentType = risposta.headers.get("content-type") || "";
+        const bytes = Buffer.from(await risposta.arrayBuffer());
+        const logo = contentType.includes("png") ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
+        const logoWidth = 32;
+        const logoHeight = (logo.height / logo.width) * logoWidth;
+
+        return {
+          draw: (page: PDFPage) => {
+            page.drawImage(logo, { x: MARGIN_X, y: 795, width: logoWidth, height: logoHeight });
+          },
+        };
+      }
+    } catch (errore) {
+      console.error("Errore caricamento logo azienda per PDF fotovoltaico", errore);
+    }
+  }
+
+  return embedLogoCantivo(pdfDoc);
+}
+
 async function embedImmagineDataUrl(pdfDoc: PDFDocument, dataUrl: string | null): Promise<PDFImage | null> {
   if (!dataUrl) return null;
   const match = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(dataUrl);
@@ -159,6 +207,8 @@ type Stato = {
   pdfDoc: PDFDocument;
   fonts: FontSet;
   logo: { draw: (page: PDFPage) => void };
+  accento: RGB;
+  aziendaNome: string;
   page: PDFPage;
   y: number;
   numeroPagina: number;
@@ -170,18 +220,25 @@ function nuovaPagina(stato: Stato) {
   stato.logo.draw(stato.page);
   drawText(stato.page, CHECKLIST_FOTOVOLTAICO_TESTI.PDF.TITOLO, {
     x: MARGIN_X + 40,
-    y: 802,
+    y: 806,
     size: 13,
     font: stato.fonts.bold,
     color: COLORS.text,
   });
-  stato.page.drawLine({
-    start: { x: MARGIN_X, y: 786 },
-    end: { x: PAGE_WIDTH - MARGIN_X, y: 786 },
-    thickness: 0.75,
-    color: COLORS.border,
+  drawText(stato.page, stato.aziendaNome, {
+    x: MARGIN_X + 40,
+    y: 794,
+    size: 9,
+    font: stato.fonts.regular,
+    color: COLORS.muted,
   });
-  stato.y = MARGIN_TOP - 40;
+  stato.page.drawLine({
+    start: { x: MARGIN_X, y: 784 },
+    end: { x: PAGE_WIDTH - MARGIN_X, y: 784 },
+    thickness: 1.5,
+    color: stato.accento,
+  });
+  stato.y = MARGIN_TOP - 42;
 }
 
 function garantisciSpazio(stato: Stato, altezzaNecessaria: number) {
@@ -199,6 +256,13 @@ function disegnaTitoloSezione(stato: Stato, titolo: string) {
     width: PAGE_WIDTH - MARGIN_X * 2,
     height: 20,
     color: COLORS.surface,
+  });
+  stato.page.drawRectangle({
+    x: MARGIN_X,
+    y: stato.y - 16,
+    width: 3,
+    height: 20,
+    color: stato.accento,
   });
   drawText(stato.page, titolo.toUpperCase(), {
     x: MARGIN_X + 6,
@@ -323,6 +387,65 @@ function disegnaTabellaMateriali(stato: Stato, materiali: { descrizione: string;
   stato.y -= 6;
 }
 
+// Callout evidenziato con bordo/colore d'accento per i risultati del
+// dimensionamento: sono il punto più importante del documento per il
+// cliente, meritano più risalto di un campo etichetta/valore qualsiasi.
+function disegnaRisultatiDimensionamento(stato: Stato, checklist: ChecklistFotovoltaico) {
+  if (checklist.potenza_consigliata_kwp === null) {
+    disegnaParagrafo(stato, CHECKLIST_FOTOVOLTAICO_TESTI.RISULTATI_NON_DISPONIBILI);
+    return;
+  }
+
+  const righe: [string, string][] = [
+    [CHECKLIST_FOTOVOLTAICO_TESTI.FABBISOGNO_TOTALE, formattaNumero(checklist.fabbisogno_totale_kwh, " kWh")],
+    [CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_CONSIGLIATA, formattaNumero(checklist.potenza_consigliata_kwp, " kWp")],
+    [CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_MASSIMA, formattaNumero(checklist.potenza_massima_kwp, " kWp")],
+    [
+      CHECKLIST_FOTOVOLTAICO_TESTI.NUMERO_MODULI_MAX,
+      checklist.numero_moduli_max === null ? "—" : String(checklist.numero_moduli_max),
+    ],
+    [CHECKLIST_FOTOVOLTAICO_TESTI.BATTERIA_CONSIGLIATA, formattaNumero(checklist.batteria_consigliata_kwh, " kWh")],
+  ];
+
+  const altezzaRiga = 20;
+  const boxHeight = righe.length * altezzaRiga + 14;
+  garantisciSpazio(stato, boxHeight + 10);
+
+  const yTop = stato.y;
+  stato.page.drawRectangle({
+    x: MARGIN_X,
+    y: yTop - boxHeight,
+    width: PAGE_WIDTH - MARGIN_X * 2,
+    height: boxHeight,
+    borderColor: stato.accento,
+    borderWidth: 1.2,
+    color: COLORS.surface,
+  });
+  stato.page.drawRectangle({
+    x: MARGIN_X,
+    y: yTop - boxHeight,
+    width: 4,
+    height: boxHeight,
+    color: stato.accento,
+  });
+
+  let rigaY = yTop - 17;
+  righe.forEach(([label, valore]) => {
+    drawText(stato.page, label, { x: MARGIN_X + 14, y: rigaY, size: 9, font: stato.fonts.regular, color: COLORS.muted });
+    const larghezzaValore = stato.fonts.bold.widthOfTextAtSize(valore, 11);
+    drawText(stato.page, valore, {
+      x: PAGE_WIDTH - MARGIN_X - 14 - larghezzaValore,
+      y: rigaY,
+      size: 11,
+      font: stato.fonts.bold,
+      color: COLORS.text,
+    });
+    rigaY -= altezzaRiga;
+  });
+
+  stato.y = yTop - boxHeight - 10;
+}
+
 async function disegnaFirme(stato: Stato, checklist: ChecklistFotovoltaico) {
   garantisciSpazio(stato, 110);
   const colWidth = (PAGE_WIDTH - MARGIN_X * 2 - 20) / 2;
@@ -382,18 +505,23 @@ function disegnaPiePagina(pdfDoc: PDFDocument, fonts: FontSet, checklist: Checkl
   });
 }
 
-export async function generaPdfChecklistFotovoltaico(checklist: ChecklistFotovoltaico): Promise<Uint8Array> {
+export async function generaPdfChecklistFotovoltaico(
+  checklist: ChecklistFotovoltaico,
+  azienda: AziendaBranding
+): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const fonts: FontSet = {
     regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
     bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
   };
-  const logo = await embedLogoCantivo(pdfDoc);
+  const logo = await embedLogoAzienda(pdfDoc, azienda);
 
   const stato: Stato = {
     pdfDoc,
     fonts,
     logo,
+    accento: hexToRgb(azienda.colorePrimario) ?? ACCENTO_DEFAULT,
+    aziendaNome: azienda.nome,
     page: pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
     y: MARGIN_TOP,
     numeroPagina: 0,
@@ -461,21 +589,38 @@ export async function generaPdfChecklistFotovoltaico(checklist: ChecklistFotovol
   ]);
 
   disegnaTitoloSezione(stato, CHECKLIST_FOTOVOLTAICO_TESTI.RISULTATI_TITOLO);
-  if (checklist.potenza_consigliata_kwp === null) {
-    disegnaParagrafo(stato, CHECKLIST_FOTOVOLTAICO_TESTI.RISULTATI_NON_DISPONIBILI);
-  } else {
-    disegnaCampi(stato, [
-      { label: CHECKLIST_FOTOVOLTAICO_TESTI.FABBISOGNO_TOTALE, valore: formattaNumero(checklist.fabbisogno_totale_kwh, " kWh") },
-      { label: CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_CONSIGLIATA, valore: formattaNumero(checklist.potenza_consigliata_kwp, " kWp") },
-      { label: CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_MASSIMA, valore: formattaNumero(checklist.potenza_massima_kwp, " kWp") },
-      { label: CHECKLIST_FOTOVOLTAICO_TESTI.NUMERO_MODULI_MAX, valore: checklist.numero_moduli_max === null ? "—" : String(checklist.numero_moduli_max) },
-      { label: CHECKLIST_FOTOVOLTAICO_TESTI.BATTERIA_CONSIGLIATA, valore: formattaNumero(checklist.batteria_consigliata_kwh, " kWh") },
-    ]);
-  }
+  disegnaRisultatiDimensionamento(stato, checklist);
 
   // ── Materiali ──
   disegnaTitoloSezione(stato, CHECKLIST_FOTOVOLTAICO_TESTI.MATERIALI_TITOLO);
   disegnaTabellaMateriali(stato, checklist.materiali);
+
+  // ── Planimetria ──
+  if (checklist.planimetria_data_url) {
+    disegnaTitoloSezione(stato, CHECKLIST_FOTOVOLTAICO_TESTI.PLANIMETRIA_TITOLO);
+    const immaginePlanimetria = await embedImmagineDataUrl(stato.pdfDoc, checklist.planimetria_data_url);
+    if (immaginePlanimetria) {
+      const boxHeight = 160;
+      garantisciSpazio(stato, boxHeight + 10);
+      const box = { x: MARGIN_X, y: stato.y - boxHeight, w: PAGE_WIDTH - MARGIN_X * 2, h: boxHeight };
+      stato.page.drawRectangle({
+        x: box.x,
+        y: box.y,
+        width: box.w,
+        height: box.h,
+        borderColor: COLORS.border,
+        borderWidth: 1,
+        color: COLORS.white,
+      });
+      disegnaImmagineContenuta(stato.page, immaginePlanimetria, {
+        x: box.x + 4,
+        y: box.y + 4,
+        w: box.w - 8,
+        h: box.h - 8,
+      });
+      stato.y = box.y - 10;
+    }
+  }
 
   // ── Note ──
   if (checklist.note.trim()) {

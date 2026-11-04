@@ -5,6 +5,7 @@ import { estraiBearerToken } from "@/lib/auth";
 import { CHECKLIST_FOTOVOLTAICO_TESTI } from "@/constants/checklistFotovoltaico";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAziendaAutorizzataFotovoltaico } from "@/lib/fotovoltaicoAccess";
+import { caricaAziendaBrandingFotovoltaico } from "@/services/checklistFotovoltaico/caricaAziendaBrandingFotovoltaico";
 import { loadChecklistFotovoltaico } from "@/services/checklistFotovoltaico/loadChecklistiFotovoltaico";
 import {
   generaPdfChecklistFotovoltaico,
@@ -64,7 +65,8 @@ export async function GET(request: NextRequest) {
       return jsonErrore(CHECKLIST_FOTOVOLTAICO_TESTI.ERRORI.CHECKLIST_NON_TROVATA, HTTP_STATUS.NOT_FOUND);
     }
 
-    const pdfBytes = await generaPdfChecklistFotovoltaico(checklist);
+    const azienda = await caricaAziendaBrandingFotovoltaico(dipendente.azienda_id as string, supabaseAdmin);
+    const pdfBytes = await generaPdfChecklistFotovoltaico(checklist, azienda);
     const fileName = getNomeFileChecklistFotovoltaico(checklist);
     const pdfBuffer = new ArrayBuffer(pdfBytes.byteLength);
     new Uint8Array(pdfBuffer).set(pdfBytes);

@@ -64,6 +64,8 @@ export type ChecklistFotovoltaico = {
 
   materiali: MaterialeChecklistFotovoltaico[];
 
+  planimetria_data_url: string | null;
+
   note: string;
   luogo: string;
   data_sopralluogo: string | null;
@@ -128,6 +130,8 @@ export type ChecklistFotovoltaicoInput = {
   modulo_fotovoltaico_id: string | null;
 
   materiali: MaterialeChecklistFotovoltaico[];
+
+  planimetria_data_url: string | null;
 
   note: string;
   luogo: string;

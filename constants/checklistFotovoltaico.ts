@@ -106,6 +106,13 @@ export const CHECKLIST_FOTOVOLTAICO_TESTI = {
   NUMERO_MODULI_MAX: "Numero massimo moduli",
   BATTERIA_CONSIGLIATA: "Batteria consigliata",
 
+  PLANIMETRIA_TITOLO: "Planimetria sintetica falda/impianto",
+  PLANIMETRIA_AVVISO: "Disegna uno schizzo sintetico della falda e del posizionamento dell'impianto",
+  PLANIMETRIA_DISEGNA: "Disegna schizzo",
+  PLANIMETRIA_MODIFICA: "Modifica schizzo",
+  PLANIMETRIA_VUOTA: "Nessuno schizzo ancora",
+  PLANIMETRIA_CHIUDI: "Fine disegno",
+
   MATERIALI_TITOLO: "Materiali e componenti previsti",
   DESCRIZIONE_PLACEHOLDER: "Descrizione",
   QUANTITA: "Quantità",

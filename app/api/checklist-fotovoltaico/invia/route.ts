@@ -9,6 +9,7 @@ import {
 } from "@/constants/checklistFotovoltaico";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAziendaAutorizzataFotovoltaico } from "@/lib/fotovoltaicoAccess";
+import { caricaAziendaBrandingFotovoltaico } from "@/services/checklistFotovoltaico/caricaAziendaBrandingFotovoltaico";
 import { loadChecklistFotovoltaico } from "@/services/checklistFotovoltaico/loadChecklistiFotovoltaico";
 import {
   generaPdfChecklistFotovoltaico,
@@ -126,7 +127,8 @@ export async function POST(request: NextRequest) {
     if (pdfEsistente) {
       pdfBytes = new Uint8Array(await pdfEsistente.arrayBuffer());
     } else {
-      pdfBytes = await generaPdfChecklistFotovoltaico(checklist);
+      const azienda = await caricaAziendaBrandingFotovoltaico(aziendaId, supabaseAdmin);
+      pdfBytes = await generaPdfChecklistFotovoltaico(checklist, azienda);
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(BUCKET_CHECKLIST_FOTOVOLTAICO_PDF)
