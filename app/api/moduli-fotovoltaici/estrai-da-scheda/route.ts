@@ -101,6 +101,11 @@ async function estraiModuloConClaude(base64Pdf: string): Promise<ModuloFotovolta
   if (!response.ok) {
     const dettaglio = await response.text();
     console.error("Errore Claude import modulo fotovoltaico", dettaglio);
+
+    if (/credit balance is too low/i.test(dettaglio)) {
+      throw new Error(MODULI_FOTOVOLTAICI_TESTI.ERRORI.AI_CREDITO_ESAURITO);
+    }
+
     throw new Error(MODULI_FOTOVOLTAICI_TESTI.ERRORI.AI_ESTRAZIONE_FALLITA);
   }
 

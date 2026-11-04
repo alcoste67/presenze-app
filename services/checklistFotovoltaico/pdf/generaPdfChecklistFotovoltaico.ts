@@ -274,34 +274,57 @@ function disegnaTitoloSezione(stato: Stato, titolo: string) {
   stato.y -= 28;
 }
 
-// Due colonne etichetta/valore per riga, come una tabella leggera.
-function disegnaCampi(stato: Stato, campi: { label: string; valore: string }[]) {
-  const colWidth = (PAGE_WIDTH - MARGIN_X * 2) / 2;
+// Due colonne etichetta/valore, con il valore sotto l'etichetta (non
+// affiancato con un offset fisso): le etichette in italiano sono spesso
+// lunghe ("Superficie falda disponibile (mq)") e un offset fisso le
+// faceva sovrapporre al valore. Il valore va a capo su più righe se
+// non entra nella larghezza della colonna.
+const CAMPI_GUTTER = 16;
+const CAMPI_LINE_HEIGHT = 11;
+const CAMPI_VALORE_MAX_RIGHE = 2;
+
+function disegnaCampi(stato: Stato, campi: ({ label: string; valore: string } | undefined)[]) {
+  const colWidth = (PAGE_WIDTH - MARGIN_X * 2 - CAMPI_GUTTER) / 2;
 
   for (let i = 0; i < campi.length; i += 2) {
-    garantisciSpazio(stato, 16);
-    const coppia = [campi[i], campi[i + 1]];
+    const coppia = [campi[i], campi[i + 1]].filter(
+      (campo): campo is { label: string; valore: string } => Boolean(campo)
+    );
+
+    const righePerColonna = coppia.map((campo) =>
+      wrapText({ text: campo.valore || "—", font: stato.fonts.bold, size: 9.5, maxWidth: colWidth }).slice(
+        0,
+        CAMPI_VALORE_MAX_RIGHE
+      )
+    );
+    const righeMax = Math.max(1, ...righePerColonna.map((righe) => righe.length));
+    const altezzaRiga = 13 + righeMax * CAMPI_LINE_HEIGHT + 6;
+
+    garantisciSpazio(stato, altezzaRiga);
+
     coppia.forEach((campo, indice) => {
-      if (!campo) return;
-      const x = MARGIN_X + indice * colWidth;
-      drawText(stato.page, `${campo.label}:`, {
+      const x = MARGIN_X + indice * (colWidth + CAMPI_GUTTER);
+      drawText(stato.page, campo.label, {
         x,
         y: stato.y,
-        size: 8.5,
-        font: stato.fonts.bold,
+        size: 8,
+        font: stato.fonts.regular,
         color: COLORS.muted,
       });
-      drawText(stato.page, campo.valore || "—", {
-        x: x + 130,
-        y: stato.y,
-        size: 9,
-        font: stato.fonts.regular,
-        color: COLORS.text,
+      righePerColonna[indice].forEach((riga, rIdx) => {
+        drawText(stato.page, riga, {
+          x,
+          y: stato.y - 13 - rIdx * CAMPI_LINE_HEIGHT,
+          size: 9.5,
+          font: stato.fonts.bold,
+          color: COLORS.text,
+        });
       });
     });
-    stato.y -= 16;
+
+    stato.y -= altezzaRiga;
   }
-  stato.y -= 6;
+  stato.y -= 4;
 }
 
 function disegnaDomandaSiNo(stato: Stato, domanda: string, risposta: boolean | null) {
@@ -516,16 +539,17 @@ export async function generaPdfChecklistFotovoltaico(
   };
   const logo = await embedLogoAzienda(pdfDoc, azienda);
 
-  const stato: Stato = {
+  // `page`/`y` sono assegnati subito sotto da nuovaPagina(): non si crea
+  // qui una pagina "usa e getta" (bug corretto: creava una pagina bianca
+  // in più prima di quella con l'intestazione).
+  const stato = {
     pdfDoc,
     fonts,
     logo,
     accento: hexToRgb(azienda.colorePrimario) ?? ACCENTO_DEFAULT,
     aziendaNome: azienda.nome,
-    page: pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
-    y: MARGIN_TOP,
     numeroPagina: 0,
-  };
+  } as Stato;
   nuovaPagina(stato);
 
   const nomeCliente = `${checklist.nome} ${checklist.cognome}`.trim();
