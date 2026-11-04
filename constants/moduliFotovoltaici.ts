@@ -43,6 +43,8 @@ export const MODULI_FOTOVOLTAICI_TESTI = {
     FILE_NON_SUPPORTATO: "Formato file non supportato: carica un PDF",
     FILE_TROPPO_GRANDE: "Il file è troppo grande",
     AI_NON_CONFIGURATA: "Import automatico non configurato",
+    AI_CREDITO_ESAURITO:
+      "Credito dell'account Anthropic esaurito: ricarica su console.anthropic.com per usare l'import automatico",
     AI_ESTRAZIONE_FALLITA: "Non è stato possibile leggere la scheda tecnica",
     AI_RISPOSTA_NON_VALIDA: "Risposta non valida dal servizio di estrazione",
   },
