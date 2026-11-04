@@ -8,6 +8,7 @@ import { APP_ROUTES } from "@/constants/routes";
 import { MODULI_FOTOVOLTAICI_TESTI } from "@/constants/moduliFotovoltaici";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
+import { checkAccessoFotovoltaico } from "@/services/checklistFotovoltaico/checkAccessoFotovoltaico";
 
 export function CardFotovoltaicoAdmin() {
   const [visibile, setVisibile] = useState(false);
@@ -15,7 +16,7 @@ export function CardFotovoltaicoAdmin() {
   useEffect(() => {
     let attivo = true;
 
-    const verificaAdmin = async () => {
+    const verificaAccesso = async () => {
       try {
         const user = await loadUtenteAuth();
 
@@ -23,13 +24,16 @@ export function CardFotovoltaicoAdmin() {
           return;
         }
 
-        const admin = await isAdmin(user.email);
+        const [admin, fotovoltaicoAbilitato] = await Promise.all([
+          isAdmin(user.email),
+          checkAccessoFotovoltaico(user.id),
+        ]);
 
         if (!attivo) {
           return;
         }
 
-        setVisibile(admin);
+        setVisibile(admin && fotovoltaicoAbilitato);
       } catch {
         if (attivo) {
           setVisibile(false);
@@ -37,7 +41,7 @@ export function CardFotovoltaicoAdmin() {
       }
     };
 
-    void verificaAdmin();
+    void verificaAccesso();
 
     return () => {
       attivo = false;

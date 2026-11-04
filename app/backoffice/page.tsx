@@ -251,7 +251,7 @@ export default function BackofficePage() {
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.MACCHINARI) && <CardMacchinariAdmin />}
-              {moduli.has(MODULI_BACKOFFICE.FOTOVOLTAICO) && <CardFotovoltaicoAdmin />}
+              <CardFotovoltaicoAdmin />
             </div>
           </section>
 

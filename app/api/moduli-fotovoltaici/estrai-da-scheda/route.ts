@@ -5,6 +5,7 @@ import {
   MODULI_FOTOVOLTAICI_TESTI,
 } from "@/constants/moduliFotovoltaici";
 import { estraiBearerToken } from "@/lib/auth";
+import { isAziendaAutorizzataFotovoltaico } from "@/lib/fotovoltaicoAccess";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import type { ModuloFotovoltaicoImportPreview } from "@/types/moduliFotovoltaici";
@@ -150,6 +151,17 @@ export async function POST(request: Request): Promise<Response> {
 
     const utenteAdmin = await isAdmin(user.email, supabaseAdmin);
     if (!utenteAdmin) {
+      return jsonErrore(MODULI_FOTOVOLTAICI_TESTI.ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN);
+    }
+
+    const { data: dipendente } = await supabaseAdmin
+      .from("dipendenti")
+      .select("azienda_id")
+      .eq("auth_user_id", user.id)
+      .eq("attivo", true)
+      .maybeSingle();
+
+    if (!dipendente || !isAziendaAutorizzataFotovoltaico(dipendente.azienda_id as string)) {
       return jsonErrore(MODULI_FOTOVOLTAICI_TESTI.ERRORI.ACCESSO_NEGATO, HTTP_STATUS.FORBIDDEN);
     }
 

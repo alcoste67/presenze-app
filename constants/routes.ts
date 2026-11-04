@@ -22,6 +22,8 @@ export const APP_ROUTES = {
     "/backoffice/macchinari",
   BACKOFFICE_FOTOVOLTAICO:
     "/backoffice/fotovoltaico",
+  BACKOFFICE_CHECKLIST_FOTOVOLTAICO:
+    "/backoffice/checklist-fotovoltaico",
   BACKOFFICE_CLIENTI:
     "/backoffice/clienti",
   BACKOFFICE_COLLABORAZIONI:
