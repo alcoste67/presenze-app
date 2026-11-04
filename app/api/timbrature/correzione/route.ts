@@ -220,7 +220,13 @@ export async function POST(request: NextRequest) {
     orario_dichiarato: dichiarato.toISOString(),
   });
 
-  await notificaAdminTimbratura({ dipendenteId: dipendente.id, tipo, orario: dichiarato });
+  await notificaAdminTimbratura({
+    dipendenteId: dipendente.id,
+    tipo,
+    orario: dichiarato,
+    cantiereId,
+    attivitaTipo,
+  });
 
   // ── Notifica admin: best-effort, non blocca la risposta al dipendente ──
   const apiKey = process.env.RESEND_API_KEY;

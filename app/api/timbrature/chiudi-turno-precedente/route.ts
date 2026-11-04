@@ -209,6 +209,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     dipendenteId: dipendente.id,
     apertoDalle: turno.apertoDalle,
     orarioUscita: orarioProposto,
+    cantiereId: ultimaTimbratura?.cantiere_id ?? null,
+    attivitaTipo: ultimaTimbratura?.attivita_tipo ?? null,
   });
 
   return Response.json(
