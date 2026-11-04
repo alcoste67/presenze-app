@@ -3,6 +3,7 @@ import {
   CHECKLIST_FOTOVOLTAICO_STATI,
   CHECKLIST_FOTOVOLTAICO_TESTI,
 } from "@/constants/checklistFotovoltaico";
+import { calcolaOutputPerSalvataggio } from "@/services/checklistFotovoltaico/calcolaOutputPerSalvataggio";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import { SELECT_CHECKLIST_FOTOVOLTAICO } from "@/services/checklistFotovoltaico/creaChecklistFotovoltaico";
 import type {
@@ -23,10 +24,13 @@ export async function aggiornaChecklistFotovoltaico(
   input: ChecklistFotovoltaicoInput,
   supabaseClient: SupabaseClient = supabase
 ): Promise<ChecklistFotovoltaico> {
+  const output = await calcolaOutputPerSalvataggio(input, supabaseClient);
+
   const { data, error } = await supabaseClient
     .from("checklist_fotovoltaico")
     .update({
       ...input,
+      ...output,
       updated_at: new Date().toISOString(),
     })
     .eq("id", checklistId)

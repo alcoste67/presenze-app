@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getAziendaIdFromAuthUser } from "@/lib/multiTenant";
+import { calcolaOutputPerSalvataggio } from "@/services/checklistFotovoltaico/calcolaOutputPerSalvataggio";
 import { throwErroreSupabase } from "@/services/rapportiIntervento/errors";
 import type {
   ChecklistFotovoltaico,
@@ -35,12 +36,14 @@ export async function creaChecklistFotovoltaico(
   }
 
   const aziendaId = await getAziendaIdFromAuthUser(supabaseClient, createdBy);
+  const output = await calcolaOutputPerSalvataggio(input, supabaseClient);
 
   const { data, error } = await supabaseClient
     .from("checklist_fotovoltaico")
     .insert({
       azienda_id: aziendaId,
       ...input,
+      ...output,
       created_by: createdBy,
     })
     .select(SELECT_CHECKLIST_FOTOVOLTAICO)

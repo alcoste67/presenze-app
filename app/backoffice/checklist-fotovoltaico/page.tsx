@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Home, Plus, Send, Trash2 } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
@@ -20,6 +20,8 @@ import { loadChecklistiFotovoltaico } from "@/services/checklistFotovoltaico/loa
 import { inviaChecklistFotovoltaico } from "@/services/checklistFotovoltaico/inviaChecklistFotovoltaico";
 import { fetchChecklistFotovoltaicoPdf } from "@/services/checklistFotovoltaico/fetchChecklistFotovoltaicoPdf";
 import { loadModuliFotovoltaiciAdmin } from "@/services/moduliFotovoltaici/loadModuliFotovoltaiciAdmin";
+import { calcolaDimensionamentoFotovoltaico } from "@/services/checklistFotovoltaico/calcolaDimensionamentoFotovoltaico";
+import { suggerisciModuloFotovoltaico } from "@/services/checklistFotovoltaico/suggerisciModuloFotovoltaico";
 import type {
   ChecklistFotovoltaico,
   ChecklistFotovoltaicoInput,
@@ -158,6 +160,11 @@ function formattaDataOra(value: string) {
   return new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
+function formattaRisultato(value: number | null, suffisso: string): string {
+  if (value === null) return "—";
+  return `${new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(value)} ${suffisso}`;
+}
+
 export default function ChecklistFotovoltaicoPage() {
   const toast = useToast();
   const router = useRouter();
@@ -171,6 +178,25 @@ export default function ChecklistFotovoltaicoPage() {
   const [form, setForm] = useState<ChecklistFotovoltaicoInput>(statoIniziale());
   const [azioneInCorsoId, setAzioneInCorsoId] = useState<string | null>(null);
   const [checklistInModificaId, setChecklistInModificaId] = useState<string | null>(null);
+
+  const moduloSelezionato = useMemo(
+    () => moduli.find((m) => m.id === form.modulo_fotovoltaico_id) || null,
+    [moduli, form.modulo_fotovoltaico_id]
+  );
+
+  const risultatoDimensionamento = useMemo(
+    () => calcolaDimensionamentoFotovoltaico(form, moduloSelezionato),
+    [form, moduloSelezionato]
+  );
+
+  const moduloSuggerito = useMemo(
+    () =>
+      suggerisciModuloFotovoltaico(moduli, {
+        potenzaConsigliataKwp: risultatoDimensionamento.potenza_consigliata_kwp,
+        areaUtileMq: risultatoDimensionamento.area_utile_mq,
+      }),
+    [moduli, risultatoDimensionamento]
+  );
 
   const ricarica = async () => {
     try {
@@ -664,6 +690,61 @@ export default function ChecklistFotovoltaicoPage() {
                       </option>
                     ))}
                   </Select>
+
+                  {moduloSuggerito && moduloSuggerito.id !== form.modulo_fotovoltaico_id && (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-bg-subtle px-3 py-2">
+                      <p className="text-xs text-text-muted">
+                        Modulo suggerito per lo spazio disponibile: {moduloSuggerito.marca} {moduloSuggerito.modello} ({moduloSuggerito.potenza_wp} Wp)
+                      </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={salvataggio}
+                        onClick={() => setForm((f) => ({ ...f, modulo_fotovoltaico_id: moduloSuggerito.id }))}
+                      >
+                        Usa questo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-md border border-border bg-bg-subtle p-3">
+                  <h3 className="text-sm font-medium text-text-primary mb-2">
+                    {CHECKLIST_FOTOVOLTAICO_TESTI.RISULTATI_TITOLO}
+                  </h3>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-text-muted">{CHECKLIST_FOTOVOLTAICO_TESTI.FABBISOGNO_TOTALE}</dt>
+                      <dd className="font-medium text-text-primary">
+                        {formattaRisultato(risultatoDimensionamento.fabbisogno_totale_kwh, "kWh")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_CONSIGLIATA}</dt>
+                      <dd className="font-medium text-text-primary">
+                        {formattaRisultato(risultatoDimensionamento.potenza_consigliata_kwp, "kWp")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{CHECKLIST_FOTOVOLTAICO_TESTI.POTENZA_MASSIMA}</dt>
+                      <dd className="font-medium text-text-primary">
+                        {formattaRisultato(risultatoDimensionamento.potenza_massima_kwp, "kWp")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{CHECKLIST_FOTOVOLTAICO_TESTI.NUMERO_MODULI_MAX}</dt>
+                      <dd className="font-medium text-text-primary">
+                        {risultatoDimensionamento.numero_moduli_max === null ? "—" : risultatoDimensionamento.numero_moduli_max}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{CHECKLIST_FOTOVOLTAICO_TESTI.BATTERIA_CONSIGLIATA}</dt>
+                      <dd className="font-medium text-text-primary">
+                        {formattaRisultato(risultatoDimensionamento.batteria_consigliata_kwh, "kWh")}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
 
