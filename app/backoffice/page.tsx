@@ -20,6 +20,7 @@ import {
   MapPin,
   Receipt,
   ShieldAlert,
+  Sun,
   Tags,
   Users,
 } from "lucide-react";
@@ -30,6 +31,8 @@ import { MACCHINARI_TESTI } from "@/constants/macchinari";
 import { PIANIFICAZIONI_TESTI } from "@/constants/pianificazioni";
 import { PRODUTTIVITA_TESTI } from "@/constants/produttivita";
 import { CHECKLIST_WALLBOX_TESTI } from "@/constants/checklistWallbox";
+import { CHECKLIST_FOTOVOLTAICO_TESTI } from "@/constants/checklistFotovoltaico";
+import { MODULI_FOTOVOLTAICI_TESTI } from "@/constants/moduliFotovoltaici";
 import { ORDINI_LAVORO_TESTI } from "@/constants/ordiniLavoro";
 import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
@@ -43,12 +46,12 @@ import { APP_ROUTES } from "@/constants/routes";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
 import { CardMacchinariAdmin } from "@/components/backoffice/CardMacchinariAdmin";
-import { CardFotovoltaicoAdmin } from "@/components/backoffice/CardFotovoltaicoAdmin";
 import { CardControlloCostiAdmin } from "@/components/backoffice/CardControlloCostiAdmin";
 import { loadUtenteAuth } from "@/services/auth/loadUtenteAuth";
 import { isAdmin } from "@/services/dipendenti/isAdmin";
 import { checkPlatformAdmin } from "@/services/platformAdmin/checkPlatformAdmin";
 import { checkAccessoWallbox } from "@/services/checklistWallbox/checkAccessoWallbox";
+import { checkAccessoFotovoltaico } from "@/services/checklistFotovoltaico/checkAccessoFotovoltaico";
 import { fetchModuliAbilitati } from "@/services/moduliBackoffice/fetchModuliAbilitati";
 
 function ModuloCard({
@@ -82,6 +85,7 @@ export default function BackofficePage() {
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [wallboxVisibile, setWallboxVisibile] = useState(false);
+  const [fotovoltaicoVisibile, setFotovoltaicoVisibile] = useState(false);
   const [moduli, setModuli] = useState<Set<string>>(
     new Set(Object.values(MODULI_BACKOFFICE))
   );
@@ -92,15 +96,17 @@ export default function BackofficePage() {
       try {
         const user = await loadUtenteAuth();
         if (!user?.email) return;
-        const [adminOk, superadminOk, wallboxOk, moduliAbilitati] = await Promise.all([
+        const [adminOk, superadminOk, wallboxOk, fotovoltaicoOk, moduliAbilitati] = await Promise.all([
           isAdmin(user.email),
           checkPlatformAdmin(),
           checkAccessoWallbox(user.id),
+          checkAccessoFotovoltaico(user.id),
           fetchModuliAbilitati(),
         ]);
         setAdmin(adminOk);
         setPlatformAdmin(superadminOk);
         setWallboxVisibile(wallboxOk);
+        setFotovoltaicoVisibile(fotovoltaicoOk);
         setModuli(moduliAbilitati);
       } catch {
         // silently ignore — user simply won't see the sections
@@ -188,8 +194,8 @@ export default function BackofficePage() {
 
             {wallboxVisibile && (
               <section>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-                  Edison
+                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  <Car className="h-3.5 w-3.5" /> Wallbox
                 </h2>
                 <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
                   <ModuloCard
@@ -203,6 +209,22 @@ export default function BackofficePage() {
                     icon={<ClipboardCheck className="h-5 w-5" />}
                     nome={ORDINI_LAVORO_TESTI.TITOLO}
                     descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
+                  />
+                </div>
+              </section>
+            )}
+
+            {fotovoltaicoVisibile && (
+              <section>
+                <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  <Sun className="h-3.5 w-3.5" /> Fotovoltaico
+                </h2>
+                <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                  <ModuloCard
+                    href={APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO}
+                    icon={<FileText className="h-5 w-5" />}
+                    nome={CHECKLIST_FOTOVOLTAICO_TESTI.TITOLO}
+                    descrizione={CHECKLIST_FOTOVOLTAICO_TESTI.CARD_DESCRIZIONE}
                   />
                 </div>
               </section>
@@ -251,7 +273,6 @@ export default function BackofficePage() {
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.MACCHINARI) && <CardMacchinariAdmin />}
-              <CardFotovoltaicoAdmin />
             </div>
           </section>
 
@@ -304,11 +325,11 @@ export default function BackofficePage() {
             </div>
           </section>
 
-          {/* ── Sezione Edison ── */}
+          {/* ── Area Wallbox ── */}
           {wallboxVisibile && (
             <section>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-                Edison
+              <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                <Car className="h-3.5 w-3.5" /> Wallbox
               </h2>
               <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
                 <ModuloCard
@@ -322,6 +343,29 @@ export default function BackofficePage() {
                   icon={<ClipboardCheck className="h-5 w-5" />}
                   nome={ORDINI_LAVORO_TESTI.TITOLO}
                   descrizione={ORDINI_LAVORO_TESTI.CARD_DESCRIZIONE}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* ── Area Fotovoltaico ── */}
+          {fotovoltaicoVisibile && (
+            <section>
+              <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                <Sun className="h-3.5 w-3.5" /> Fotovoltaico
+              </h2>
+              <div className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_CHECKLIST_FOTOVOLTAICO}
+                  icon={<FileText className="h-5 w-5" />}
+                  nome={CHECKLIST_FOTOVOLTAICO_TESTI.TITOLO}
+                  descrizione={CHECKLIST_FOTOVOLTAICO_TESTI.CARD_DESCRIZIONE}
+                />
+                <ModuloCard
+                  href={APP_ROUTES.BACKOFFICE_FOTOVOLTAICO}
+                  icon={<Sun className="h-5 w-5" />}
+                  nome={MODULI_FOTOVOLTAICI_TESTI.ANAGRAFICA_TITOLO}
+                  descrizione={MODULI_FOTOVOLTAICI_TESTI.ANAGRAFICA_CARD_DESCRIZIONE}
                 />
               </div>
             </section>
