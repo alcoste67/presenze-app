@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   const { data: ultima } = await supabaseAdmin
     .from("timbrature")
-    .select("tipo, created_at")
+    .select("tipo, created_at, cantiere_id, attivita_tipo")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
     dipendenteId: dipendente.id,
     tipo: body.tipo,
     orario: new Date(ultima.created_at),
+    cantiereId: ultima.cantiere_id,
+    attivitaTipo: ultima.attivita_tipo,
   });
 
   return Response.json({ ok: true }, { headers: NO_STORE });

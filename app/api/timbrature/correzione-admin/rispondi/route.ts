@@ -251,6 +251,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     dipendenteId: dipendente.id,
     apertoDalle: turno.apertoDalle,
     orarioUscita: new Date(proposta.orario_proposto),
+    cantiereId: ultimaTimbratura?.cantiere_id ?? null,
+    attivitaTipo: ultimaTimbratura?.attivita_tipo ?? null,
   });
 
   return Response.json({ ok: true, esito: "CONFERMATA" }, { headers: NO_STORE });

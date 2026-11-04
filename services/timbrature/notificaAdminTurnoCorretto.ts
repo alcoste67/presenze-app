@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { inviaPush } from "@/lib/webPush";
+import { resolveMotivazioneTimbratura } from "@/services/timbrature/resolveMotivazioneTimbratura";
 
 const MITTENTE = "Cantivo <notifiche@cantivo.it>";
 
@@ -10,6 +11,8 @@ type Params = {
   dipendenteId: string;
   apertoDalle: Date;
   orarioUscita: Date;
+  cantiereId?: string | null;
+  attivitaTipo?: string | null;
 };
 
 function formattaDataOra(data: Date): string {
@@ -35,6 +38,8 @@ export async function notificaAdminTurnoCorretto({
   dipendenteId,
   apertoDalle,
   orarioUscita,
+  cantiereId = null,
+  attivitaTipo = null,
 }: Params): Promise<void> {
   try {
     const { data: dipendente } = await supabaseAdmin
@@ -55,9 +60,14 @@ export async function notificaAdminTurnoCorretto({
     const adminList = admin || [];
     if (adminList.length === 0) return;
 
+    const motivazione = await resolveMotivazioneTimbratura(supabaseAdmin, {
+      cantiereId,
+      attivitaTipo,
+    });
+
     const nomeCompleto = `${dipendente.nome} ${dipendente.cognome}`.trim();
     const titolo = `Turno corretto — ${nomeCompleto}`;
-    const corpo = `${nomeCompleto}: turno apertosi il ${formattaDataOra(apertoDalle)} chiuso con uscita alle ${formattaDataOra(orarioUscita)}.`;
+    const corpo = `${nomeCompleto}: turno apertosi il ${formattaDataOra(apertoDalle)} chiuso con uscita alle ${formattaDataOra(orarioUscita)}${motivazione ? ` — ${motivazione}` : ""}.`;
 
     const { data: subscriptions } = await supabaseAdmin
       .from("push_subscriptions")

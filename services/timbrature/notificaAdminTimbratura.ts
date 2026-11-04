@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { RUOLI_DIPENDENTE } from "@/constants/ruoliDipendente";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { inviaPush } from "@/lib/webPush";
+import { resolveMotivazioneTimbratura } from "@/services/timbrature/resolveMotivazioneTimbratura";
 
 const MITTENTE = "Cantivo <notifiche@cantivo.it>";
 
@@ -10,6 +11,8 @@ type Params = {
   dipendenteId: string;
   tipo: "ENTRATA" | "USCITA";
   orario: Date;
+  cantiereId?: string | null;
+  attivitaTipo?: string | null;
 };
 
 /**
@@ -17,7 +20,13 @@ type Params = {
  * dipendente con `avvisa_admin_timbratura` attivo timbra entrata/uscita.
  * Best-effort: nessun errore qui deve interrompere il flusso di timbratura.
  */
-export async function notificaAdminTimbratura({ dipendenteId, tipo, orario }: Params): Promise<void> {
+export async function notificaAdminTimbratura({
+  dipendenteId,
+  tipo,
+  orario,
+  cantiereId = null,
+  attivitaTipo = null,
+}: Params): Promise<void> {
   const { data: dipendente } = await supabaseAdmin
     .from("dipendenti")
     .select("nome, cognome, azienda_id, avvisa_admin_timbratura")
@@ -43,6 +52,11 @@ export async function notificaAdminTimbratura({ dipendenteId, tipo, orario }: Pa
     hour: "2-digit",
     minute: "2-digit",
   }).format(orario);
+  const motivazione = await resolveMotivazioneTimbratura(supabaseAdmin, {
+    cantiereId,
+    attivitaTipo,
+  });
+  const suffissoMotivazione = motivazione ? ` — ${motivazione}` : "";
 
   // ── Push (canale immediato) ──
   const { data: subscriptions } = await supabaseAdmin
@@ -58,7 +72,7 @@ export async function notificaAdminTimbratura({ dipendenteId, tipo, orario }: Pa
       { endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth },
       {
         titolo: `${etichettaTipo} — ${nomeCompleto}`,
-        corpo: `${nomeCompleto} ha timbrato ${etichettaTipo.toLowerCase()} alle ${oraLocale}`,
+        corpo: `${nomeCompleto} ha timbrato ${etichettaTipo.toLowerCase()} alle ${oraLocale}${suffissoMotivazione}`,
       }
     );
     if (!esito.ok && esito.scaduta) {
@@ -75,8 +89,8 @@ export async function notificaAdminTimbratura({ dipendenteId, tipo, orario }: Pa
       await resend.emails.send({
         from: MITTENTE,
         to: destinatari,
-        subject: `${etichettaTipo} — ${nomeCompleto}`,
-        text: `${nomeCompleto} ha timbrato ${etichettaTipo.toLowerCase()} alle ${oraLocale}.`,
+        subject: `${etichettaTipo} — ${nomeCompleto}${motivazione ? ` (${motivazione})` : ""}`,
+        text: `${nomeCompleto} ha timbrato ${etichettaTipo.toLowerCase()} alle ${oraLocale}${suffissoMotivazione}.`,
       });
     } catch (errore) {
       console.error("Errore mail avviso admin timbratura", errore);
