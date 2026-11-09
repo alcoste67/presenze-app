@@ -89,6 +89,8 @@ export const API_ROUTES = {
     "/api/note-chilometri/rimborsi-mensili",
   TIMBRATURE_CORREZIONE_ADMIN_GIORNATA_LAVORATA:
     "/api/timbrature/correzione-admin/giornata-lavorata",
+  REPORT_SPESE_RIMBORSI_PDF:
+    "/api/report/spese-rimborsi-pdf",
 } as const;
 
 export const API_HEADERS = {

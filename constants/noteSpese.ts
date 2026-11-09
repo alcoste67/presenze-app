@@ -101,6 +101,7 @@ export const NOTE_SPESE_TESTI = {
   BACKOFFICE_ELENCO: {
     FILTRO_MESE: "Mese",
     ESPORTA_CSV: "Esporta CSV",
+    PDF_PER_DIPENDENTE: "PDF per dipendente",
   },
   ERRORI: {
     GENERICO: "Errore imprevisto",
