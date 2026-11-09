@@ -70,5 +70,7 @@ export const ANOMALIE_TIMBRATURE_TESTI = {
     ORARIO_PRECEDENTE_ENTRATA: "L'orario di uscita deve essere dopo l'entrata del turno",
     TURNO_GIA_CHIUSO: "Il turno risulta già chiuso: nessuna correzione necessaria",
     NOTA_OBBLIGATORIA_RIFIUTO: "Spiega brevemente perché l'orario non è corretto",
+    SEQUENZA_CAMBIATA:
+      "Nel frattempo hai registrato altre timbrature e questa correzione non è più valida: contatta l'amministratore per sistemarla manualmente",
   },
 } as const;
