@@ -8,8 +8,10 @@ import { estraiBearerToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isRecord } from "@/lib/typeGuards";
 import { inviaPush } from "@/lib/webPush";
+import { calcolaStatoDaUltimaTimbratura } from "@/services/timbrature/calcolaStato";
 import { calcolaTurnoApertoENetteOre } from "@/services/timbrature/calcolaOreNetteTurnoAperto";
 import { notificaAdminTurnoCorretto } from "@/services/timbrature/notificaAdminTurnoCorretto";
+import { validaSequenzaTimbratura } from "@/services/timbrature/validaSequenzaTimbratura";
 
 export const runtime = "nodejs";
 
@@ -197,6 +199,24 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const ultimaTimbratura = eventi?.[0];
+
+  // La proposta porta un orario fissato quando l'admin l'ha creata, ma tra
+  // allora e la conferma il dipendente può aver registrato altre
+  // timbrature reali (es. una pausa) che rendono quell'orario non più
+  // valido: va verificato di nuovo adesso, non solo che il turno risulti
+  // ancora "aperto" in senso lato (calcolaTurnoApertoENetteOre torna non
+  // nullo anche se l'ultimo stato è IN_PAUSA, da cui USCITA non è una
+  // transizione valida).
+  if (ultimaTimbratura) {
+    const statoAttuale = calcolaStatoDaUltimaTimbratura(ultimaTimbratura.tipo);
+    const validazione = validaSequenzaTimbratura(statoAttuale, TIMBRATURE.USCITA);
+    const orarioAncoraValido =
+      new Date(proposta.orario_proposto).getTime() > new Date(ultimaTimbratura.created_at).getTime();
+
+    if (!validazione.valida || !orarioAncoraValido) {
+      return jsonErrore(ANOMALIE_TIMBRATURE_TESTI.ERRORI.SEQUENZA_CAMBIATA, HTTP_STATUS.CONFLICT);
+    }
+  }
 
   const { data: nuovaTimbratura, error: erroreInsert } = await supabaseAdmin
     .from("timbrature")
