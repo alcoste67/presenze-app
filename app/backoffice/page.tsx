@@ -440,7 +440,7 @@ export default function BackofficePage() {
                   href={APP_ROUTES.BACKOFFICE_NOTE_SPESE}
                   icon={<Receipt className="h-5 w-5" />}
                   nome={NOTE_SPESE_TESTI.TITOLO}
-                  descrizione="Approva o rifiuta le spese inviate dai dipendenti"
+                  descrizione="Approva le spese ed esporta CSV/PDF per il consulente"
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.NOTE_SPESE) && (
