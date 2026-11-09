@@ -210,7 +210,7 @@ function getTimeZoneOffsetMs(
   return localeAsUtc - data.getTime();
 }
 
-function getUtcDaDataLocale(
+export function getUtcDaDataLocale(
   data: string
 ): Date {
   const parts = parseDataInput(data);
@@ -235,7 +235,7 @@ function getUtcDaDataLocale(
   return new Date(utcTime);
 }
 
-function getGiornoIsoLocale(
+export function getGiornoIsoLocale(
   data: Date
 ): string {
   const parts =
@@ -361,14 +361,14 @@ function formattaDipendente(
   return `${dipendente.cognome} ${dipendente.nome}`.trim();
 }
 
-function formattaMinuti(minutiTotali: number) {
+export function formattaMinuti(minutiTotali: number) {
   const ore = Math.floor(minutiTotali / 60);
   const minuti = minutiTotali % 60;
 
   return `${ore}h ${minuti}m`;
 }
 
-function calcolaMinutiPaghe({
+export function calcolaMinutiPaghe({
   tipoConteggioOre,
   totaleMinutiReali,
   presenzaValida,
