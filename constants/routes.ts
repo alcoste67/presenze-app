@@ -42,6 +42,8 @@ export const APP_ROUTES = {
     "/backoffice/note-spese",
   BACKOFFICE_RIMBORSI_KM:
     "/backoffice/rimborsi-km",
+  BACKOFFICE_REPORT_PAGHE:
+    "/backoffice/report-paghe",
   CONFERMA_CORREZIONE:
     "/conferma-correzione",
   SUPERADMIN: "/superadmin",

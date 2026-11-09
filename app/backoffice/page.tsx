@@ -21,6 +21,7 @@ import {
   Receipt,
   ShieldAlert,
   Sun,
+  Table2,
   Tags,
   Users,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import { MODULI_BACKOFFICE } from "@/constants/moduliBackoffice";
 import { NOTE_SPESE_TESTI } from "@/constants/noteSpese";
 import { RAPPORTI_INTERVENTO_TESTI } from "@/constants/rapportiIntervento";
 import { REPORT_LIBRO_PRESENZE_TESTI } from "@/constants/reportLibroPresenze";
+import { REPORT_PAGHE_TESTI } from "@/constants/reportPaghe";
 import { REPORT_PRESENZE_TESTI } from "@/constants/reportPresenze";
 import { RIMBORSI_KM_TESTI } from "@/constants/rimborsiKm";
 import { SAL_FREEZE_TESTI } from "@/constants/salFreeze";
@@ -415,6 +417,14 @@ export default function BackofficePage() {
                   icon={<BookOpen className="h-5 w-5" />}
                   nome={REPORT_LIBRO_PRESENZE_TESTI.TITOLO}
                   descrizione={REPORT_LIBRO_PRESENZE_TESTI.CARD_DESCRIZIONE}
+                />
+              )}
+              {moduli.has(MODULI_BACKOFFICE.REPORT_PAGHE) && (
+                <ModuloCard
+                  href="/backoffice/report-paghe"
+                  icon={<Table2 className="h-5 w-5" />}
+                  nome={REPORT_PAGHE_TESTI.TITOLO}
+                  descrizione={REPORT_PAGHE_TESTI.CARD_DESCRIZIONE}
                 />
               )}
               {moduli.has(MODULI_BACKOFFICE.COSTI_MACCHINARI) && (

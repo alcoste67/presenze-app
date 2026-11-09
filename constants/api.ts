@@ -11,6 +11,8 @@ export const API_ROUTES = {
     "/api/moduli-fotovoltaici/estrai-da-scheda",
   REPORT_LIBRO_PRESENZE:
     "/api/report/libro-presenze",
+  REPORT_PAGHE:
+    "/api/report/paghe",
   REPORT_PRESENZE:
     "/api/report/presenze",
   REPORT_PRESENZE_PDF:
