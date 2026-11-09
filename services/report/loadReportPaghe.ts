@@ -227,15 +227,15 @@ function getValoreCella({
   minutiLavorati: number;
   assenza: AssenzaGiorno | undefined;
 }): string {
-  if (assenza?.giornataIntera) {
-    return LABEL_TIPO_ASSENZA_PAGHE[assenza.tipo];
-  }
-
   const lavoratoLabel = minutiLavorati > 0 ? formattaMinuti(minutiLavorati) : null;
 
   if (assenza) {
+    // Un'assenza approvata a giornata intera e ore lavorate reali quello
+    // stesso giorno non si escludono a vicenda: può succedere (es. ferie
+    // approvate ma il dipendente è comunque venuto). Non va nascosto un
+    // dato a favore dell'altro in un report che finisce al consulente.
     const assenzaLabel =
-      assenza.ore !== null
+      !assenza.giornataIntera && assenza.ore !== null
         ? `${LABEL_TIPO_ASSENZA_PAGHE[assenza.tipo]} ${formattaOre(assenza.ore)}`
         : LABEL_TIPO_ASSENZA_PAGHE[assenza.tipo];
 

@@ -273,11 +273,45 @@ export default function BackofficeReportPaghePage() {
           )}
 
           {report && report.righe.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border-collapse">
+            <div className="overflow-x-auto print:overflow-visible">
+              {/*
+                La tabella arriva ad avere oltre 30 colonne (un giorno del
+                mese + dipendente + totale): a schermo scorre orizzontalmente
+                (overflow-x-auto), ma in stampa un contenitore con scroll
+                viene semplicemente tagliato al bordo della pagina da
+                Chromium — le colonne oltre la larghezza stampabile
+                sparivano senza nessun avviso. Le regole sotto forzano il
+                layout orizzontale, formato landscape e colonne strette
+                (col.day) così tutte le colonne restano nella stampa, a
+                costo di andare a capo nelle celle più larghe.
+              */}
+              <style>{`
+                @media print {
+                  @page { size: landscape; margin: 10mm; }
+                  .report-paghe-tabella { table-layout: fixed; }
+                  .report-paghe-tabella th,
+                  .report-paghe-tabella td {
+                    font-size: 7px !important;
+                    white-space: normal !important;
+                    overflow-wrap: break-word;
+                    padding: 2px 3px !important;
+                  }
+                  .report-paghe-col-dipendente { width: 13%; }
+                  .report-paghe-col-giorno { width: ${(74 / report.numeroGiorni).toFixed(2)}%; }
+                  .report-paghe-col-totale { width: 13%; }
+                }
+              `}</style>
+              <table className="report-paghe-tabella min-w-full text-sm border-collapse">
+                <colgroup>
+                  <col className="report-paghe-col-dipendente" />
+                  {Array.from({ length: report.numeroGiorni }, (_, indice) => (
+                    <col key={indice} className="report-paghe-col-giorno" />
+                  ))}
+                  <col className="report-paghe-col-totale" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="sticky left-0 z-10 bg-bg-card whitespace-nowrap px-3 py-2.5 text-left text-xs font-medium text-text-muted">
+                    <th className="sticky left-0 z-10 bg-bg-card whitespace-nowrap px-3 py-2.5 text-left text-xs font-medium text-text-muted print:static print:bg-transparent">
                       {REPORT_PAGHE_TESTI.COLONNA_DIPENDENTE}
                     </th>
                     {Array.from({ length: report.numeroGiorni }, (_, indice) => indice + 1).map((giorno) => (
@@ -299,7 +333,7 @@ export default function BackofficeReportPaghePage() {
                       key={riga.dipendenteId}
                       className="border-b border-border last:border-b-0 hover:bg-bg-base transition-colors duration-150"
                     >
-                      <td className="sticky left-0 z-10 bg-bg-card whitespace-nowrap px-3 py-2.5 font-medium text-text-primary">
+                      <td className="sticky left-0 z-10 bg-bg-card whitespace-nowrap px-3 py-2.5 font-medium text-text-primary print:static print:bg-transparent">
                         {riga.dipendente}
                       </td>
                       {riga.giorni.map((giorno) => (
