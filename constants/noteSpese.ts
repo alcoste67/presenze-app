@@ -36,6 +36,24 @@ export const NOTE_SPESE_LIMITI = {
   KM_MASSIMI_GIORNO: 1_000,
 } as const;
 
+export const NOTE_SPESE_CSV = {
+  SEPARATORE: ";",
+  BOM: "﻿",
+  INJECTION_PREFIX: "'",
+  NOME_FILE_PREFIX: "note-spese",
+  MIME_TYPE: "text/csv;charset=utf-8",
+} as const;
+
+export const NOTE_SPESE_COLONNE = [
+  "Data",
+  "Dipendente",
+  "Tipo",
+  "Importo (€)",
+  "Descrizione",
+  "Stato",
+  "Motivo rifiuto",
+] as const;
+
 export const NOTE_SPESE_CRON = {
   // Orario (minuti dalla mezzanotte, ora Italia) del riepilogo
   // giornaliero cumulativo per admin: a fine giornata lavorativa, dopo
@@ -79,6 +97,10 @@ export const NOTE_SPESE_TESTI = {
   ELENCO: {
     TITOLO: "Le mie spese recenti",
     NESSUNA: "Nessuna spesa registrata",
+  },
+  BACKOFFICE_ELENCO: {
+    FILTRO_MESE: "Mese",
+    ESPORTA_CSV: "Esporta CSV",
   },
   ERRORI: {
     GENERICO: "Errore imprevisto",

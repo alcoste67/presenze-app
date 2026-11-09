@@ -157,8 +157,17 @@ async function loadAssenzeMese({
   return (data || []) as AssenzaRow[];
 }
 
-/** Minuti lavorati per ogni (auth_user_id, giornoIso), dalle timbrature reali del mese. */
-function creaMappaMinutiLavorati(timbrature: TimbraturaRow[]): Map<string, number> {
+type LavoroGiorno = {
+  minuti: number;
+  // Timbrature presenti quel giorno ma con sequenza rotta (turno rimasto
+  // aperto, pausa mai chiusa...): calcolaOreLavorate conta 0 minuti per la
+  // parte anomala, indistinguibile altrimenti da un giorno senza nessuna
+  // timbratura — qui invece va segnalato, non lasciato vuoto.
+  anomalia: boolean;
+};
+
+/** Minuti lavorati (e anomalie di sequenza) per ogni (auth_user_id, giornoIso), dalle timbrature reali del mese. */
+function creaMappaMinutiLavorati(timbrature: TimbraturaRow[]): Map<string, LavoroGiorno> {
   const gruppi = new Map<string, { created_at: string; tipo: TipoTimbratura }[]>();
 
   for (const timbratura of timbrature) {
@@ -172,13 +181,16 @@ function creaMappaMinutiLavorati(timbrature: TimbraturaRow[]): Map<string, numbe
     gruppi.set(key, gruppo);
   }
 
-  const minutiPerGiorno = new Map<string, number>();
+  const lavoroPerGiorno = new Map<string, LavoroGiorno>();
   for (const [key, eventi] of gruppi) {
     const oreReali = calcolaOreLavorate(eventi);
-    minutiPerGiorno.set(key, oreReali.totaleMinuti);
+    lavoroPerGiorno.set(key, {
+      minuti: oreReali.totaleMinuti,
+      anomalia: oreReali.giornataAperta || oreReali.sequenzaIncompleta,
+    });
   }
 
-  return minutiPerGiorno;
+  return lavoroPerGiorno;
 }
 
 /** Assenza (se approvata) per ogni (dipendente_id, giornoIso), espandendo gli intervalli sui giorni del mese. */
@@ -222,12 +234,19 @@ function formattaOre(ore: number): string {
 
 function getValoreCella({
   minutiLavorati,
+  anomalia,
   assenza,
 }: {
   minutiLavorati: number;
+  anomalia: boolean;
   assenza: AssenzaGiorno | undefined;
 }): string {
-  const lavoratoLabel = minutiLavorati > 0 ? formattaMinuti(minutiLavorati) : null;
+  const lavoratoLabel =
+    minutiLavorati > 0
+      ? formattaMinuti(minutiLavorati)
+      : anomalia
+        ? REPORT_PAGHE_TESTI.VALORE_ANOMALIA
+        : null;
 
   if (assenza) {
     // Un'assenza approvata a giornata intera e ore lavorate reali quello
@@ -288,9 +307,10 @@ export async function loadReportPaghe(filtri: ReportPagheFiltri, aziendaId: stri
       const giorno = indice + 1;
       const giornoIso = getGiornoIso(filtri.anno, filtri.mese, giorno);
 
-      const minutiReali = dipendente.auth_user_id
-        ? minutiLavoratiPerGiorno.get(`${dipendente.auth_user_id}:${giornoIso}`) || 0
-        : 0;
+      const lavoroGiorno = dipendente.auth_user_id
+        ? minutiLavoratiPerGiorno.get(`${dipendente.auth_user_id}:${giornoIso}`)
+        : undefined;
+      const minutiReali = lavoroGiorno?.minuti || 0;
       const minutiPaghe = calcolaMinutiPaghe({
         tipoConteggioOre: dipendente.tipo_conteggio_ore,
         totaleMinutiReali: minutiReali,
@@ -302,7 +322,11 @@ export async function loadReportPaghe(filtri: ReportPagheFiltri, aziendaId: stri
 
       return {
         giorno,
-        valore: getValoreCella({ minutiLavorati: minutiPaghe, assenza }),
+        valore: getValoreCella({
+          minutiLavorati: minutiPaghe,
+          anomalia: Boolean(lavoroGiorno?.anomalia),
+          assenza,
+        }),
       };
     });
 

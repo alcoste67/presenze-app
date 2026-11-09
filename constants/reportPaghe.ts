@@ -44,6 +44,10 @@ export const REPORT_PAGHE_TESTI = {
   NESSUNA_RICERCA: "Scegli il mese e genera il report",
   LIMITE_RAGGIUNTO: "Elenco limitato ai primi dipendenti disponibili",
   DIPENDENTI: "dipendenti",
+  // Timbrature presenti quel giorno ma con sequenza rotta (turno rimasto
+  // aperto, pausa mai chiusa...): va distinto da una cella vuota, che
+  // significa "nessuna timbratura quel giorno".
+  VALORE_ANOMALIA: "Anomalia timbrature",
   ERRORI: {
     SESSIONE_MANCANTE: "Sessione utente non valida",
     RISPOSTA_NON_VALIDA: "Risposta report paghe non valida",
