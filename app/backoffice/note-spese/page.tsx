@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Download, Home, ImageIcon } from "lucide-react";
+import { Download, FileText, Home, ImageIcon } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants/routes";
 import {
@@ -13,10 +13,12 @@ import {
   NOTE_SPESE_TESTI,
   STATO_NOTA_SPESA,
 } from "@/constants/noteSpese";
+import { REPORT_NOTE_SPESE_RIMBORSI_PDF, REPORT_NOTE_SPESE_RIMBORSI_TESTI } from "@/constants/reportNoteSpeseRimborsi";
 import { getMessaggioErrore } from "@/lib/errors";
 import { fetchNoteSpese } from "@/services/noteSpese/fetchNoteSpese";
 import { approvaNotaSpesaClient } from "@/services/noteSpese/approvaNotaSpesaClient";
 import { creaUrlFotoScontrino } from "@/services/noteSpese/creaUrlFotoScontrino";
+import { fetchReportSpeseRimborsiPdf } from "@/services/report/fetchReportSpeseRimborsiPdf";
 import type { NotaSpesa, StatoNotaSpesa } from "@/types/noteSpese";
 
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -54,6 +56,12 @@ function formattaData(data: string): string {
 
 function formattaImporto(importo: number): string {
   return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(importo);
+}
+
+function getPeriodoMeseAnno(mese: string): { anno: number; mese: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(mese);
+  if (!match) return null;
+  return { anno: Number(match[1]), mese: Number(match[2]) };
 }
 
 function getPeriodoDaMese(mese: string): { dataInizio: string; dataFine: string } | null {
@@ -120,6 +128,17 @@ function scaricaCsv(note: NotaSpesa[], mese: string) {
   URL.revokeObjectURL(url);
 }
 
+function scaricaBlobPdf(blob: Blob, nomeFile: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeFile;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function BackofficeNoteSpesePage() {
   const toast = useToast();
 
@@ -133,6 +152,7 @@ export default function BackofficeNoteSpesePage() {
   const [approvazioneRichiesta, setApprovazioneRichiesta] = useState<NotaSpesa | null>(null);
   const [rifiutoApertoId, setRifiutoApertoId] = useState<string | null>(null);
   const [motivoRifiuto, setMotivoRifiuto] = useState("");
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   const carica = async (stato: StatoNotaSpesa | "TUTTE", mese: string) => {
     setLoading(true);
@@ -158,6 +178,23 @@ export default function BackofficeNoteSpesePage() {
   const handleCsv = () => {
     if (note.length === 0) return;
     scaricaCsv(note, filtroMese);
+  };
+
+  const handlePdf = async () => {
+    const parsed = getPeriodoMeseAnno(filtroMese);
+    if (!parsed) {
+      toast.error(REPORT_NOTE_SPESE_RIMBORSI_TESTI.ERRORI.MESE_OBBLIGATORIO);
+      return;
+    }
+    try {
+      setLoadingPdf(true);
+      const pdf = await fetchReportSpeseRimborsiPdf(parsed);
+      scaricaBlobPdf(pdf.blob, pdf.nomeFile);
+    } catch (error: unknown) {
+      toast.error(getMessaggioErrore(error, REPORT_NOTE_SPESE_RIMBORSI_PDF.ERRORI.PDF_GENERICO));
+    } finally {
+      setLoadingPdf(false);
+    }
   };
 
   const handleVediFoto = async (path: string) => {
@@ -258,6 +295,15 @@ export default function BackofficeNoteSpesePage() {
               disabled={note.length === 0}
             >
               {TESTI_ELENCO.ESPORTA_CSV}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              icon={<FileText className="h-4 w-4" />}
+              onClick={() => void handlePdf()}
+              loading={loadingPdf}
+            >
+              {TESTI_ELENCO.PDF_PER_DIPENDENTE}
             </Button>
           </div>
         </div>
